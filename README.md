@@ -9,11 +9,11 @@ receive permit requirements from official municipal sources.
 - U.S. city autocomplete through Mapbox Search Box
 - Browser location lookup with city-level reverse geocoding
 - Manual city entry when Mapbox is unavailable
-- A responsive permit search form and placeholder result state
+- Live permit-source search through Tavily
 - Cloudflare Workers configuration using the new `cf` CLI
 - An optional, non-breaking Hyperdrive path for PlanetScale
 
-Permit-source discovery, database persistence, and real search results are
+City-site mapping, permit-link classification, and database persistence are
 future work.
 
 ## Technology
@@ -24,6 +24,7 @@ future work.
 - Cloudflare Workers and the Cloudflare Vite plugin
 - Cloudflare's beta `cf` CLI with `cloudflare.config.ts`
 - Mapbox Search Box API
+- Tavily Search API
 - PlanetScale MySQL through Hyperdrive when database work begins
 
 Node.js 22.18 or newer is required by `cloudflare.config.ts`.
@@ -77,6 +78,10 @@ copy. Do not add proprietary reference-site fonts.
 - `src/components/CityCombobox.tsx` — accessible city autocomplete
 - `src/lib/location/mapbox.ts` — Mapbox provider adapter
 - `src/lib/location/types.ts` — normalized city and coordinate types
+- `src/lib/search/permit-search.ts` — validated TanStack server function
+- `src/lib/search/tavily.server.ts` — server-only Tavily search provider
+- `src/lib/search/official-links.server.ts` — official-page link extraction
+- `src/lib/search/types.ts` — normalized permit search contracts
 - `src/styles.css` — global design tokens and shared input styles
 - `src/routes/__root.tsx` — document shell and page metadata
 - `cloudflare.config.ts` — Worker, observability, and optional Hyperdrive binding
@@ -160,3 +165,29 @@ For Cloudflare's managed PlanetScale integration:
 6. Run `npm run cf-typegen` after enabling or changing the binding.
 
 Credentials must never be committed or sent to browser code.
+
+## Tavily
+
+Permit searches run through a TanStack server function, so the browser never
+calls Tavily directly. The Worker reads `TAVILY_API_KEY` from a secret binding.
+Queries use basic depth and return at most ten verified results. Results must
+contain the exact city and selected state; matching city-government pages rank
+ahead of other sources.
+
+After discovery, the Worker fetches a bounded set of likely government permit
+pages and streams their anchors through Cloudflare `HTMLRewriter`. Matching
+official PDFs rank above general pages, with application and form PDFs ranked
+above handouts and guides. Extraction failures preserve the original Tavily
+results.
+
+When city discovery is persisted, use this staged flow:
+
+1. Search for the city's official government domain.
+2. Verify the domain before trusting or saving it.
+3. Extract and rank permit links from verified official pages.
+4. Classify and save approved URLs in PlanetScale.
+5. Serve fresh saved links from the database; queue an explicit refresh when
+   city information is stale.
+
+Store the key as `TAVILY_API_KEY` in local `.env` and as a Cloudflare Worker
+secret in production; never use a `VITE_*` name for it.

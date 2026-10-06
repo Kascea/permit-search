@@ -51,7 +51,9 @@ export async function searchUsCities(
     limit: '6',
   })
 
-  const response = await fetch(`${SEARCH_BOX_URL}/suggest?${params}`, { signal })
+  const response = await fetch(`${SEARCH_BOX_URL}/suggest?${params}`, {
+    signal,
+  })
   const data = await parseResponse<SuggestResponse>(response)
 
   return (data.suggestions ?? []).flatMap((suggestion) => {
@@ -106,7 +108,9 @@ export async function reverseGeocodeCity(
     types: 'place',
     limit: '1',
   })
-  const response = await fetch(`${SEARCH_BOX_URL}/reverse?${params}`, { signal })
+  const response = await fetch(`${SEARCH_BOX_URL}/reverse?${params}`, {
+    signal,
+  })
   const data = await parseResponse<FeatureCollection>(response)
   const feature = data.features?.[0]
 
@@ -182,5 +186,5 @@ async function parseResponse<T>(response: Response): Promise<T> {
     throw new Error('The city search service is temporarily unavailable.')
   }
 
-  return response.json() as Promise<T>
+  return response.json<T>()
 }
