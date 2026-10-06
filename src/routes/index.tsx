@@ -1,9 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { CityCombobox } from '#/components/CityCombobox'
 import { reverseGeocodeCity } from '#/lib/location/mapbox'
 import type { City } from '#/lib/location/types'
+import { isPdfUrl } from '#/lib/pdf/url'
 import { searchPermits } from '#/lib/search/permit-search'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
@@ -317,12 +318,7 @@ function Home() {
               <ol className="mt-6 divide-y divide-[#302d2d]/20 border-t border-[#302d2d]">
                 {searchResponse.results.map((searchResult) => (
                   <li key={searchResult.url}>
-                    <a
-                      className="group block py-5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1968b4]"
-                      href={searchResult.url}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
+                    <div className="group py-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
@@ -334,9 +330,7 @@ function Home() {
                                 Government
                               </span>
                             )}
-                            {searchResult.url
-                              .toLowerCase()
-                              .endsWith('.pdf') && (
+                            {isPdfUrl(searchResult.url) && (
                               <span className="rounded-full bg-[#953012]/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-[#953012] uppercase">
                                 PDF
                               </span>
@@ -367,7 +361,26 @@ function Home() {
                           />
                         </svg>
                       </div>
-                    </a>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        {isPdfUrl(searchResult.url) && (
+                          <Link
+                            className="inline-flex items-center rounded-full bg-[#1968b4] px-4 py-2 text-sm font-medium text-[#fdfff1] transition hover:bg-[#145390] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1968b4]"
+                            search={{ url: searchResult.url }}
+                            to="/editor"
+                          >
+                            Open in editor
+                          </Link>
+                        )}
+                        <a
+                          className="inline-flex items-center rounded-full border border-[#302d2d] px-4 py-2 text-sm font-medium text-[#302d2d] transition hover:bg-[#302d2d] hover:text-[#fdfff1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#302d2d]"
+                          href={searchResult.url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open source
+                        </a>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ol>

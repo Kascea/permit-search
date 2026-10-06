@@ -147,14 +147,14 @@ export async function searchPermitsWithTavily(
       }),
     )
 
+    const rankedResults = deduplicateResults([...extractedLinks, ...results])
+      .sort(
+        (first, second) => rankResult(second, input) - rankResult(first, input),
+      )
+      .slice(0, MAX_RESULTS)
     return {
       query: typeof payload.query === 'string' ? payload.query : query,
-      results: deduplicateResults([...extractedLinks, ...results])
-        .sort(
-          (first, second) =>
-            rankResult(second, input) - rankResult(first, input),
-        )
-        .slice(0, MAX_RESULTS),
+      results: rankedResults,
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
