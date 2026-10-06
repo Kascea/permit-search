@@ -1,0 +1,73 @@
+
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    Arial, Helvetica, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #fdfff1;
+  color: #302d2d;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: #1968b4;
+  color: #fdfff1;
+}
+
+@layer components {
+  .field-input {
+    width: 100%;
+    border-radius: 2px;
+    border: 1px solid #302d2d;
+    background: transparent;
+    padding-top: 0.875rem;
+    padding-right: 1rem;
+    padding-bottom: 0.875rem;
+    color: #302d2d;
+    outline: none;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .field-input::placeholder {
+    color: rgb(48 45 45 / 55%);
+  }
+
+  .field-input:focus {
+    border-color: #1968b4;
+    box-shadow: 0 0 0 3px rgb(25 104 180 / 12%);
+  }
+}
+
