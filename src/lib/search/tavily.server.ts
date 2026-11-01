@@ -5,6 +5,7 @@ import type {
   PermitSearchResponse,
   PermitSearchResult,
 } from '#/lib/search/types'
+import { reviewPermitLinks } from '#/lib/search/link-review.server'
 import { extractRelevantOfficialLinks } from '#/lib/search/official-links.server'
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
@@ -147,11 +148,18 @@ export async function searchPermitsWithTavily(
       }),
     )
 
-    const rankedResults = deduplicateResults([...extractedLinks, ...results])
+    const reviewedLinks = await reviewPermitLinks(
+      input,
+      deduplicateResults([...extractedLinks, ...results]),
+    )
+    const rankedResults = reviewedLinks
       .sort(
-        (first, second) => rankResult(second, input) - rankResult(first, input),
+        (first, second) =>
+          second.confidentMatches - first.confidentMatches ||
+          rankResult(second.link, input) - rankResult(first.link, input),
       )
       .slice(0, MAX_RESULTS)
+      .map(({ link }) => link)
     return {
       query: typeof payload.query === 'string' ? payload.query : query,
       results: rankedResults,

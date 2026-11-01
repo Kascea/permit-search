@@ -137,8 +137,10 @@ function normalizeLink(
 ): PermitSearchResult | null {
   try {
     const url = new URL(link.href, pageUrl)
+    url.hash = ''
     if (
       (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+      isSamePage(url, pageUrl) ||
       !matchesPermit(link, url, input.permit)
     ) {
       return null
@@ -158,6 +160,17 @@ function normalizeLink(
   } catch {
     return null
   }
+}
+
+// Links back to the page itself are page chrome: in-page anchors such as
+// "Skip to main content", or query variants such as a language picker's ?oc_lang=en-US.
+function isSamePage(url: URL, pageUrl: URL) {
+  return (
+    url.hostname.replace(/^www\./, '') ===
+      pageUrl.hostname.replace(/^www\./, '') &&
+    url.pathname.replace(/\/$/, '').toLowerCase() ===
+      pageUrl.pathname.replace(/\/$/, '').toLowerCase()
+  )
 }
 
 function matchesPermit(link: ExtractedLink, url: URL, permit: string) {

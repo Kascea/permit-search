@@ -13,6 +13,7 @@ export default defineConfig({
     },
     env: {
       TAVILY_API_KEY: bindings.secret(),
+      TYPESAFE_API_KEY: bindings.secret(),
       ...(process.env.CLOUDFLARE_HYPERDRIVE_ID
         ? {
             DATABASE: bindings.hyperdrive({
