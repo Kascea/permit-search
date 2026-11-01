@@ -139,22 +139,30 @@ function Home() {
             aria-label="Permit Search home"
             className="inline-flex items-center gap-3 text-left text-[#302d2d]"
           >
-            <span className="grid size-10 place-items-center rounded-[2px] bg-[#302d2d] text-[#fdfff1]">
-              <svg
-                aria-hidden="true"
-                className="size-5"
+            <svg aria-hidden="true" className="size-10" viewBox="0 0 64 64">
+              <rect width="64" height="64" rx="14" fill="#302d2d" />
+              <circle
+                cx="29.5"
+                cy="29.5"
+                r="16"
                 fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 21h18M4.5 9h15M6 9v9m4-9v9m4-9v9m4-9v9M3.75 6 12 2.25 20.25 6v3H3.75V6Z"
-                />
-              </svg>
-            </span>
+                stroke="#fdfff1"
+                strokeWidth="3.5"
+              />
+              <path d="M21 26L29.5 20.5L38 26Z" fill="#fdfff1" />
+              <path
+                d="M23.5 28.5v7M29.5 28.5v7M35.5 28.5v7M21 37.5h17"
+                stroke="#fdfff1"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <path
+                d="M41.6 41.6L50.3 50.3"
+                stroke="#fdfff1"
+                strokeWidth="5.5"
+                strokeLinecap="round"
+              />
+            </svg>
             <span>
               <span className="block text-[0.65rem] font-medium tracking-[0.2em] uppercase">
                 City services

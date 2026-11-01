@@ -5,6 +5,7 @@ export default defineConfig({
     name: 'permit-search',
     compatibilityDate: '2026-10-05',
     entrypoint: '@tanstack/react-start/server-entry',
+    domains: ['permitsearch.app', 'www.permitsearch.app'],
     observability: {
       enabled: true,
       traces: {
