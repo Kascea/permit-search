@@ -31,7 +31,7 @@ export interface ContactCandidates {
 const PHONE_PATTERN = /(?:\+?1[\s.-]?)?\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
 const STREET_PATTERN =
-  /\b\d{2,6}\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9.' -]{2,40}?\s(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Way|Parkway|Pkwy|Court|Ct|Place|Pl|Highway|Hwy|Circle|Cir|Trail|Trl|Square|Sq)\b\.?(?:,?\s*(?:Suite|Ste|Room|Rm|Floor|Fl)\.?\s*[\w-]+)?(?:,?\s*[A-Za-z .'-]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?)?/g
+  /\b\d{2,6}\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9.' -]{2,40}?\s(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Way|Parkway|Pkwy|Court|Ct|Place|Pl|Highway|Hwy|Circle|Cir|Trail|Trl|Square|Sq)\b\.?(?:\s+(?:North|South|East|West|Northeast|Northwest|Southeast|Southwest|NE|NW|SE|SW|N|S|E|W)\b\.?)?(?:,?\s*(?:Suite|Ste|Room|Rm|Floor|Fl)\.?\s*[\w-]+)?(?:,?\s*[A-Za-z .'-]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?)?/g
 const ZIP_LINE_PATTERN = /^[A-Za-z .'-]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?$/
 const DAY_PATTERN =
   /\b(?:Mon(?:day)?|Tue(?:s|sday)?|Wed(?:nesday)?|Thu(?:rs|rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?|weekdays)\b/i
@@ -48,7 +48,9 @@ export function extractContactCandidates(
   pageUrl: string,
 ): ContactCandidates {
   const page = new URL(pageUrl)
-  const lines = htmlToLines(html)
+  // Menus are full of office names that would crowd out the page's own, so
+  // they're left out of the text but still searched for links.
+  const lines = htmlToLines(html.replace(/<nav\b[\s\S]*?<\/nav>/gi, ' '))
   const links = extractLinks(html, page)
 
   const phones = new Map<string, Candidate>()
@@ -83,12 +85,28 @@ export function extractContactCandidates(
         context,
       })
     }
-    if (
-      line.length <= 120 &&
+    // Days and times are often on separate lines: "Monday — Friday" then
+    // "7:45 a.m. — 4:30 p.m.".
+    const nextLine = lines.at(index + 1) ?? ''
+    const hoursLine =
       DAY_PATTERN.test(line) &&
-      TIME_PATTERN.test(line)
+      !TIME_PATTERN.test(line) &&
+      TIME_PATTERN.test(nextLine) &&
+      !DAY_PATTERN.test(nextLine)
+        ? `${line}, ${nextLine}`
+        : line
+    if (
+      hoursLine.length <= 120 &&
+      DAY_PATTERN.test(hoursLine) &&
+      TIME_PATTERN.test(hoursLine)
     ) {
-      addCandidate(hours, line.toLowerCase(), { value: line, context })
+      addCandidate(hours, hoursLine.toLowerCase(), {
+        value: hoursLine,
+        context:
+          hoursLine === line
+            ? context
+            : contextFor([...lines.slice(0, index), hoursLine], index),
+      })
     }
     if (
       line.length <= 80 &&
@@ -154,7 +172,10 @@ export function hasContactCandidates(candidates: ContactCandidates) {
 function htmlToLines(html: string) {
   const text = html
     .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<(script|style|noscript|svg|template)\b[\s\S]*?<\/\1>/gi, ' ')
+    .replace(
+      /<(script|style|noscript|svg|template|select)\b[\s\S]*?<\/\1>/gi,
+      ' ',
+    )
     .replace(
       /<(?:br|\/p|\/div|\/li|\/h[1-6]|\/tr|\/td|\/th|\/dd|\/dt|\/address|\/section|\/header|\/footer|\/article)\b[^>]*>/gi,
       '\n',

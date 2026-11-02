@@ -59,7 +59,7 @@ export function ResultsPage({
           // when the contact card arrives.
           <section
             aria-live="polite"
-            className="border-b border-ink bg-paper/50 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-x-10"
+            className="bg-paper/50 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-x-10"
           >
             <div className="flex items-end justify-between gap-4 lg:col-start-1 lg:row-start-1">
               <div>
