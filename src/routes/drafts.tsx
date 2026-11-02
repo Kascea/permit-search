@@ -1,6 +1,8 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
+import { toast } from 'sonner'
 
+import { errorMessage } from '#/lib/errors'
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
@@ -39,6 +41,9 @@ function Drafts() {
   // reloading the page. A fresh load (such as after deleting a draft) wins.
   const [projects, setProjects] = useState(loaded.projects)
   const [lastLoaded, setLastLoaded] = useState(loaded)
+  // The header owns the search modal; empty states open it too.
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const startSearch = () => setIsSearchOpen(true)
   if (loaded !== lastLoaded) {
     setLastLoaded(loaded)
     setProjects(loaded.projects)
@@ -48,7 +53,10 @@ function Drafts() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader />
+      <SiteHeader
+        isSearchOpen={isSearchOpen}
+        onSearchOpenChange={setIsSearchOpen}
+      />
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
         {drafts && projects && (
@@ -56,6 +64,7 @@ function Drafts() {
             projects={projects}
             drafts={drafts}
             onChange={setProjects}
+            onStartSearch={startSearch}
           />
         )}
 
@@ -72,6 +81,7 @@ function Drafts() {
               drafts={drafts}
               projects={projects ?? []}
               onProjectsChange={setProjects}
+              onStartSearch={startSearch}
             />
           ) : (
             <div className="mt-6 border-t border-ink pt-5">
@@ -94,10 +104,12 @@ function DraftList({
   drafts,
   projects,
   onProjectsChange,
+  onStartSearch,
 }: {
   drafts: Array<DraftSummary>
   projects: Array<Project>
   onProjectsChange: (projects: Array<Project>) => void
+  onStartSearch: () => void
 }) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string>()
@@ -106,17 +118,16 @@ function DraftList({
   const projectUrls = new Set(
     projects.flatMap((project) => project.items.map((item) => item.sourceUrl)),
   )
-  const [error, setError] = useState('')
 
   async function remove(draft: DraftSummary) {
     if (!window.confirm(`Delete your draft of “${draft.title}”?`)) return
-    setError('')
     setDeletingId(draft.publicId)
     try {
       await deleteAccountDraft({ data: { publicId: draft.publicId } })
       await router.invalidate()
+      toast.success('Draft deleted.')
     } catch {
-      setError('That draft could not be deleted. Try again.')
+      toast.error('That draft couldn’t be deleted. Try again.')
     } finally {
       setDeletingId(undefined)
     }
@@ -124,17 +135,14 @@ function DraftList({
 
   return (
     <>
-      {error && (
-        <p className="mt-6 text-sm text-redline" role="alert">
-          {error}
-        </p>
-      )}
-
       {drafts.length === 0 ? (
-        <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
-          No drafts yet. When you fill out a PDF form from your search results,
-          your entries save here automatically.
-        </p>
+        <div className="mt-6 border-t border-ink pt-5">
+          <p className="text-base leading-6 text-ink/70">
+            No drafts yet. When you fill out a PDF form from your search
+            results, your entries save here automatically.
+          </p>
+          <StartSearchButton onClick={onStartSearch} />
+        </div>
       ) : (
         <ul className="mt-6 divide-y divide-ink/20 border-t border-b border-ink">
           {drafts.map((draft) => (
@@ -198,10 +206,12 @@ function ProjectsSection({
   projects,
   drafts,
   onChange,
+  onStartSearch,
 }: {
   projects: Array<Project>
   drafts: Array<DraftSummary>
   onChange: (projects: Array<Project>) => void
+  onStartSearch: () => void
 }) {
   const nameId = useId()
   const [isAdding, setIsAdding] = useState(false)
@@ -220,7 +230,7 @@ function ProjectsSection({
       onChange(await change())
       return true
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : failure)
+      setError(errorMessage(changeError, failure))
       return false
     } finally {
       setBusy(false)
@@ -344,10 +354,13 @@ function ProjectsSection({
       )}
 
       {projects.length === 0 ? (
-        <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
-          No projects yet. Group the forms for one job together: choose “Add to
-          project” on a PDF in your search results, or start one here.
-        </p>
+        <div className="mt-6 border-t border-ink pt-5">
+          <p className="text-base leading-6 text-ink/70">
+            No projects yet. Group the forms for one job together: choose “Add
+            to project” on a PDF in your search results, or start one here.
+          </p>
+          <StartSearchButton onClick={onStartSearch} />
+        </div>
       ) : (
         <ul className="mt-6 divide-y divide-ink/20 border-t border-b border-ink">
           {projects.map((project) => (
@@ -428,7 +441,14 @@ function ProjectsSection({
               {project.items.length === 0 ? (
                 <p className="mt-2 text-sm text-ink/60">
                   No forms yet. Choose “Add to project” on a PDF in your search
-                  results.
+                  results.{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-blueprint underline-offset-2 hover:underline"
+                    onClick={onStartSearch}
+                  >
+                    <span className="text-sm">Search for forms</span>
+                  </button>
                 </p>
               ) : (
                 <ul className="mt-3 space-y-1">
@@ -488,6 +508,32 @@ function ProjectsSection({
         </ul>
       )}
     </section>
+  )
+}
+
+// Opens the search modal from an empty list.
+function StartSearchButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="mt-4 inline-flex items-center gap-2 rounded-full border border-blueprint px-4 py-2 font-medium text-blueprint transition hover:bg-blueprint hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+      onClick={onClick}
+    >
+      <svg
+        aria-hidden="true"
+        className="size-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path strokeLinecap="round" d="m20 20-3.5-3.5" />
+      </svg>
+      {/* Sized on the span: the global button font rule overrides it on the
+          button itself. */}
+      <span className="text-sm">Start searching</span>
+    </button>
   )
 }
 

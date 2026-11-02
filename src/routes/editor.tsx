@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import {
   PDFBool,
   PDFCheckBox,
@@ -14,6 +15,7 @@ import {
 } from 'pdf-lib'
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from 'pdfjs-dist'
 
+import { UserError, errorMessage } from '#/lib/errors'
 import { AccountMenu } from '#/components/AccountMenu'
 import { DraftSidebar } from '#/components/DraftSidebar'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
@@ -152,7 +154,7 @@ function PdfEditor({ url }: { url: string }) {
           const payload = (await response.json().catch(() => null)) as {
             error?: string
           } | null
-          throw new Error(payload?.error || 'The PDF could not be opened.')
+          throw new UserError(payload?.error || 'The PDF could not be opened.')
         }
 
         const bytes = await response.arrayBuffer()
@@ -199,11 +201,7 @@ function PdfEditor({ url }: { url: string }) {
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : 'The PDF could not be opened.',
-          )
+          setError(errorMessage(loadError, 'The PDF could not be opened.'))
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -380,7 +378,6 @@ function PdfEditor({ url }: { url: string }) {
     if (!sourceBytes) return
     if (!window.confirm('Discard your saved entries for this form?')) return
 
-    setError('')
     try {
       deleteLocalDraft(url)
       if (signedIn) await deleteAccountDraft({ data: { sourceUrl: url } })
@@ -395,10 +392,8 @@ function PdfEditor({ url }: { url: string }) {
       setDraftNotice('')
       setDraftStatus('idle')
     } catch (discardError) {
-      setError(
-        discardError instanceof Error
-          ? discardError.message
-          : 'The draft could not be discarded.',
+      toast.error(
+        errorMessage(discardError, 'The draft couldn’t be discarded.'),
       )
     }
   }
@@ -406,7 +401,6 @@ function PdfEditor({ url }: { url: string }) {
   async function downloadPdf() {
     if (!sourceBytes) return
 
-    setError('')
     setIsSaving(true)
     try {
       const bytes = await createEditedPdf(
@@ -423,10 +417,8 @@ function PdfEditor({ url }: { url: string }) {
       link.click()
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
     } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'The edited PDF could not be created.',
+      toast.error(
+        errorMessage(saveError, 'The edited PDF couldn’t be created.'),
       )
     } finally {
       setIsSaving(false)
@@ -652,15 +644,7 @@ function PdfEditor({ url }: { url: string }) {
           }`}
           ref={scrollRef}
         >
-          {error && pdf && (
-            <p
-              className="sticky top-0 z-40 border-b border-redline bg-[#fff0eb] px-4 py-3 text-center text-sm text-redline"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-          {draftNotice && !error && (
+          {draftNotice && (
             <p
               className="sticky top-0 z-40 flex items-center justify-center gap-3 border-b border-blueprint bg-paper px-4 py-3 text-center text-sm text-blueprint"
               role="status"

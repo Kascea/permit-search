@@ -1,5 +1,6 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { SignInButton } from '#/components/SignInDialog'
 import { SiteFooter } from '#/components/SiteFooter'
@@ -53,7 +54,6 @@ function History() {
 function HistoryList({ history }: { history: Array<HistoryItem> }) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string>()
-  const [error, setError] = useState('')
 
   async function remove(publicId?: string) {
     if (
@@ -62,13 +62,13 @@ function HistoryList({ history }: { history: Array<HistoryItem> }) {
     ) {
       return
     }
-    setError('')
     setBusyId(publicId ?? 'all')
     try {
       await removeSearchHistory({ data: { publicId } })
       await router.invalidate()
+      toast.success(publicId ? 'Search removed.' : 'History cleared.')
     } catch {
-      setError('Your history couldn’t be updated. Try again.')
+      toast.error('Your history couldn’t be updated. Try again.')
     } finally {
       setBusyId(undefined)
     }
@@ -97,12 +97,6 @@ function HistoryList({ history }: { history: Array<HistoryItem> }) {
           Clear history
         </button>
       </div>
-
-      {error && (
-        <p className="mt-3 text-sm text-redline" role="alert">
-          {error}
-        </p>
-      )}
 
       <ul className="mt-3 divide-y divide-ink/20 border-t border-b border-ink">
         {history.map((item) => (

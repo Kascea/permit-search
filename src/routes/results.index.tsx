@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
+import { errorMessage } from '#/lib/errors'
 import { ResultsPage } from '#/components/ResultsPage'
 import { startSearch } from '#/lib/search/permit-search'
 
@@ -71,9 +72,10 @@ function PendingResults() {
       .catch((searchError: unknown) => {
         if (!cancelled) {
           setError(
-            searchError instanceof Error
-              ? searchError.message
-              : 'Permit search is temporarily unavailable.',
+            errorMessage(
+              searchError,
+              'Permit search is temporarily unavailable.',
+            ),
           )
         }
       })

@@ -11,6 +11,7 @@ import {
 } from '#/lib/drafts/drafts.server'
 import { draftError } from '#/lib/drafts/types'
 import type { Draft } from '#/lib/drafts/types'
+import { UserError } from '#/lib/errors'
 
 // Drafts belong to the signed-in user; the browser never sends a user ID.
 function currentUserId() {
@@ -19,7 +20,7 @@ function currentUserId() {
 
 function validateDraft(input: Draft): Draft {
   const error = draftError(input)
-  if (error) throw new Error(error)
+  if (error) throw new UserError(error)
   return input
 }
 
@@ -29,7 +30,7 @@ function validateSourceUrl(input: { sourceUrl: string }) {
     input.sourceUrl.length > 2_048 ||
     !/^https?:\/\//.test(input.sourceUrl)
   ) {
-    throw new Error('That PDF link is not valid.')
+    throw new UserError('That PDF link is not valid.')
   }
   return { sourceUrl: input.sourceUrl }
 }
@@ -46,7 +47,7 @@ export const saveAccountDraft = createServerFn({ method: 'POST' })
 export const importAccountDrafts = createServerFn({ method: 'POST' })
   .validator((input: { drafts: Array<Draft> }) => {
     if (!Array.isArray(input.drafts) || input.drafts.length > 100) {
-      throw new Error('Too many drafts to import at once.')
+      throw new UserError('Too many drafts to import at once.')
     }
     return { drafts: input.drafts.map(validateDraft) }
   })
@@ -64,7 +65,7 @@ export const deleteAccountDraft = createServerFn({ method: 'POST' })
   .validator((input: { publicId: string } | { sourceUrl: string }) => {
     if ('publicId' in input) {
       if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
-        throw new Error('That draft is not valid.')
+        throw new UserError('That draft is not valid.')
       }
       return { publicId: input.publicId }
     }

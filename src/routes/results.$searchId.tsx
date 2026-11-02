@@ -13,10 +13,11 @@ const NEW_FOR_MINUTES = 10
 // A saved search, as linked from /results/<id>. Always shows what was saved,
 // however old; "Search again" runs it fresh, at most once a day.
 export const Route = createFileRoute('/results/$searchId')({
+  // A malformed link is "not found"; a failed lookup shows the error page.
   loader: async ({ params }) => {
-    const saved = await getSavedSearch({
-      data: { publicId: params.searchId },
-    }).catch(() => null)
+    const saved = /^[A-Za-z0-9]{8,16}$/.test(params.searchId)
+      ? await getSavedSearch({ data: { publicId: params.searchId } })
+      : null
     if (!saved) {
       throw notFound()
     }

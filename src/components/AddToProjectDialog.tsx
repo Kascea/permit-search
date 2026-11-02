@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 
+import { errorMessage } from '#/lib/errors'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { SignInButton } from '#/components/SignInDialog'
 import { useAuth } from '#/lib/auth/use-auth'
@@ -134,9 +135,10 @@ function ProjectPicker({
       setName('')
     } catch (createError) {
       setError(
-        createError instanceof Error
-          ? createError.message
-          : 'The project couldn’t be created. Try again.',
+        errorMessage(
+          createError,
+          'The project couldn’t be created. Try again.',
+        ),
       )
     } finally {
       setIsCreating(false)

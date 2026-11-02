@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { errorMessage } from '#/lib/errors'
 import { CityCombobox } from '#/components/CityCombobox'
 import { formatCity } from '#/lib/location/format'
 import { reverseGeocodeCity } from '#/lib/location/mapbox'
@@ -72,9 +73,7 @@ export function PermitSearchForm({
           selectCity(city)
         } catch (error) {
           setLocationError(
-            error instanceof Error
-              ? error.message
-              : 'We could not determine your city.',
+            errorMessage(error, 'We could not determine your city.'),
           )
         } finally {
           setIsLocating(false)

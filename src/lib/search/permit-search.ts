@@ -7,6 +7,7 @@ import {
   runSavedSearch,
 } from '#/lib/saved-searches/saved-searches.server'
 import type { PermitSearchInput } from '#/lib/search/types'
+import { UserError } from '#/lib/errors'
 
 interface StartSearchInput extends PermitSearchInput {
   // Run the search even when a recent matching one is saved.
@@ -27,7 +28,7 @@ export const startSearch = createServerFn({ method: 'POST' })
 export const getSavedSearch = createServerFn({ method: 'GET' })
   .validator((input: { publicId: string }) => {
     if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
-      throw new Error('That search link is not valid.')
+      throw new UserError('That search link is not valid.')
     }
     return input
   })
@@ -39,17 +40,17 @@ function validatePermitSearch(input: PermitSearchInput): PermitSearchInput {
   const permit = input.permit.trim()
 
   if (!cityName || !region || !permit) {
-    throw new Error(
+    throw new UserError(
       'Select a city and state, then describe the permit you need.',
     )
   }
 
   if (cityName.length > 100 || region.length > 100) {
-    throw new Error('Enter a valid city.')
+    throw new UserError('Enter a valid city.')
   }
 
   if (permit.length > 240) {
-    throw new Error('Keep your permit description under 240 characters.')
+    throw new UserError('Keep your permit description under 240 characters.')
   }
 
   return {

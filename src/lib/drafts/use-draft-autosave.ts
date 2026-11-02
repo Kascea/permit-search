@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getAccountDraft, saveAccountDraft } from '#/lib/drafts/drafts'
 import { getLocalDraft, saveLocalDraft } from '#/lib/drafts/local'
 import type { Draft, DraftContent } from '#/lib/drafts/types'
+import { UserError } from '#/lib/errors'
 
 // idle: nothing saved yet. local: saved in this browser only.
 export type DraftStatus = 'idle' | 'saving' | 'saved' | 'local' | 'error'
@@ -17,8 +18,14 @@ export async function loadNewestDraft(
   signedIn: boolean,
 ): Promise<{ draft: Draft; status: DraftStatus } | null> {
   const local = getLocalDraft(sourceUrl)
+  // Fails rather than opening a blank form, whose first autosave would
+  // replace the account's draft.
   const account = signedIn
-    ? await getAccountDraft({ data: { sourceUrl } }).catch(() => null)
+    ? await getAccountDraft({ data: { sourceUrl } }).catch(() => {
+        throw new UserError(
+          'Your saved draft couldn’t be loaded. Reload to try again.',
+        )
+      })
     : null
 
   if (account && (!local || account.updatedAt >= local.updatedAt)) {

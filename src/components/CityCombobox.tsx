@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { errorMessage } from '#/lib/errors'
 import {
   createMapboxSessionToken,
   retrieveCity,
@@ -61,11 +62,7 @@ export function CityCombobox({
       } catch (searchError) {
         if (controller.signal.aborted) return
         setSuggestions([])
-        setError(
-          searchError instanceof Error
-            ? searchError.message
-            : 'City search is unavailable.',
-        )
+        setError(errorMessage(searchError, 'City search is unavailable.'))
       } finally {
         if (!controller.signal.aborted) setIsSearching(false)
       }
@@ -91,11 +88,7 @@ export function CityCombobox({
       setActiveIndex(-1)
       sessionToken.current = null
     } catch (selectionError) {
-      setError(
-        selectionError instanceof Error
-          ? selectionError.message
-          : 'That city could not be selected.',
-      )
+      setError(errorMessage(selectionError, 'That city could not be selected.'))
     } finally {
       setIsSearching(false)
     }

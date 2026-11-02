@@ -6,6 +6,7 @@ import {
 import type { PermitType } from '#/lib/search/permit-types'
 import { createTypeSafeClient } from '#/lib/search/typesafe.server'
 import type { PermitSearchInput } from '#/lib/search/types'
+import { UserError } from '#/lib/errors'
 
 export async function identifyPermitTypes(
   input: PermitSearchInput,
@@ -35,6 +36,6 @@ export async function identifyPermitTypes(
         error: error instanceof Error ? error.message : String(error),
       }),
     )
-    throw new Error('Permit search is temporarily unavailable.')
+    throw new UserError('Permit search is temporarily unavailable.')
   }
 }

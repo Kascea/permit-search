@@ -6,6 +6,7 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { withDatabase } from '#/lib/db/client.server'
 import type { Database } from '#/lib/db/client.server'
 import * as schema from '#/lib/db/schema'
+import { UserError } from '#/lib/errors'
 
 // Built per request: each request has its own Hyperdrive client, so the auth
 // instance can't be shared across requests.
@@ -69,7 +70,7 @@ export async function withUserDatabase<T, TSignedOut = never>(
 ): Promise<T | TSignedOut> {
   const notSignedIn = () => {
     if (signedOut) return signedOut()
-    throw new Error('Sign in to continue.')
+    throw new UserError('Sign in to continue.')
   }
   if (!hasSessionCookie(headers)) return notSignedIn()
 
@@ -91,7 +92,7 @@ export async function getSessionUser(
 export async function requireUserId(headers: Headers): Promise<string> {
   const user = await getSessionUser(headers)
   if (!user) {
-    throw new Error('Sign in to save drafts to your account.')
+    throw new UserError('Sign in to save drafts to your account.')
   }
   return user.id
 }

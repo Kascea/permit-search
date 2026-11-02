@@ -1,8 +1,9 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import { SignInButton } from '#/components/SignInDialog'
-import { authClient } from '#/lib/auth/auth-client'
+import { authClient, settled } from '#/lib/auth/auth-client'
 import { useAuth } from '#/lib/auth/use-auth'
 
 // The header's sign-in pill, or the signed-in user's initial with a menu.
@@ -35,13 +36,14 @@ export function AccountMenu() {
 
   async function signOut() {
     setIsBusy(true)
-    try {
-      await authClient.signOut()
-      setIsOpen(false)
-      await router.invalidate()
-    } finally {
-      setIsBusy(false)
+    const { error } = await settled(authClient.signOut())
+    setIsBusy(false)
+    if (error) {
+      toast.error('You couldn’t be signed out. Try again.')
+      return
     }
+    setIsOpen(false)
+    await router.invalidate()
   }
 
   return (

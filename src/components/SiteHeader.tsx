@@ -14,12 +14,22 @@ interface SiteHeaderProps {
   // The page's current search, if any. Its city shows in the search pill, and
   // the search modal starts from it.
   search?: { city: { name: string; region: string }; permit: string }
+  // Pass both to open the search modal from the page as well, such as from an
+  // empty state's "Start searching" button.
+  isSearchOpen?: boolean
+  onSearchOpenChange?: (isOpen: boolean) => void
 }
 
 // On every page but home: the search pill on the right opens the search modal.
-export function SiteHeader({ search }: SiteHeaderProps) {
+export function SiteHeader({
+  search,
+  isSearchOpen: controlledIsOpen,
+  onSearchOpenChange,
+}: SiteHeaderProps) {
   const navigate = useNavigate()
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [ownIsOpen, setOwnIsOpen] = useState(false)
+  const isSearchOpen = controlledIsOpen ?? ownIsOpen
+  const setIsSearchOpen = onSearchOpenChange ?? setOwnIsOpen
 
   function runSearch(city: City, permit: string) {
     setIsSearchOpen(false)

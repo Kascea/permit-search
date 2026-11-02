@@ -14,6 +14,7 @@ import { reviewPermitLinks } from '#/lib/search/link-review.server'
 import type { PermitType } from '#/lib/search/permit-types'
 import { identifyPermitTypes } from '#/lib/search/permit-types.server'
 import { extractRelevantOfficialLinks } from '#/lib/search/official-links.server'
+import { UserError } from '#/lib/errors'
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 const SEARCH_TIMEOUT_MS = 15_000
@@ -63,7 +64,7 @@ export async function searchPermitsWithTavily(
     })
 
     if (!response.ok) {
-      throw new Error(
+      throw new UserError(
         response.status === 429
           ? 'Permit search is busy. Please wait a moment and try again.'
           : 'Permit search is temporarily unavailable.',
@@ -179,7 +180,7 @@ export async function searchPermitsWithTavily(
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Permit search timed out. Please try again.')
+      throw new UserError('Permit search timed out. Please try again.')
     }
 
     throw error

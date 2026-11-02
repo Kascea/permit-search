@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 
 import { getAuthState } from '#/lib/auth/session'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
+import { Toaster } from '#/components/Toaster'
 
 import appCss from '../styles.css?url'
 
@@ -79,6 +80,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         {children}
         <LocalDraftSync />
+        <Toaster />
         <Scripts />
       </body>
     </html>

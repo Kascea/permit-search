@@ -14,9 +14,21 @@ export interface AuthState {
   user: AccountUser | null
 }
 
+// Every page loads this, so a failed session check shows the visitor as
+// signed out rather than failing the whole site.
 export const getAuthState = createServerFn({ method: 'GET' }).handler(
   async (): Promise<AuthState> => {
-    const user = await getSessionUser(new Headers(getRequestHeaders()))
+    const user = await getSessionUser(new Headers(getRequestHeaders())).catch(
+      (error: unknown) => {
+        console.error(
+          JSON.stringify({
+            message: 'session check failed',
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        )
+        return null
+      },
+    )
     return {
       user: user && {
         id: user.id,

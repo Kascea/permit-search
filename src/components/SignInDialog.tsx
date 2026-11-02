@@ -250,13 +250,11 @@ function authErrorMessage(
       return 'Use a password with at least 8 characters.'
     case 'PASSWORD_TOO_LONG':
       return 'Use a password with at most 128 characters.'
+    // Other messages come from better-auth and aren't written for people.
     default:
-      return (
-        error.message ||
-        (isSignUp
-          ? 'Your account couldn’t be created. Try again.'
-          : 'You couldn’t be signed in. Try again.')
-      )
+      return isSignUp
+        ? 'Your account couldn’t be created. Try again.'
+        : 'You couldn’t be signed in. Try again.'
   }
 }
 

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { errorMessage, isUserError } from '#/lib/errors'
 import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
 
 export const Route = createFileRoute('/api/pdf')({
@@ -26,13 +27,17 @@ export const Route = createFileRoute('/api/pdf')({
             },
           })
         } catch (error) {
+          if (!isUserError(error)) {
+            console.error(
+              JSON.stringify({
+                message: 'PDF proxy failed',
+                sourceUrl,
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            )
+          }
           return Response.json(
-            {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : 'The PDF could not be opened.',
-            },
+            { error: errorMessage(error, 'The PDF could not be opened.') },
             { status: 502 },
           )
         }

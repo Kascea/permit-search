@@ -1,12 +1,13 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { SignInButton } from '#/components/SignInDialog'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
-import { authClient, signInWithGoogle } from '#/lib/auth/auth-client'
+import { authClient, settled, signInWithGoogle } from '#/lib/auth/auth-client'
 import type { AccountUser } from '#/lib/auth/session'
 import { useAuth } from '#/lib/auth/use-auth'
 
@@ -32,9 +33,16 @@ function Settings() {
 
   useEffect(() => {
     if (!user) return
-    void authClient.listAccounts().then(({ data }) => {
+    void settled(authClient.listAccounts()).then(({ data }) => {
+      // Without the list, a password account would look like a Google one.
+      if (!data) {
+        toast.error(
+          'Your sign-in details couldn’t be loaded. Reload to try again.',
+        )
+        return
+      }
       setMethod(
-        data?.some((account) => account.providerId === 'credential')
+        data.some((account) => account.providerId === 'credential')
           ? 'password'
           : 'google',
       )
@@ -139,7 +147,7 @@ function ProfileSection({ user }: { user: AccountUser }) {
     }
     setIsSaving(true)
     setMessage(undefined)
-    const { error } = await authClient.updateUser({ name: trimmed })
+    const { error } = await settled(authClient.updateUser({ name: trimmed }))
     setIsSaving(false)
     if (error) {
       setMessage({ tone: 'error', text: 'Your name couldn’t be saved.' })
@@ -248,11 +256,13 @@ function PasswordSection() {
 
     setIsSaving(true)
     setMessage(undefined)
-    const { error } = await authClient.changePassword({
-      currentPassword: current,
-      newPassword: next,
-      revokeOtherSessions: true,
-    })
+    const { error } = await settled(
+      authClient.changePassword({
+        currentPassword: current,
+        newPassword: next,
+        revokeOtherSessions: true,
+      }),
+    )
     setIsSaving(false)
     if (error) {
       setMessage({
@@ -348,7 +358,7 @@ function DevicesSection() {
   const [error, setError] = useState('')
 
   async function load() {
-    const { data } = await authClient.listSessions()
+    const { data } = await settled(authClient.listSessions())
     setSessions(data ?? [])
   }
 
@@ -359,7 +369,9 @@ function DevicesSection() {
   async function signOutOthers() {
     setIsBusy(true)
     setError('')
-    const { error: revokeError } = await authClient.revokeOtherSessions()
+    const { error: revokeError } = await settled(
+      authClient.revokeOtherSessions(),
+    )
     if (revokeError) setError('Other devices couldn’t be signed out.')
     await load()
     setIsBusy(false)
@@ -485,8 +497,8 @@ function DeleteAccountForm({
 
     setError('')
     setIsDeleting(true)
-    const { error: deleteError } = await authClient.deleteUser(
-      method === 'password' ? { password } : {},
+    const { error: deleteError } = await settled(
+      authClient.deleteUser(method === 'password' ? { password } : {}),
     )
     setIsDeleting(false)
 

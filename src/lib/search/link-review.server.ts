@@ -8,6 +8,7 @@ import type { LinkReview } from '#/lib/search/link-review'
 import type { PermitType } from '#/lib/search/permit-types'
 import { createTypeSafeClient } from '#/lib/search/typesafe.server'
 import type { PermitSearchInput, PermitSearchResult } from '#/lib/search/types'
+import { UserError } from '#/lib/errors'
 
 // Keeps each request well under Jev's 64k-token per-request context limit.
 const LINKS_PER_REQUEST = 25
@@ -82,6 +83,6 @@ export async function reviewPermitLinks(
         error: error instanceof Error ? error.message : String(error),
       }),
     )
-    throw new Error('Permit search is temporarily unavailable.')
+    throw new UserError('Permit search is temporarily unavailable.')
   }
 }

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 
+import { errorMessage } from '#/lib/errors'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { reportResults } from '#/lib/reports/reports'
 
@@ -46,9 +47,7 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
     } catch (reportError) {
       setStatus('editing')
       setError(
-        reportError instanceof Error
-          ? reportError.message
-          : 'Your report couldn’t be sent. Try again.',
+        errorMessage(reportError, 'Your report couldn’t be sent. Try again.'),
       )
     }
   }

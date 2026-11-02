@@ -1,3 +1,5 @@
+import { UserError } from '#/lib/errors'
+
 const PDF_FETCH_TIMEOUT_MS = 10_000
 const MAX_PDF_BYTES = 12 * 1024 * 1024
 
@@ -17,27 +19,27 @@ export async function fetchPdfBytes(value: string) {
     })
 
     if (!response.ok) {
-      throw new Error(`The PDF server returned ${response.status}.`)
+      throw new UserError('The PDF couldn’t be downloaded from its website.')
     }
 
     const contentLength = Number(response.headers.get('content-length'))
     if (Number.isFinite(contentLength) && contentLength > MAX_PDF_BYTES) {
-      throw new Error('This PDF is too large to edit here.')
+      throw new UserError('This PDF is too large to edit here.')
     }
 
     const bytes = await response.arrayBuffer()
     if (bytes.byteLength > MAX_PDF_BYTES) {
-      throw new Error('This PDF is too large to edit here.')
+      throw new UserError('This PDF is too large to edit here.')
     }
 
     if (!hasPdfSignature(bytes)) {
-      throw new Error('The selected link did not return a PDF.')
+      throw new UserError('The selected link did not return a PDF.')
     }
 
     return bytes
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('The PDF took too long to download.')
+      throw new UserError('The PDF took too long to download.')
     }
     throw error
   } finally {
@@ -48,7 +50,7 @@ export async function fetchPdfBytes(value: string) {
 function validatePublicPdfUrl(value: string) {
   const url = new URL(value)
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    throw new Error('Only web-hosted PDFs can be opened.')
+    throw new UserError('Only web-hosted PDFs can be opened.')
   }
 
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '')
@@ -62,7 +64,7 @@ function validatePublicPdfUrl(value: string) {
     hostname.startsWith('fe80:') ||
     isPrivateIpv4(hostname)
   ) {
-    throw new Error('That PDF address is not allowed.')
+    throw new UserError('That PDF address is not allowed.')
   }
 
   return url

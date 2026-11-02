@@ -1,4 +1,5 @@
 import type { City, CitySuggestion } from './types'
+import { UserError } from '#/lib/errors'
 
 const SEARCH_BOX_URL = 'https://api.mapbox.com/search/searchbox/v1'
 
@@ -115,7 +116,7 @@ export async function reverseGeocodeCity(
   const feature = data.features?.[0]
 
   if (!feature) {
-    throw new Error('We could not find a U.S. city for your location.')
+    throw new UserError('We could not find a U.S. city for your location.')
   }
 
   return reverseFeatureToCity(feature)
@@ -129,7 +130,7 @@ function reverseFeatureToCity(feature: MapboxFeature): City {
   const id = isPlace ? properties.mapbox_id : place?.id
 
   if (!name) {
-    throw new Error('We could not determine the city for your location.')
+    throw new UserError('We could not determine the city for your location.')
   }
 
   return {
@@ -150,7 +151,7 @@ function featureToCity(
   const name = properties?.name ?? fallbackName
 
   if (!name) {
-    throw new Error('Mapbox did not return a city for that selection.')
+    throw new UserError('That city couldn’t be selected. Try another.')
   }
 
   return {
@@ -171,19 +172,16 @@ function featureToCity(
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // A bad token is ours to fix, so it's logged rather than shown.
     if (response.status === 401) {
-      throw new Error(
-        'Mapbox rejected this token as invalid. Copy the complete public token from your Mapbox account.',
+      console.error('Mapbox rejected the access token as invalid.')
+    } else if (response.status === 403) {
+      console.error(
+        'The Mapbox token is not allowed for this domain or is missing a scope.',
       )
     }
 
-    if (response.status === 403) {
-      throw new Error(
-        'This Mapbox token is not allowed for this domain or is missing a required scope.',
-      )
-    }
-
-    throw new Error('The city search service is temporarily unavailable.')
+    throw new UserError('The city search service is temporarily unavailable.')
   }
 
   return response.json<T>()

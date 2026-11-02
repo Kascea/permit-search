@@ -3,6 +3,7 @@ import { getRequestHeaders } from '@tanstack/react-start/server'
 
 import { getSessionUser, requireUserId } from '#/lib/auth/auth.server'
 import { listHistory, removeHistory } from '#/lib/history/history.server'
+import { UserError } from '#/lib/errors'
 
 // Null when signed out, so the history page can ask the visitor to sign in.
 export const getSearchHistory = createServerFn({ method: 'GET' }).handler(
@@ -19,7 +20,7 @@ export const removeSearchHistory = createServerFn({ method: 'POST' })
       input.publicId !== undefined &&
       !/^[A-Za-z0-9]{8,16}$/.test(input.publicId)
     ) {
-      throw new Error('That search is not valid.')
+      throw new UserError('That search is not valid.')
     }
     return { publicId: input.publicId }
   })
