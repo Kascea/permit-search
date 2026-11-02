@@ -298,6 +298,61 @@ export const pdfDrafts = pgTable(
   ],
 )
 
+// A signed-in user's group of PDF forms for one job, such as "Backyard fence".
+export const projects = pgTable(
+  'projects',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    // Random ID used by the browser, so row IDs aren't exposed.
+    publicId: varchar('public_id', { length: 16 }).notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    name: varchar('name', { length: 120 }).notNull(),
+    // The city of the search the project was started from, if any.
+    cityName: varchar('city_name', { length: 100 }),
+    cityRegion: varchar('city_region', { length: 100 }),
+
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('projects_public_id').on(table.publicId),
+    index('projects_user_updated_at').on(table.userId, table.updatedAt),
+  ],
+)
+
+// A PDF in a project. Drafts are matched to it by source URL, so a PDF can sit
+// in a project before anyone starts filling it out.
+export const projectItems = pgTable(
+  'project_items',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    projectId: bigint('project_id', { mode: 'number' })
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+
+    // The PDF's original URL, as passed to /editor?url=.
+    sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
+    // The search result's title, such as "Fence Permit Application".
+    title: varchar('title', { length: 300 }).notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('project_items_project_source').on(
+      table.projectId,
+      table.sourceUrl,
+    ),
+  ],
+)
+
 export type City = typeof cities.$inferSelect
 export type CityOffice = typeof cityOffices.$inferSelect
 export type Search = typeof searches.$inferSelect

@@ -491,7 +491,13 @@ function PdfEditor({ url }: { url: string }) {
                     }
                     title={`Add ${label.toLowerCase()} (${key.toUpperCase()})`}
                   >
-                    <Icon path={icon} />
+                    <span
+                      className={
+                        activeTool === tool ? undefined : 'text-blueprint'
+                      }
+                    >
+                      <Icon path={icon} />
+                    </span>
                     <span className="hidden sm:inline">{label}</span>
                   </SegmentButton>
                 ))}
@@ -550,7 +556,7 @@ function PdfEditor({ url }: { url: string }) {
 
               {fieldCounts.total > 0 && (
                 <button
-                  className="group flex h-8 shrink-0 items-center gap-2 rounded-[2px] border border-ink/30 px-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:opacity-60 disabled:hover:border-ink/30"
+                  className="group flex h-8 shrink-0 items-center gap-2 rounded-[2px] border border-ink/30 px-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:cursor-default disabled:hover:border-ink/30"
                   disabled={fieldCounts.filled === fieldCounts.total}
                   onClick={focusNextEmptyField}
                   title="Go to the next empty field (N)"
@@ -561,7 +567,11 @@ function PdfEditor({ url }: { url: string }) {
                     className="h-1.5 w-12 overflow-hidden rounded-full bg-ink/15"
                   >
                     <span
-                      className="block h-full bg-blueprint transition-[width]"
+                      className={`block h-full transition-[width] ${
+                        fieldCounts.filled === fieldCounts.total
+                          ? 'bg-success'
+                          : 'bg-blueprint'
+                      }`}
                       style={{
                         width: `${(fieldCounts.filled / fieldCounts.total) * 100}%`,
                       }}
@@ -678,7 +688,7 @@ function PdfEditor({ url }: { url: string }) {
               <h2 className="text-2xl font-medium tracking-[-0.02em] text-ink">
                 Choose a form to fill out
               </h2>
-              <p className="mt-3 text-sm leading-6 text-ink/70">
+              <p className="mt-3 text-base leading-6 text-ink/70">
                 Open one of your drafts, or search for your city’s permit forms
                 and choose “Fill out this form” on a PDF result.
               </p>
@@ -704,7 +714,7 @@ function PdfEditor({ url }: { url: string }) {
                 <h2 className="text-2xl font-medium">
                   This PDF could not be opened
                 </h2>
-                <p className="mt-3 text-sm leading-6 text-ink/70">{error}</p>
+                <p className="mt-3 text-base leading-6 text-ink/70">{error}</p>
                 <a
                   className="mt-6 inline-flex rounded-full bg-blueprint px-5 py-3 text-sm font-medium text-paper"
                   href="/"

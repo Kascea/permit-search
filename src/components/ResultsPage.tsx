@@ -41,10 +41,10 @@ export function ResultsPage({
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
         {!search ? (
           <div className="mx-auto max-w-[780px] border-b border-ink bg-paper/85 py-10 text-center">
-            <h1 className="text-2xl font-medium tracking-[-0.02em] text-ink">
+            <h1 className="text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
               Start a permit search
             </h1>
-            <p className="mt-2 text-sm text-ink/70">
+            <p className="mt-2 text-base text-ink/70">
               Choose a city and describe the work you’re planning.
             </p>
             <Link
@@ -66,7 +66,7 @@ export function ResultsPage({
                 <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
                   Permit sources
                 </p>
-                <h1 className="mt-1 text-xl leading-tight sm:text-2xl font-medium tracking-[-0.02em] text-ink">
+                <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] sm:text-4xl text-ink">
                   {search.permit} in {formatCity(search.city)}
                 </h1>
                 {meta && (

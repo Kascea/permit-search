@@ -36,10 +36,10 @@ function About() {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             About
           </p>
-          <h1 className="mt-1 text-2xl leading-tight font-medium tracking-[-0.02em] text-ink sm:text-3xl">
+          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             Permit Search finds the official permit pages for your project.
           </h1>
-          <p className="mt-4 text-sm leading-6 text-ink/70">
+          <p className="mt-4 text-base leading-6 text-ink/70">
             Every city publishes its permit rules differently, often spread
             across several departments. Permit Search brings the right pages
             together in one place, so you can see what your project needs before
@@ -59,7 +59,7 @@ function About() {
                   <span className="block font-medium text-ink">
                     {step.title}
                   </span>
-                  <span className="mt-1 block text-sm leading-6 text-ink/70">
+                  <span className="mt-1 block text-base leading-6 text-ink/70">
                     {step.body}
                   </span>
                 </span>
@@ -70,7 +70,7 @@ function About() {
           <h2 className="mt-8 border-t border-ink pt-5 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
             Good to know
           </h2>
-          <ul className="mt-3 space-y-3 text-sm leading-6 text-ink/70">
+          <ul className="mt-3 space-y-3 text-base leading-6 text-ink/70">
             <li>
               Results are saved, so a search link always shows the same results
               and can be shared with a contractor or neighbor.

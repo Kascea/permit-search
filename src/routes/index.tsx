@@ -35,7 +35,7 @@ function Home() {
                 </span>
               </span>
             </a>
-            <h1 className="mt-10 text-[clamp(3rem,9vw,5.75rem)] leading-[0.92] font-medium tracking-[-0.055em] text-ink">
+            <h1 className="mt-10 text-[clamp(3rem,9vw,5.5rem)] leading-[1] font-medium tracking-[-0.04em] text-ink">
               Find your city permit.
             </h1>
             <p className="mx-auto mt-6 max-w-lg text-lg leading-6 font-medium text-ink">

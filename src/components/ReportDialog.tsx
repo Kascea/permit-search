@@ -57,7 +57,7 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
     return (
       <div className={`bg-paper ${modalPanelClass}`} role="status">
         <p className="text-lg font-medium text-ink">Thanks for the report.</p>
-        <p className="mt-2 text-sm leading-6 text-ink/70">
+        <p className="mt-2 text-base leading-6 text-ink/70">
           We’ll review these results and fix what’s wrong.
         </p>
         <button

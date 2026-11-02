@@ -50,7 +50,7 @@ function Settings() {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             Settings
           </p>
-          <h1 className="mt-1 text-2xl leading-tight font-medium tracking-[-0.02em] text-ink sm:text-3xl">
+          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             Your account
           </h1>
 
@@ -63,7 +63,7 @@ function Settings() {
             </>
           ) : (
             <div className="mt-6 border-t border-ink pt-5">
-              <p className="text-sm leading-6 text-ink/70">
+              <p className="text-base leading-6 text-ink/70">
                 Sign in to manage your account.
               </p>
               <SignInButton className={`mt-5 ${buttonClass}`} />
@@ -108,8 +108,10 @@ function Message({
 }) {
   return (
     <p
-      className={`mt-3 text-sm font-medium ${
-        tone === 'error' ? 'text-redline' : 'text-blueprint'
+      className={`mt-3 w-fit text-sm font-medium ${
+        tone === 'error'
+          ? 'text-redline'
+          : 'rounded-full bg-success/10 px-3 py-1 text-success'
       }`}
       role={tone === 'error' ? 'alert' : 'status'}
     >
@@ -198,7 +200,7 @@ function SignInSection({
   if (method === 'google') {
     return (
       <Section title="Sign-in">
-        <p className="text-sm leading-6 text-ink/70">
+        <p className="text-base leading-6 text-ink/70">
           You sign in with Google as{' '}
           <span className="font-medium text-ink">{user.email}</span>. Manage
           your password and security in your Google account.
@@ -516,7 +518,7 @@ function DeleteAccountForm({
         <h2 className="text-lg font-medium text-ink">Delete your account?</h2>
         <ModalCloseButton onClick={onClose} />
       </div>
-      <p className="text-sm leading-6 text-ink/70">
+      <p className="text-base leading-6 text-ink/70">
         This permanently deletes your account and every saved draft. It can’t be
         undone.
       </p>
@@ -542,7 +544,7 @@ function DeleteAccountForm({
       )}
 
       {needsGoogle && (
-        <div className="mt-4 border border-ink/20 p-4 text-sm leading-6 text-ink/70">
+        <div className="mt-4 border border-ink/20 p-4 text-base leading-6 text-ink/70">
           For your security, confirm it’s you by signing in with Google again,
           then delete your account.
           <button

@@ -28,7 +28,7 @@ function History() {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             History
           </p>
-          <h1 className="mt-1 text-2xl leading-tight font-medium tracking-[-0.02em] text-ink sm:text-3xl">
+          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             Your searches
           </h1>
 
@@ -36,7 +36,7 @@ function History() {
             <HistoryList history={history} />
           ) : (
             <div className="mt-6 border-t border-ink pt-5">
-              <p className="text-sm leading-6 text-ink/70">
+              <p className="text-base leading-6 text-ink/70">
                 Sign in to keep a history of your permit searches.
               </p>
               <SignInButton className="mt-5 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep" />
@@ -76,7 +76,7 @@ function HistoryList({ history }: { history: Array<HistoryItem> }) {
 
   if (history.length === 0) {
     return (
-      <p className="mt-6 border-t border-ink pt-5 text-sm leading-6 text-ink/70">
+      <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
         No searches yet. Searches you run while signed in appear here.
       </p>
     )

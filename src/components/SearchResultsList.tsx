@@ -1,17 +1,21 @@
 import { Link } from '@tanstack/react-router'
 
+import { AddToProjectButton } from '#/components/AddToProjectDialog'
 import { isPdfUrl } from '#/lib/pdf/url'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
 export function SearchResultsList({
   response,
+  city,
 }: {
   response: PermitSearchResponse
+  // The searched city, given to projects started from a result.
+  city: { name: string; region: string }
 }) {
   return (
     <>
       {response.isGeneralFallback && (
-        <p className="mt-6 border-t border-ink pt-5 text-sm leading-6 text-ink/70">
+        <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
           We couldn’t find a page specific to this project. These are the city’s
           general permit pages, where you can find the permits it needs and
           apply.
@@ -55,7 +59,7 @@ export function SearchResultsList({
                     <p className="mt-1 break-all text-xs leading-5 text-blueprint underline-offset-2 group-hover:underline">
                       {searchResult.url}
                     </p>
-                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/70">
+                    <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/70">
                       {searchResult.description}
                     </p>
                   </div>
@@ -76,40 +80,49 @@ export function SearchResultsList({
                 </div>
 
                 {isPdfUrl(searchResult.url) && (
-                  // A second destination for PDFs, so it gets a label rather
-                  // than an icon beside the arrow.
-                  <Link
-                    className="group/edit relative z-10 mt-3 inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
-                    search={{ url: searchResult.url }}
-                    to="/editor"
-                  >
-                    <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/edit:border-blueprint group-hover/edit:bg-blueprint group-hover/edit:text-paper">
-                      <svg
-                        aria-hidden="true"
-                        className="size-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-                        />
-                      </svg>
-                    </span>
-                    <span className="underline-offset-2 group-hover/edit:underline">
-                      Fill out this form
-                    </span>
-                  </Link>
+                  // Actions for PDFs, labeled rather than icons beside the
+                  // arrow, and raised above the card link.
+                  <div className="relative z-10 mt-3 flex w-fit flex-wrap items-center gap-x-6 gap-y-2">
+                    <Link
+                      className="group/edit inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+                      search={{ url: searchResult.url }}
+                      to="/editor"
+                    >
+                      <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/edit:border-blueprint group-hover/edit:bg-blueprint group-hover/edit:text-paper">
+                        <svg
+                          aria-hidden="true"
+                          className="size-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                          />
+                        </svg>
+                      </span>
+                      <span className="underline-offset-2 group-hover/edit:underline">
+                        Fill out this form
+                      </span>
+                    </Link>
+                    <AddToProjectButton
+                      city={city}
+                      item={{
+                        sourceUrl: searchResult.url,
+                        title: searchResult.title,
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="mt-6 border-t border-ink pt-5 text-sm leading-6 text-ink/70">
+        <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
           No useful sources were found. Try a broader project description or
           verify the city name.
         </p>

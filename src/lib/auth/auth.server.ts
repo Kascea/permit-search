@@ -53,15 +53,37 @@ export function withAuth<T>(work: (auth: Auth) => Promise<T>): Promise<T> {
   return withDatabase((db) => work(createAuth(db)))
 }
 
+// Most visitors never sign in; checking for the cookie first skips opening a
+// database connection for them. The cookie is "__Secure-" prefixed over HTTPS.
+function hasSessionCookie(headers: Headers) {
+  return headers.get('cookie')?.includes('better-auth.session_token=') ?? false
+}
+
+// Runs work for the signed-in user on one database connection, so checking
+// the session doesn't cost a second connection. Signed out, it returns
+// signedOut() when given, and throws otherwise.
+export async function withUserDatabase<T, TSignedOut = never>(
+  headers: Headers,
+  work: (userId: string, db: Database) => Promise<T>,
+  signedOut?: () => TSignedOut,
+): Promise<T | TSignedOut> {
+  const notSignedIn = () => {
+    if (signedOut) return signedOut()
+    throw new Error('Sign in to continue.')
+  }
+  if (!hasSessionCookie(headers)) return notSignedIn()
+
+  return withDatabase(async (db) => {
+    const session = await createAuth(db).api.getSession({ headers })
+    return session ? work(session.user.id, db) : notSignedIn()
+  })
+}
+
 // The signed-in user for these request headers, or null.
 export async function getSessionUser(
   headers: Headers,
 ): Promise<SessionUser | null> {
-  // Most visitors never sign in; skip opening a database connection for them.
-  // The cookie is "__Secure-" prefixed over HTTPS.
-  if (!headers.get('cookie')?.includes('better-auth.session_token=')) {
-    return null
-  }
+  if (!hasSessionCookie(headers)) return null
   const session = await withAuth((auth) => auth.api.getSession({ headers }))
   return session?.user ?? null
 }
