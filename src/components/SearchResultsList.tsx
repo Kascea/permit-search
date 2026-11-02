@@ -11,7 +11,7 @@ export function SearchResultsList({
   return (
     <>
       {response.isGeneralFallback && (
-        <p className="mt-6 border-t border-[#302d2d] pt-5 text-sm leading-6 text-[#302d2d]/70">
+        <p className="mt-6 border-t border-ink pt-5 text-sm leading-6 text-ink/70">
           We couldn’t find a page specific to this project. These are the city’s
           general permit pages, where you can find the permits it needs and
           apply.
@@ -19,29 +19,32 @@ export function SearchResultsList({
       )}
 
       {response.results.length > 0 ? (
-        <ol className="mt-6 divide-y divide-[#302d2d]/20 border-t border-[#302d2d]">
+        <ol className="mt-6 divide-y divide-ink/20 border-t border-ink">
           {response.results.map((searchResult) => (
             <li key={searchResult.url}>
-              <div className="group py-5">
+              {/* The title link stretches over the whole card, so anywhere on
+                  it opens the source. The editor link sits above it. */}
+              <div className="group relative -mx-3 rounded-[2px] px-3 py-5 transition hover:bg-ink/[0.04]">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium tracking-[0.08em] text-[#302d2d]/60 uppercase">
+                      <span className="text-xs font-medium tracking-[0.08em] text-ink/60 uppercase">
                         {searchResult.domain}
                       </span>
                       {searchResult.isGovernmentSource && (
-                        <span className="rounded-full bg-[#1968b4]/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-[#1968b4] uppercase">
+                        <span className="rounded-full bg-blueprint/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-blueprint uppercase">
                           Government
                         </span>
                       )}
                       {isPdfUrl(searchResult.url) && (
-                        <span className="rounded-full bg-[#953012]/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-[#953012] uppercase">
+                        <span className="rounded-full bg-redline/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-redline uppercase">
                           PDF
                         </span>
                       )}
                     </div>
-                    <h2 className="mt-1 text-lg leading-6 font-medium text-[#302d2d] group-hover:text-[#1968b4]">
+                    <h2 className="mt-1 text-lg leading-6 font-medium text-ink group-hover:text-blueprint">
                       <a
+                        className="after:absolute after:inset-0 after:rounded-[2px] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-blueprint"
                         href={searchResult.url}
                         rel="noreferrer"
                         target="_blank"
@@ -49,16 +52,16 @@ export function SearchResultsList({
                         {searchResult.title}
                       </a>
                     </h2>
-                    <p className="mt-1 break-all text-xs leading-5 text-[#1968b4]">
+                    <p className="mt-1 break-all text-xs leading-5 text-blueprint underline-offset-2 group-hover:underline">
                       {searchResult.url}
                     </p>
-                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#302d2d]/70">
+                    <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink/70">
                       {searchResult.description}
                     </p>
                   </div>
                   <svg
                     aria-hidden="true"
-                    className="mt-1 size-4 shrink-0 text-[#302d2d]/50 transition group-hover:translate-x-0.5 group-hover:text-[#1968b4]"
+                    className="mt-1 size-4 shrink-0 text-ink/50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-blueprint"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -71,23 +74,42 @@ export function SearchResultsList({
                     />
                   </svg>
                 </div>
+
                 {isPdfUrl(searchResult.url) && (
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Link
-                      className="inline-flex items-center rounded-full bg-[#1968b4] px-4 py-2 text-sm font-medium text-[#fdfff1] transition hover:bg-[#145390] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1968b4]"
-                      search={{ url: searchResult.url }}
-                      to="/editor"
-                    >
-                      Open in editor
-                    </Link>
-                  </div>
+                  // A second destination for PDFs, so it gets a label rather
+                  // than an icon beside the arrow.
+                  <Link
+                    className="group/edit relative z-10 mt-3 inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+                    search={{ url: searchResult.url }}
+                    to="/editor"
+                  >
+                    <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/edit:border-blueprint group-hover/edit:bg-blueprint group-hover/edit:text-paper">
+                      <svg
+                        aria-hidden="true"
+                        className="size-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                        />
+                      </svg>
+                    </span>
+                    <span className="underline-offset-2 group-hover/edit:underline">
+                      Fill out this form
+                    </span>
+                  </Link>
                 )}
               </div>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="mt-6 border-t border-[#302d2d] pt-5 text-sm leading-6 text-[#302d2d]/70">
+        <p className="mt-6 border-t border-ink pt-5 text-sm leading-6 text-ink/70">
           No useful sources were found. Try a broader project description or
           verify the city name.
         </p>

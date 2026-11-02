@@ -8,6 +8,10 @@ export const SEARCH_PIPELINE_VERSION = 1
 // A matching search within this window reuses the saved result.
 export const SEARCH_REUSE_DAYS = 7
 
+// "Search again" runs a search fresh at most this often; inside the window it
+// reuses the latest result, so repeat clicks don't each cost a search.
+export const SEARCH_REFRESH_HOURS = 24
+
 const PUBLIC_ID_LENGTH = 12
 const PUBLIC_ID_ALPHABET =
   'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'

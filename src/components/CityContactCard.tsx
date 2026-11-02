@@ -11,32 +11,16 @@ const OFFICE_LABELS: Record<OfficeType, string> = {
   general: 'Permits',
 }
 
-interface CityContactCardProps {
+// Renders nothing until the city's contacts arrive, or when it has none.
+export function CityContactCard({
+  contacts,
+}: {
   contacts?: CityContactsResponse
-  isLoading: boolean
-}
-
-// Whether the card has anything to show; the page lays out a side column only then.
-export function hasContactCardContent(contacts?: CityContactsResponse) {
-  return Boolean(
-    contacts &&
-    (contacts.primaryOffice || contacts.portalUrl || contacts.permitsUrl),
-  )
-}
-
-export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
-  if (isLoading) {
-    return (
-      <div
-        className="border border-[#302d2d]/30 px-5 py-4 text-sm text-[#302d2d]/70"
-        role="status"
-      >
-        Looking up the city permit office…
-      </div>
-    )
-  }
-
-  if (!contacts || !hasContactCardContent(contacts)) {
+}) {
+  if (
+    !contacts ||
+    !(contacts.primaryOffice || contacts.portalUrl || contacts.permitsUrl)
+  ) {
     return null
   }
   const office = contacts.primaryOffice
@@ -44,14 +28,14 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
   return (
     <section
       aria-label="City permit office"
-      className="border border-[#302d2d] px-5 py-5"
+      className="border border-ink px-5 py-5"
     >
-      <p className="text-xs font-medium tracking-[0.16em] text-[#1968b4] uppercase">
+      <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
         City permit office
       </p>
       {office && (
         <>
-          <h3 className="mt-1 text-lg leading-6 font-medium text-[#302d2d]">
+          <h3 className="mt-1 text-lg leading-6 font-medium text-ink">
             {office.name ?? OFFICE_LABELS[office.officeType]}
           </h3>
           <OfficeDetails office={office} />
@@ -59,13 +43,13 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
       )}
 
       {contacts.portalUrl && (
-        <div className="mt-5 border-t border-[#302d2d]/20 pt-4">
-          <p className="text-sm font-medium text-[#302d2d]">Apply online</p>
-          <p className="mt-1 text-sm leading-5 text-[#302d2d]/70">
+        <div className="mt-5 border-t border-ink/20 pt-4">
+          <p className="text-sm font-medium text-ink">Apply online</p>
+          <p className="mt-1 text-sm leading-5 text-ink/70">
             The city takes permit applications through its online permit portal.
           </p>
           <a
-            className="mt-2 inline-block text-sm font-medium text-[#1968b4] underline-offset-2 hover:underline"
+            className="mt-2 inline-block text-sm font-medium text-blueprint underline-offset-2 hover:underline"
             href={contacts.portalUrl}
             rel="noreferrer"
             target="_blank"
@@ -77,7 +61,7 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
 
       {contacts.permitsUrl && (
         <a
-          className="mt-3 block text-sm font-medium text-[#1968b4] underline-offset-2 hover:underline"
+          className="mt-3 block text-sm font-medium text-blueprint underline-offset-2 hover:underline"
           href={contacts.permitsUrl}
           rel="noreferrer"
           target="_blank"
@@ -87,11 +71,11 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
       )}
 
       {contacts.otherOffices.length > 0 && (
-        <div className="mt-5 border-t border-[#302d2d]/20 pt-4">
-          <p className="text-xs font-medium tracking-[0.08em] text-[#302d2d]/70 uppercase">
+        <div className="mt-5 border-t border-ink/20 pt-4">
+          <p className="text-xs font-medium tracking-[0.08em] text-ink/70 uppercase">
             Other offices
           </p>
-          <ul className="mt-2 space-y-1 text-sm text-[#302d2d]">
+          <ul className="mt-2 space-y-1 text-sm text-ink">
             {contacts.otherOffices.map((other) => (
               <li key={other.officeType}>
                 <span className="font-medium">
@@ -101,7 +85,7 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
                   <>
                     {' · '}
                     <a
-                      className="hover:text-[#1968b4]"
+                      className="hover:text-blueprint"
                       href={telHref(other.phone)}
                     >
                       {other.phone}
@@ -112,7 +96,7 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
                   <>
                     {' · '}
                     <a
-                      className="hover:text-[#1968b4]"
+                      className="hover:text-blueprint"
                       href={`mailto:${other.email}`}
                     >
                       {other.email}
@@ -126,10 +110,10 @@ export function CityContactCard({ contacts, isLoading }: CityContactCardProps) {
       )}
 
       {(office?.sourceUrl || contacts.checkedAt) && (
-        <p className="mt-4 text-xs text-[#302d2d]/70">
+        <p className="mt-4 text-xs text-ink/70">
           {office?.sourceUrl && (
             <a
-              className="underline hover:text-[#1968b4]"
+              className="underline hover:text-blueprint"
               href={office.sourceUrl}
               rel="noreferrer"
               target="_blank"
@@ -152,7 +136,7 @@ function OfficeDetails({ office }: { office: OfficeContact }) {
     rows.push({
       label: 'Phone',
       value: (
-        <a className="hover:text-[#1968b4]" href={telHref(office.phone)}>
+        <a className="hover:text-blueprint" href={telHref(office.phone)}>
           {office.phone}
         </a>
       ),
@@ -163,7 +147,7 @@ function OfficeDetails({ office }: { office: OfficeContact }) {
       label: 'Email',
       value: (
         <a
-          className="break-all hover:text-[#1968b4]"
+          className="break-all hover:text-blueprint"
           href={`mailto:${office.email}`}
         >
           {office.email}
@@ -182,8 +166,8 @@ function OfficeDetails({ office }: { office: OfficeContact }) {
     <dl className="mt-3 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
       {rows.map(({ label, value }) => (
         <div className="contents" key={label}>
-          <dt className="text-[#302d2d]/70">{label}</dt>
-          <dd className="text-[#302d2d]">{value}</dd>
+          <dt className="text-ink/70">{label}</dt>
+          <dd className="text-ink">{value}</dd>
         </div>
       ))}
     </dl>

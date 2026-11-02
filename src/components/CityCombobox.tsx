@@ -126,10 +126,7 @@ export function CityCombobox({
   return (
     <div className="relative">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <label
-          className="block text-sm font-medium text-[#302d2d]"
-          htmlFor={inputId}
-        >
+        <label className="block text-sm font-medium text-ink" htmlFor={inputId}>
           City
         </label>
         {labelAction}
@@ -137,7 +134,7 @@ export function CityCombobox({
       <div className="relative">
         <svg
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-ink/40"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -176,7 +173,7 @@ export function CityCombobox({
         {isSearching && (
           <span
             aria-label="Searching cities"
-            className="absolute top-1/2 right-4 size-4 -translate-y-1/2 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]"
+            className="absolute top-1/2 right-4 size-4 -translate-y-1/2 spinner"
           />
         )}
       </div>
@@ -185,7 +182,7 @@ export function CityCombobox({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-[2px] border border-[#302d2d] bg-[#fdfff1] p-2"
+          className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-[2px] border border-ink bg-paper p-2"
         >
           {suggestions.map((suggestion, index) => (
             <li
@@ -198,8 +195,8 @@ export function CityCombobox({
                 type="button"
                 className={`flex w-full items-center gap-3 rounded-[2px] px-3 py-3 text-left transition ${
                   activeIndex === index
-                    ? 'bg-[#1968b4] text-[#fdfff1]'
-                    : 'text-[#302d2d] hover:bg-[#302d2d]/10'
+                    ? 'bg-blueprint text-paper'
+                    : 'text-ink hover:bg-ink/10'
                 }`}
                 onMouseDown={(event) => event.preventDefault()}
                 onMouseEnter={() => setActiveIndex(index)}
@@ -208,8 +205,8 @@ export function CityCombobox({
                 <span
                   className={`grid size-9 shrink-0 place-items-center rounded-full border ${
                     activeIndex === index
-                      ? 'border-[#fdfff1]/35 bg-[#fdfff1]/10'
-                      : 'border-[#302d2d]/20 bg-[#fdfff1]'
+                      ? 'border-paper/35 bg-paper/10'
+                      : 'border-ink/20 bg-paper'
                   }`}
                 >
                   <svg
@@ -235,18 +232,14 @@ export function CityCombobox({
                 <span className="min-w-0 flex-1">
                   <span
                     className={`block font-medium ${
-                      activeIndex === index
-                        ? 'text-[#fdfff1]'
-                        : 'text-[#302d2d]'
+                      activeIndex === index ? 'text-paper' : 'text-ink'
                     }`}
                   >
                     {suggestion.name}
                   </span>
                   <span
                     className={`mt-0.5 block text-sm ${
-                      activeIndex === index
-                        ? 'text-[#fdfff1]/70'
-                        : 'text-[#302d2d]/60'
+                      activeIndex === index ? 'text-paper/70' : 'text-ink/60'
                     }`}
                   >
                     {suggestion.label}
@@ -255,9 +248,7 @@ export function CityCombobox({
                 <svg
                   aria-hidden="true"
                   className={`size-4 shrink-0 ${
-                    activeIndex === index
-                      ? 'text-[#fdfff1]/70'
-                      : 'text-[#302d2d]/40'
+                    activeIndex === index ? 'text-paper/70' : 'text-ink/40'
                   }`}
                   fill="none"
                   viewBox="0 0 24 24"
@@ -277,12 +268,12 @@ export function CityCombobox({
       )}
 
       {!accessToken && (
-        <p className="mt-2 text-xs leading-5 text-slate-500">
+        <p className="mt-2 text-xs leading-5 text-ink/60">
           Autocomplete is off. Manual entry still works.
         </p>
       )}
       {error && (
-        <p className="mt-2 text-sm font-medium text-rose-700" role="alert">
+        <p className="mt-2 text-sm font-medium text-redline" role="alert">
           {error}
         </p>
       )}

@@ -5,6 +5,7 @@ import { withDatabase } from '#/lib/db/client.server'
 import { cities, searchRequests, searches } from '#/lib/db/schema'
 import {
   SEARCH_PIPELINE_VERSION,
+  SEARCH_REFRESH_HOURS,
   SEARCH_REUSE_DAYS,
   newPublicId,
   normalizeQuery,
@@ -22,63 +23,67 @@ export interface SavedSearch {
   permit: string
   response: PermitSearchResponse
   createdAt: string
+  // Measured on the server when loaded, so the server and browser render the
+  // same "New" or "Saved" label.
+  ageMinutes: number
 }
 
 // Reuses a matching search from the last SEARCH_REUSE_DAYS when there is one;
-// otherwise runs the search and saves it. `fresh` always runs it.
+// otherwise runs the search and saves it. `fresh` runs it again unless it
+// already ran in the last SEARCH_REFRESH_HOURS.
 export async function runSavedSearch(
   input: PermitSearchInput,
   { fresh = false }: { fresh?: boolean } = {},
 ): Promise<{ publicId: string; wasReused: boolean }> {
   const region = input.city.region ?? ''
   const queryKey = searchKey(input.city.name, region, input.permit)
+  const refreshCutoff = new Date(Date.now() - SEARCH_REFRESH_HOURS * 3_600_000)
 
-  if (!fresh) {
-    const reused = await withDatabase(async (db) => {
-      // Inside a transaction so Hyperdrive's read cache can't hide a search
-      // saved in the last minute.
-      return db.transaction(async (tx) => {
-        const match = (
-          await tx
-            .select({ id: searches.id, publicId: searches.publicId })
-            .from(searches)
-            .where(
-              and(
-                eq(searches.queryKey, queryKey),
-                gt(searches.reuseUntil, new Date()),
-              ),
-            )
-            .orderBy(desc(searches.createdAt))
-            .limit(1)
-        ).at(0)
-        if (!match) {
-          return null
-        }
+  const reused = await withDatabase(async (db) => {
+    // Inside a transaction so Hyperdrive's read cache can't hide a search
+    // saved in the last minute.
+    return db.transaction(async (tx) => {
+      const match = (
+        await tx
+          .select({ id: searches.id, publicId: searches.publicId })
+          .from(searches)
+          .where(
+            and(
+              eq(searches.queryKey, queryKey),
+              gt(searches.reuseUntil, new Date()),
+              fresh ? gt(searches.createdAt, refreshCutoff) : undefined,
+            ),
+          )
+          .orderBy(desc(searches.createdAt))
+          .limit(1)
+      ).at(0)
+      if (!match) {
+        return null
+      }
 
-        await tx
-          .update(searches)
-          .set({
-            timesServed: sql`${searches.timesServed} + 1`,
-            lastServedAt: new Date(),
-          })
-          .where(eq(searches.id, match.id))
-        await tx
-          .insert(searchRequests)
-          .values({ searchId: match.id, wasReused: true })
-        return match.publicId
-      })
+      await tx
+        .update(searches)
+        .set({
+          timesServed: sql`${searches.timesServed} + 1`,
+          lastServedAt: new Date(),
+        })
+        .where(eq(searches.id, match.id))
+      await tx
+        .insert(searchRequests)
+        .values({ searchId: match.id, wasReused: true })
+      return match.publicId
     })
+  })
 
-    if (reused) {
-      console.log(
-        JSON.stringify({
-          message: 'reused saved search',
-          queryKey,
-          publicId: reused,
-        }),
-      )
-      return { publicId: reused, wasReused: true }
-    }
+  if (reused) {
+    console.log(
+      JSON.stringify({
+        message: 'reused saved search',
+        queryKey,
+        publicId: reused,
+      }),
+    )
+    return { publicId: reused, wasReused: true }
   }
 
   const response = await searchPermitsWithTavily(input)
@@ -146,5 +151,6 @@ export async function loadSavedSearch(
     permit: row.permit,
     response: row.response,
     createdAt: row.createdAt.toISOString(),
+    ageMinutes: Math.floor((Date.now() - row.createdAt.getTime()) / 60_000),
   }
 }

@@ -291,12 +291,8 @@
           "name": "city_offices_city_id_cities_id_fk",
           "tableFrom": "city_offices",
           "tableTo": "cities",
-          "columnsFrom": [
-            "city_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["city_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -312,21 +308,12 @@
     "public.contacts_status": {
       "name": "contacts_status",
       "schema": "public",
-      "values": [
-        "found",
-        "partial",
-        "not_found"
-      ]
+      "values": ["found", "partial", "not_found"]
     },
     "public.office_type": {
       "name": "office_type",
       "schema": "public",
-      "values": [
-        "building",
-        "zoning",
-        "engineering",
-        "general"
-      ]
+      "values": ["building", "zoning", "engineering", "general"]
     }
   },
   "schemas": {},

@@ -25,7 +25,6 @@ function requestCityContacts(name: string, region: string) {
 
 export function useCityContacts(name: string, region: string) {
   const [contacts, setContacts] = useState<CityContactsResponse>()
-  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!name || !region) {
@@ -33,11 +32,9 @@ export function useCityContacts(name: string, region: string) {
     }
     let cancelled = false
     setContacts(undefined)
-    setIsLoading(true)
     void requestCityContacts(name, region).then((response) => {
       if (!cancelled) {
         setContacts(response ?? undefined)
-        setIsLoading(false)
       }
     })
     return () => {
@@ -45,5 +42,5 @@ export function useCityContacts(name: string, region: string) {
     }
   }, [name, region])
 
-  return { contacts, isLoading }
+  return contacts
 }

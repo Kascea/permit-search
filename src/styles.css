@@ -1,6 +1,13 @@
 @import 'tailwindcss';
 
+/* The palette. See DESIGN.md before adding to it. */
 @theme {
+  --color-paper: #fdfff1;
+  --color-ink: #302d2d;
+  --color-blueprint: #1968b4;
+  --color-blueprint-deep: #145390;
+  --color-redline: #953012;
+
   --font-sans:
     Arial, Helvetica, ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, sans-serif;
@@ -22,8 +29,14 @@ html {
 
 body {
   margin: 0;
-  background: #fdfff1;
-  color: #302d2d;
+  /* A faint 32px grid behind every page. */
+  background:
+    linear-gradient(to right, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
+      32px 32px,
+    linear-gradient(to bottom, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
+      32px 32px,
+    var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -40,25 +53,34 @@ button {
 }
 
 ::selection {
-  background: #1968b4;
-  color: #fdfff1;
+  background: var(--color-blueprint);
+  color: var(--color-paper);
 }
 
 @layer components {
   .field-input {
     width: 100%;
     border-radius: 2px;
-    border: 1px solid #302d2d;
+    border: 1px solid var(--color-ink);
     background: transparent;
     padding-top: 0.875rem;
     padding-right: 1rem;
     padding-bottom: 0.875rem;
     padding-left: 1rem;
-    color: #302d2d;
+    color: var(--color-ink);
     outline: none;
     transition:
       border-color 150ms ease,
       box-shadow 150ms ease;
+  }
+
+  .spinner {
+    display: inline-block;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 2px solid rgb(25 104 180 / 20%);
+    border-top-color: var(--color-blueprint);
+    animation: spin 1s linear infinite;
   }
 
   .field-input::placeholder {
@@ -66,7 +88,36 @@ button {
   }
 
   .field-input:focus {
-    border-color: #1968b4;
+    border-color: var(--color-blueprint);
     box-shadow: 0 0 0 3px rgb(25 104 180 / 12%);
+  }
+}
+
+/* The search modal fades and rises into place. */
+.search-modal[open] {
+  animation: search-modal 180ms ease-out;
+}
+
+.search-modal[open]::backdrop {
+  animation: fade-in 180ms ease-out;
+}
+
+@keyframes search-modal {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-modal[open],
+  .search-modal[open]::backdrop {
+    animation: none;
   }
 }

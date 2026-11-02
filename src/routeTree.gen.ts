@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
 import { Route as ResultsIndexRouteImport } from './routes/results.index'
@@ -18,6 +19,11 @@ import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorRoute = EditorRouteImport.update({
@@ -43,6 +49,7 @@ const ResultsSearchIdRoute = ResultsSearchIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/editor': typeof EditorRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/editor': typeof EditorRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/editor': typeof EditorRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
@@ -65,12 +74,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results/'
+  fullPaths:
+    '/' | '/about' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results'
+  to:
+    '/' | '/about' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results'
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/editor'
     | '/api/pdf'
     | '/results/$searchId'
@@ -79,6 +91,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   EditorRoute: typeof EditorRoute
   ApiPdfRoute: typeof ApiPdfRoute
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
@@ -92,6 +105,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor': {
@@ -127,6 +147,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   EditorRoute: EditorRoute,
   ApiPdfRoute: ApiPdfRoute,
   ResultsSearchIdRoute: ResultsSearchIdRoute,

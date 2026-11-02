@@ -228,9 +228,9 @@ function PdfEditor() {
 
   return (
     <main className="flex min-h-screen flex-col bg-[#e8e8e2]">
-      <header className="sticky top-0 z-50 border-b border-[#302d2d] bg-[#fdfff1] px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-50 border-b border-ink bg-paper px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3">
-          <a className="flex items-center gap-3 text-[#302d2d]" href="/">
+          <a className="flex items-center gap-3 text-ink" href="/">
             <PermitSearchLogo className="size-9" />
             <span>
               <span className="block text-[0.6rem] font-medium tracking-[0.2em] uppercase">
@@ -267,7 +267,7 @@ function PdfEditor() {
                 + Signature
               </ToolButton>
               <button
-                className="ml-1 rounded-full bg-[#1968b4] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#145390] disabled:opacity-50"
+                className="ml-1 rounded-full bg-blueprint px-4 py-2 text-sm font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
                 disabled={isSaving}
                 onClick={() => void downloadPdf()}
                 type="button"
@@ -278,7 +278,7 @@ function PdfEditor() {
           )}
         </div>
         {activeTool && (
-          <p className="mx-auto mt-2 max-w-[1500px] text-center text-xs font-medium text-[#1968b4]">
+          <p className="mx-auto mt-2 max-w-[1500px] text-center text-xs font-medium text-blueprint">
             Click anywhere on a page to place the {activeTool} field. Press
             Escape to cancel.
           </p>
@@ -288,16 +288,16 @@ function PdfEditor() {
       {isLoading ? (
         <div className="grid flex-1 place-items-center py-24">
           <p className="flex items-center gap-3 font-medium">
-            <span className="size-4 animate-spin rounded-full border-2 border-[#1968b4]/25 border-t-[#1968b4]" />
+            <span className="size-4 spinner" />
             Preparing editor…
           </p>
         </div>
       ) : error && !pdf ? (
-        <section className="m-auto max-w-lg border border-[#953012] bg-[#fdfff1] p-7 text-center">
+        <section className="m-auto max-w-lg border border-redline bg-paper p-7 text-center">
           <h1 className="text-2xl font-medium">This PDF could not be opened</h1>
-          <p className="mt-3 text-sm leading-6 text-[#302d2d]/70">{error}</p>
+          <p className="mt-3 text-sm leading-6 text-ink/70">{error}</p>
           <a
-            className="mt-6 inline-flex rounded-full bg-[#1968b4] px-5 py-3 text-sm font-medium text-white"
+            className="mt-6 inline-flex rounded-full bg-blueprint px-5 py-3 text-sm font-medium text-paper"
             href="/"
           >
             Return to search
@@ -307,7 +307,7 @@ function PdfEditor() {
         <>
           {error && (
             <p
-              className="sticky top-[65px] z-40 border-b border-[#953012] bg-[#fff0eb] px-4 py-3 text-center text-sm text-[#953012]"
+              className="sticky top-[65px] z-40 border-b border-redline bg-[#fff0eb] px-4 py-3 text-center text-sm text-redline"
               role="alert"
             >
               {error}
@@ -438,7 +438,7 @@ function EditorPage({
 
   return (
     <article>
-      <p className="mb-2 text-center text-xs font-medium text-[#302d2d]/55">
+      <p className="mb-2 text-center text-xs font-medium text-ink/55">
         Page {pageIndex + 1}
       </p>
       <div
@@ -491,7 +491,7 @@ function NativeFieldControl({
   onChange: (update: (field: NativeField) => NativeField) => void
 }) {
   const className =
-    'absolute border border-[#1968b4]/60 bg-[#e9f4ff]/70 text-[#172635] outline-none focus:border-[#1968b4] focus:ring-2 focus:ring-[#1968b4]/25'
+    'absolute border border-blueprint/60 bg-[#e9f4ff]/70 text-[#172635] outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/25'
 
   if (field.kind === 'text') {
     const shared = {
@@ -514,7 +514,7 @@ function NativeFieldControl({
     return (
       <input
         checked={field.checked}
-        className={`${className} accent-[#1968b4]`}
+        className={`${className} accent-blueprint`}
         data-editor-control
         onChange={(event) =>
           onChange((current) => ({
@@ -556,14 +556,14 @@ function NativeFieldControl({
   if (field instanceof Object && widget.option) {
     return (
       <label
-        className="absolute grid cursor-pointer place-items-center rounded-full border border-[#1968b4]/60 bg-[#e9f4ff]/70"
+        className="absolute grid cursor-pointer place-items-center rounded-full border border-blueprint/60 bg-[#e9f4ff]/70"
         data-editor-control
         style={style}
         title={widget.option}
       >
         <input
           checked={field.value === widget.option}
-          className="size-[70%] accent-[#1968b4]"
+          className="size-[70%] accent-blueprint"
           name={field.id}
           onChange={() =>
             onChange((current) => ({
@@ -608,14 +608,14 @@ function PlacedFieldControl({
 }) {
   return (
     <div
-      className="group absolute border border-dashed border-[#953012] bg-white/80"
+      className="group absolute border border-dashed border-redline bg-white/80"
       data-editor-control
       style={style}
     >
       {field.kind === 'check' ? (
         <button
           aria-label="Toggle checkmark"
-          className="grid size-full place-items-center text-lg font-bold text-[#302d2d]"
+          className="grid size-full place-items-center text-lg font-bold text-ink"
           onClick={() => onChange(field.value ? '' : 'X')}
           type="button"
         >
@@ -636,7 +636,7 @@ function PlacedFieldControl({
       )}
       <button
         aria-label="Remove field"
-        className="absolute -top-2 -right-2 hidden size-5 place-items-center rounded-full bg-[#953012] text-xs text-white group-hover:grid"
+        className="absolute -top-2 -right-2 hidden size-5 place-items-center rounded-full bg-redline text-xs text-paper group-hover:grid"
         onClick={onDelete}
         type="button"
       >
@@ -659,8 +659,8 @@ function ToolButton({
     <button
       className={`rounded-full border px-3 py-2 text-sm font-medium transition ${
         active
-          ? 'border-[#1968b4] bg-[#1968b4] text-white'
-          : 'border-[#302d2d]/35 hover:border-[#302d2d]'
+          ? 'border-blueprint bg-blueprint text-paper'
+          : 'border-ink/35 hover:border-ink'
       }`}
       onClick={onClick}
       type="button"

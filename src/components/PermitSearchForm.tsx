@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { CityCombobox } from '#/components/CityCombobox'
 import { formatCity } from '#/lib/location/format'
@@ -8,6 +9,10 @@ import type { City } from '#/lib/location/types'
 interface PermitSearchFormProps {
   initialCity?: City
   initialPermit?: string
+  title?: string
+  // Shown at the end of the header, such as the search modal's close button.
+  headerAction?: ReactNode
+  className?: string
   onSearch: (city: City, permit: string) => void
 }
 
@@ -16,6 +21,9 @@ interface PermitSearchFormProps {
 export function PermitSearchForm({
   initialCity,
   initialPermit = '',
+  title = 'Start your search',
+  headerAction,
+  className = 'border border-ink p-5 sm:p-6',
   onSearch,
 }: PermitSearchFormProps) {
   const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
@@ -116,65 +124,79 @@ export function PermitSearchForm({
 
   return (
     <form
-      className="border border-[#302d2d] bg-[#fdfff1] p-5 sm:p-6"
+      className={`bg-paper ${className}`}
       noValidate
       onSubmit={submitSearch}
     >
-      <div className="mb-8 flex items-center justify-between border-b border-[#302d2d] pb-5">
-        <span className="text-sm font-medium text-[#302d2d]">
-          Start your search
-        </span>
-        <span className="flex items-center gap-2 text-sm font-medium text-[#302d2d]/60">
-          <span className="size-2 rounded-full bg-[#1968b4]" />
-          Local lookup
+      <div className="mb-8 flex items-center justify-between gap-4 border-b border-ink pb-5">
+        <span className="text-sm font-medium text-ink">{title}</span>
+        <span className="flex min-w-0 items-center gap-3">
+          {/* The city this search will run in. */}
+          <span
+            className={`flex min-w-0 items-center gap-2 text-sm font-medium ${
+              selectedCity ? 'text-ink' : 'text-ink/50'
+            }`}
+          >
+            <span
+              className={`size-2 shrink-0 rounded-full ${
+                selectedCity ? 'bg-blueprint' : 'bg-ink/30'
+              }`}
+            />
+            <span className="truncate">
+              {selectedCity ? formatCity(selectedCity) : 'No city selected'}
+            </span>
+          </span>
+          {headerAction}
         </span>
       </div>
 
-      <CityCombobox
-        accessToken={mapboxToken}
-        selectedCity={selectedCity}
-        value={cityInput}
-        onChange={updateCityInput}
-        onCitySelected={selectCity}
-        labelAction={
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#302d2d]/40 px-2.5 py-1 text-xs font-medium text-[#302d2d] transition hover:border-[#302d2d] hover:bg-[#302d2d] hover:text-[#fdfff1] disabled:cursor-wait disabled:opacity-60"
-            disabled={isLocating}
-            onClick={useCurrentLocation}
-          >
-            {isLocating ? (
-              <span className="size-3 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]" />
-            ) : (
-              <svg
-                aria-hidden="true"
-                className="size-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c1.243 0 2.25-4.03 2.25-9S13.243 3 12 3s-2.25 4.03-2.25 9S10.757 21 12 21ZM3.6 9h16.8M3.6 15h16.8"
-                />
-              </svg>
-            )}
-            {isLocating ? 'Finding…' : 'Detect my city'}
-          </button>
-        }
-      />
+      <div>
+        <CityCombobox
+          accessToken={mapboxToken}
+          selectedCity={selectedCity}
+          value={cityInput}
+          onChange={updateCityInput}
+          onCitySelected={selectCity}
+          labelAction={
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ink/40 px-2.5 py-1 text-xs font-medium text-ink transition hover:border-ink hover:bg-ink hover:text-paper disabled:cursor-wait disabled:opacity-60"
+              disabled={isLocating}
+              onClick={useCurrentLocation}
+            >
+              {isLocating ? (
+                <span className="size-3 spinner" />
+              ) : (
+                <svg
+                  aria-hidden="true"
+                  className="size-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c1.243 0 2.25-4.03 2.25-9S13.243 3 12 3s-2.25 4.03-2.25 9S10.757 21 12 21ZM3.6 9h16.8M3.6 15h16.8"
+                  />
+                </svg>
+              )}
+              {isLocating ? 'Finding…' : 'Detect my city'}
+            </button>
+          }
+        />
 
-      {locationError && (
-        <p className="mt-2 text-sm font-medium text-amber-700" role="alert">
-          {locationError}
-        </p>
-      )}
+        {locationError && (
+          <p className="mt-2 text-sm font-medium text-redline" role="alert">
+            {locationError}
+          </p>
+        )}
+      </div>
 
       <div className="mt-7">
         <label
-          className="mb-2 block text-sm font-medium text-[#302d2d]"
+          className="mb-2 block text-sm font-medium text-ink"
           htmlFor={permitInputId}
         >
           Project or permit
@@ -193,7 +215,7 @@ export function PermitSearchForm({
 
       {formError && (
         <p
-          className="mt-4 border border-[#953012] bg-[#953012]/10 px-4 py-3 text-sm font-medium text-[#953012]"
+          className="mt-4 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
           role="alert"
         >
           {formError}
@@ -202,7 +224,7 @@ export function PermitSearchForm({
 
       <button
         type="submit"
-        className="mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-[#1968b4] px-5 py-4 text-lg font-medium text-[#fdfff1] transition hover:bg-[#145390] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1968b4]"
+        className="mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-blueprint px-5 py-4 text-lg font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
       >
         Find my permit
         <svg

@@ -91,17 +91,17 @@ function PendingResults() {
     <ResultsPage search={{ city: { name: city, region }, permit }}>
       {error ? (
         <p
-          className="mt-6 border border-[#953012] bg-[#953012]/10 px-4 py-3 text-sm font-medium text-[#953012]"
+          className="mt-6 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
           role="alert"
         >
           {error}
         </p>
       ) : (
         <div
-          className="mt-6 flex items-center gap-3 border-t border-[#302d2d] pt-5 text-sm text-[#302d2d]/70"
+          className="mt-6 flex items-center gap-3 border-t border-ink pt-5 text-sm text-ink/70"
           role="status"
         >
-          <span className="size-4 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]" />
+          <span className="size-4 spinner" />
           Searching official sources…
         </div>
       )}

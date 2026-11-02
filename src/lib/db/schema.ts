@@ -167,6 +167,24 @@ export const searchRequests = pgTable(
   (table) => [index('search_requests_search_id').on(table.searchId)],
 )
 
+// A visitor's report that a saved search's results are wrong.
+export const resultReports = pgTable(
+  'result_reports',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    searchId: bigint('search_id', { mode: 'number' })
+      .notNull()
+      .references(() => searches.id, { onDelete: 'cascade' }),
+    message: varchar('message', { length: 1000 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('result_reports_search_id').on(table.searchId)],
+)
+
 export type City = typeof cities.$inferSelect
 export type CityOffice = typeof cityOffices.$inferSelect
 export type Search = typeof searches.$inferSelect
