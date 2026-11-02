@@ -1,4 +1,8 @@
-import { env } from 'cloudflare:workers'
+import { env, waitUntil } from 'cloudflare:workers'
+
+import { saveCityPermitsUrl } from '#/lib/contacts/store.server'
+import { hasDatabase, withDatabase } from '#/lib/db/client.server'
+import type { ReviewedLink } from '#/lib/search/link-review.server'
 
 import type {
   PermitSearchInput,
@@ -131,6 +135,8 @@ export async function searchPermitsWithTavily(
       deduplicateResults([...extractedLinks, ...results]),
       permitTypes,
     )
+    rememberPermitsPage(input, reviewedLinks)
+
     const keptLinks = reviewedLinks.filter(
       ({ rejectionReasons }) => rejectionReasons.length === 0,
     )
@@ -179,6 +185,39 @@ export async function searchPermitsWithTavily(
   } finally {
     clearTimeout(timeout)
   }
+}
+
+// Saves the city's main permits page, after the response is sent, so contact
+// refreshes can start from it.
+function rememberPermitsPage(
+  { city }: PermitSearchInput,
+  reviewedLinks: Array<ReviewedLink>,
+) {
+  const permitsPage = reviewedLinks
+    .filter(({ review }) => isGeneralPermitsPage(review))
+    .sort(
+      (first, second) =>
+        second.review.generalPermitsPage - first.review.generalPermitsPage,
+    )
+    .at(0)
+  if (!permitsPage || !city.region || !hasDatabase()) {
+    return
+  }
+
+  const region = city.region
+  waitUntil(
+    withDatabase((db) =>
+      saveCityPermitsUrl(db, { name: city.name, region }, permitsPage.link.url),
+    ).catch((error: unknown) => {
+      console.error(
+        JSON.stringify({
+          message: 'saving city permits page failed',
+          url: permitsPage.link.url,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      )
+    }),
+  )
 }
 
 function buildSearchQuery(
