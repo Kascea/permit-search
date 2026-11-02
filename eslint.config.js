@@ -1,6 +1,7 @@
 //  @ts-check
 
 import { tanstackConfig } from '@tanstack/eslint-config'
+import oxlint from 'eslint-plugin-oxlint'
 
 export default [
   ...tanstackConfig,
@@ -14,11 +15,9 @@ export default [
       'pnpm/json-enforce-catalog': 'off',
     },
   },
+  // Disable ESLint rules that oxlint already covers (keep this last among rule configs)
+  ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
   {
-    ignores: [
-      '.cloudflare/**',
-      'eslint.config.js',
-      'prettier.config.js',
-    ],
+    ignores: ['.cloudflare/**', 'eslint.config.js', 'prettier.config.js'],
   },
 ]

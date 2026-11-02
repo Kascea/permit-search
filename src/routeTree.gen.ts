@@ -11,10 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as DraftsRouteImport } from './routes/drafts'
 import { Route as EditorRouteImport } from './routes/editor'
+import { Route as HistoryRouteImport } from './routes/history'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
 import { Route as ResultsIndexRouteImport } from './routes/results.index'
 import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
+import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -26,9 +30,24 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DraftsRoute = DraftsRouteImport.update({
+  id: '/drafts',
+  path: '/drafts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditorRoute = EditorRouteImport.update({
   id: '/editor',
   path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPdfRoute = ApiPdfRouteImport.update({
@@ -46,56 +65,99 @@ const ResultsSearchIdRoute = ResultsSearchIdRouteImport.update({
   path: '/results/$searchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
+  '/history': typeof HistoryRoute
+  '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results/': typeof ResultsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
+  '/history': typeof HistoryRoute
+  '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results': typeof ResultsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
+  '/history': typeof HistoryRoute
+  '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results/': typeof ResultsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/about' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results/'
+    | '/'
+    | '/about'
+    | '/drafts'
+    | '/editor'
+    | '/history'
+    | '/settings'
+    | '/api/pdf'
+    | '/results/$searchId'
+    | '/results/'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/about' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results'
+    | '/'
+    | '/about'
+    | '/drafts'
+    | '/editor'
+    | '/history'
+    | '/settings'
+    | '/api/pdf'
+    | '/results/$searchId'
+    | '/results'
+    | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/drafts'
     | '/editor'
+    | '/history'
+    | '/settings'
     | '/api/pdf'
     | '/results/$searchId'
     | '/results/'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  DraftsRoute: typeof DraftsRoute
   EditorRoute: typeof EditorRoute
+  HistoryRoute: typeof HistoryRoute
+  SettingsRoute: typeof SettingsRoute
   ApiPdfRoute: typeof ApiPdfRoute
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -114,11 +176,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/drafts': {
+      id: '/drafts'
+      path: '/drafts'
+      fullPath: '/drafts'
+      preLoaderRoute: typeof DraftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editor': {
       id: '/editor'
       path: '/editor'
       fullPath: '/editor'
       preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/pdf': {
@@ -142,16 +225,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  DraftsRoute: DraftsRoute,
   EditorRoute: EditorRoute,
+  HistoryRoute: HistoryRoute,
+  SettingsRoute: SettingsRoute,
   ApiPdfRoute: ApiPdfRoute,
   ResultsSearchIdRoute: ResultsSearchIdRoute,
   ResultsIndexRoute: ResultsIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

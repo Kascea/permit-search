@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequestHeaders } from '@tanstack/react-start/server'
 
+import { getSessionUser } from '#/lib/auth/auth.server'
 import {
   loadSavedSearch,
   runSavedSearch,
@@ -17,7 +19,10 @@ export const startSearch = createServerFn({ method: 'POST' })
     ...validatePermitSearch(input),
     fresh: input.fresh === true,
   }))
-  .handler(({ data }) => runSavedSearch(data, { fresh: data.fresh }))
+  .handler(async ({ data }) => {
+    const user = await getSessionUser(new Headers(getRequestHeaders()))
+    return runSavedSearch(data, { fresh: data.fresh, userId: user?.id })
+  })
 
 export const getSavedSearch = createServerFn({ method: 'GET' })
   .validator((input: { publicId: string }) => {

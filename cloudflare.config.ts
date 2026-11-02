@@ -29,6 +29,11 @@ export default defineConfig({
     env: {
       TAVILY_API_KEY: bindings.secret(),
       TYPESAFE_API_KEY: bindings.secret(),
+      // Better Auth: email/password and Google sign-in.
+      BETTER_AUTH_SECRET: bindings.secret(),
+      BETTER_AUTH_URL: bindings.secret(),
+      GOOGLE_CLIENT_ID: bindings.secret(),
+      GOOGLE_CLIENT_SECRET: bindings.secret(),
       ...(process.env.CLOUDFLARE_HYPERDRIVE_ID
         ? {
             DATABASE: bindings.hyperdrive({

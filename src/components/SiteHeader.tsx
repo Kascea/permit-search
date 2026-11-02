@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { AccountMenu } from '#/components/AccountMenu'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { SearchModal } from '#/components/SearchModal'
 import { formatCity } from '#/lib/location/format'
@@ -108,6 +109,8 @@ export function SiteHeader({ search }: SiteHeaderProps) {
               </svg>
             </span>
           </button>
+
+          <AccountMenu />
         </div>
       </header>
 

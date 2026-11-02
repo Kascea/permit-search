@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
+import { AccountMenu } from '#/components/AccountMenu'
 import { PermitSearchForm } from '#/components/PermitSearchForm'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { SiteFooter } from '#/components/SiteFooter'
@@ -13,6 +14,9 @@ function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <div className="flex justify-end px-4 pt-4 sm:px-6">
+        <AccountMenu />
+      </div>
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
         <div className="w-full max-w-[780px]">
           <div className="mb-10 text-center">

@@ -1,6 +1,9 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
+import { getAuthState } from '#/lib/auth/session'
+import { LocalDraftSync } from '#/components/LocalDraftSync'
+
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -47,6 +50,10 @@ export const Route = createRootRoute({
       },
     ],
   }),
+  // Sign-in sends the browser away and back, so this only needs reloading
+  // after sign-out (router.invalidate()).
+  loader: () => getAuthState(),
+  staleTime: Infinity,
   shellComponent: RootDocument,
 })
 
@@ -58,6 +65,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <LocalDraftSync />
         <Scripts />
       </body>
     </html>

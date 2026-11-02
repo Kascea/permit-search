@@ -8,11 +8,13 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  text,
   timestamp,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import type { DraftContent } from '#/lib/drafts/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
 export const contactsStatus = pgEnum('contacts_status', [
@@ -163,8 +165,20 @@ export const searchRequests = pgTable(
       .defaultNow(),
     // True when a saved search was reused instead of running again.
     wasReused: boolean('was_reused').notNull(),
+    // The signed-in user who ran it; null for visitors. Cleared when the user
+    // deletes their account or removes it from their history, so the request
+    // still counts but is no longer tied to them.
+    userId: text('user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
   },
-  (table) => [index('search_requests_search_id').on(table.searchId)],
+  (table) => [
+    index('search_requests_search_id').on(table.searchId),
+    index('search_requests_user_requested_at').on(
+      table.userId,
+      table.requestedAt,
+    ),
+  ],
 )
 
 // A visitor's report that a saved search's results are wrong.
@@ -183,6 +197,105 @@ export const resultReports = pgTable(
       .defaultNow(),
   },
   (table) => [index('result_reports_search_id').on(table.searchId)],
+)
+
+// Better Auth tables. Property names must match Better Auth's field names; the
+// adapter finds each table by its plural export name (usePlural). IDs are
+// Better Auth's random text IDs.
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  ...timestamps,
+})
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    token: text('token').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    ...timestamps,
+  },
+  (table) => [index('sessions_user_id').on(table.userId)],
+)
+
+// One row per sign-in method linked to a user: a password ("credential") or a
+// Google account.
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // The provider's ID for the user, such as Google's "sub".
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
+      withTimezone: true,
+    }),
+    scope: text('scope'),
+    // Scrypt hash, set only on "credential" accounts.
+    password: text('password'),
+    ...timestamps,
+  },
+  (table) => [index('accounts_user_id').on(table.userId)],
+)
+
+// Short-lived values such as OAuth state.
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (table) => [index('verifications_identifier').on(table.identifier)],
+)
+
+// A signed-in user's saved progress on one PDF form; see DraftContent.
+export const pdfDrafts = pgTable(
+  'pdf_drafts',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    // Random ID used by the drafts page, so row IDs aren't exposed.
+    publicId: varchar('public_id', { length: 16 }).notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // The PDF's original URL, as passed to /editor?url=.
+    sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
+    // SHA-256 of the PDF bytes, so the editor can tell the city replaced it.
+    sourceHash: char('source_hash', { length: 64 }).notNull(),
+    title: varchar('title', { length: 200 }).notNull(),
+    content: jsonb('content').$type<DraftContent>().notNull(),
+
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('pdf_drafts_public_id').on(table.publicId),
+    uniqueIndex('pdf_drafts_user_source').on(table.userId, table.sourceUrl),
+    index('pdf_drafts_user_updated_at').on(table.userId, table.updatedAt),
+  ],
 )
 
 export type City = typeof cities.$inferSelect

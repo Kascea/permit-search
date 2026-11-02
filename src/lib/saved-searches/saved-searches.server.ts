@@ -30,10 +30,14 @@ export interface SavedSearch {
 
 // Reuses a matching search from the last SEARCH_REUSE_DAYS when there is one;
 // otherwise runs the search and saves it. `fresh` runs it again unless it
-// already ran in the last SEARCH_REFRESH_HOURS.
+// already ran in the last SEARCH_REFRESH_HOURS. `userId` records who ran it, for
+// their history.
 export async function runSavedSearch(
   input: PermitSearchInput,
-  { fresh = false }: { fresh?: boolean } = {},
+  {
+    fresh = false,
+    userId = null,
+  }: { fresh?: boolean; userId?: string | null } = {},
 ): Promise<{ publicId: string; wasReused: boolean }> {
   const region = input.city.region ?? ''
   const queryKey = searchKey(input.city.name, region, input.permit)
@@ -70,7 +74,7 @@ export async function runSavedSearch(
         .where(eq(searches.id, match.id))
       await tx
         .insert(searchRequests)
-        .values({ searchId: match.id, wasReused: true })
+        .values({ searchId: match.id, wasReused: true, userId })
       return match.publicId
     })
   })
@@ -110,7 +114,7 @@ export async function runSavedSearch(
         .returning({ id: searches.id, publicId: searches.publicId })
       await tx
         .insert(searchRequests)
-        .values({ searchId: saved.id, wasReused: false })
+        .values({ searchId: saved.id, wasReused: false, userId })
       return saved.publicId
     })
   })
