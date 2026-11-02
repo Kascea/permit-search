@@ -37,8 +37,6 @@ export default defineConfig({
                 ? { dev: { connectionString: localDatabaseUrl } }
                 : {}),
             }),
-            // Guards the migration endpoint.
-            MIGRATION_TOKEN: bindings.secret(),
           }
         : {}),
     },

@@ -14,7 +14,6 @@ import { Route as EditorRouteImport } from './routes/editor'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
 import { Route as ResultsIndexRouteImport } from './routes/results.index'
 import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
-import { Route as ApiDbMigrateRouteImport } from './routes/api.db.migrate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,11 +40,6 @@ const ResultsSearchIdRoute = ResultsSearchIdRouteImport.update({
   path: '/results/$searchId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDbMigrateRoute = ApiDbMigrateRouteImport.update({
-  id: '/api/db/migrate',
-  path: '/api/db/migrate',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,7 +47,6 @@ export interface FileRoutesByFullPath {
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results/': typeof ResultsIndexRoute
-  '/api/db/migrate': typeof ApiDbMigrateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +54,6 @@ export interface FileRoutesByTo {
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results': typeof ResultsIndexRoute
-  '/api/db/migrate': typeof ApiDbMigrateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,25 +62,12 @@ export interface FileRoutesById {
   '/api/pdf': typeof ApiPdfRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/results/': typeof ResultsIndexRoute
-  '/api/db/migrate': typeof ApiDbMigrateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/editor'
-    | '/api/pdf'
-    | '/results/$searchId'
-    | '/results/'
-    | '/api/db/migrate'
+  fullPaths: '/' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/editor'
-    | '/api/pdf'
-    | '/results/$searchId'
-    | '/results'
-    | '/api/db/migrate'
+  to: '/' | '/editor' | '/api/pdf' | '/results/$searchId' | '/results'
   id:
     | '__root__'
     | '/'
@@ -96,7 +75,6 @@ export interface FileRouteTypes {
     | '/api/pdf'
     | '/results/$searchId'
     | '/results/'
-    | '/api/db/migrate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +83,6 @@ export interface RootRouteChildren {
   ApiPdfRoute: typeof ApiPdfRoute
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
-  ApiDbMigrateRoute: typeof ApiDbMigrateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,13 +122,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/db/migrate': {
-      id: '/api/db/migrate'
-      path: '/api/db/migrate'
-      fullPath: '/api/db/migrate'
-      preLoaderRoute: typeof ApiDbMigrateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -161,7 +131,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPdfRoute: ApiPdfRoute,
   ResultsSearchIdRoute: ResultsSearchIdRoute,
   ResultsIndexRoute: ResultsIndexRoute,
-  ApiDbMigrateRoute: ApiDbMigrateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
