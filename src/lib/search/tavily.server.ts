@@ -5,67 +5,17 @@ import type {
   PermitSearchResponse,
   PermitSearchResult,
 } from '#/lib/search/types'
+import { isGeneralPermitsPage } from '#/lib/search/link-review'
 import { reviewPermitLinks } from '#/lib/search/link-review.server'
+import type { PermitType } from '#/lib/search/permit-types'
+import { identifyPermitTypes } from '#/lib/search/permit-types.server'
 import { extractRelevantOfficialLinks } from '#/lib/search/official-links.server'
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 const SEARCH_TIMEOUT_MS = 15_000
 const MAX_RESULTS = 10
 const MAX_OFFICIAL_PAGES_TO_EXTRACT = 4
-
-const US_STATE_ABBREVIATIONS: Record<string, string> = {
-  alabama: 'al',
-  alaska: 'ak',
-  arizona: 'az',
-  arkansas: 'ar',
-  california: 'ca',
-  colorado: 'co',
-  connecticut: 'ct',
-  delaware: 'de',
-  florida: 'fl',
-  georgia: 'ga',
-  hawaii: 'hi',
-  idaho: 'id',
-  illinois: 'il',
-  indiana: 'in',
-  iowa: 'ia',
-  kansas: 'ks',
-  kentucky: 'ky',
-  louisiana: 'la',
-  maine: 'me',
-  maryland: 'md',
-  massachusetts: 'ma',
-  michigan: 'mi',
-  minnesota: 'mn',
-  mississippi: 'ms',
-  missouri: 'mo',
-  montana: 'mt',
-  nebraska: 'ne',
-  nevada: 'nv',
-  'new hampshire': 'nh',
-  'new jersey': 'nj',
-  'new mexico': 'nm',
-  'new york': 'ny',
-  'north carolina': 'nc',
-  'north dakota': 'nd',
-  ohio: 'oh',
-  oklahoma: 'ok',
-  oregon: 'or',
-  pennsylvania: 'pa',
-  'rhode island': 'ri',
-  'south carolina': 'sc',
-  'south dakota': 'sd',
-  tennessee: 'tn',
-  texas: 'tx',
-  utah: 'ut',
-  vermont: 'vt',
-  virginia: 'va',
-  washington: 'wa',
-  'west virginia': 'wv',
-  wisconsin: 'wi',
-  wyoming: 'wy',
-  'district of columbia': 'dc',
-}
+const MAX_GENERAL_FALLBACK_RESULTS = 3
 
 interface TavilySearchResult {
   title?: unknown
@@ -82,7 +32,8 @@ interface TavilySearchResponse {
 export async function searchPermitsWithTavily(
   input: PermitSearchInput,
 ): Promise<PermitSearchResponse> {
-  const query = buildSearchQuery(input)
+  const permitTypes = await identifyPermitTypes(input)
+  const query = buildSearchQuery(input, permitTypes)
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS)
 
@@ -116,11 +67,38 @@ export async function searchPermitsWithTavily(
     }
 
     const payload = await response.json<TavilySearchResponse>()
-    const results = Array.isArray(payload.results)
+    const tavilyResults = Array.isArray(payload.results)
       ? payload.results
-          .map((result) => normalizeResult(result, input))
+          .map(normalizeResult)
           .filter((result): result is PermitSearchResult => result !== null)
       : []
+    const results = tavilyResults.filter((result) => {
+      const matches = matchesLocality(
+        result.title,
+        result.description,
+        new URL(result.url),
+        input,
+      )
+      if (!matches) {
+        console.log(
+          JSON.stringify({
+            message: 'city filter dropped link',
+            url: result.url,
+            title: result.title,
+          }),
+        )
+      }
+      return matches
+    })
+
+    console.log(
+      JSON.stringify({
+        message: 'tavily search completed',
+        query,
+        returned: tavilyResults.length,
+        passedCityFilter: results.length,
+      }),
+    )
     const officialPages = results
       .filter(
         (result) => result.isGovernmentSource && isLikelyHtmlPage(result.url),
@@ -133,7 +111,7 @@ export async function searchPermitsWithTavily(
     const extractedByPage = await Promise.all(
       officialPages.map(async (page) => ({
         page,
-        links: await extractRelevantOfficialLinks(page, input),
+        links: await extractRelevantOfficialLinks(page, input, permitTypes),
       })),
     )
     const extractedLinks = extractedByPage.flatMap(({ links }) => links)
@@ -151,18 +129,46 @@ export async function searchPermitsWithTavily(
     const reviewedLinks = await reviewPermitLinks(
       input,
       deduplicateResults([...extractedLinks, ...results]),
+      permitTypes,
     )
-    const rankedResults = reviewedLinks
-      .sort(
-        (first, second) =>
-          second.confidentMatches - first.confidentMatches ||
-          rankResult(second.link, input) - rankResult(first.link, input),
+    const keptLinks = reviewedLinks.filter(
+      ({ rejectionReasons }) => rejectionReasons.length === 0,
+    )
+    // Nothing specific to the project survived: show the city's general
+    // permit pages and application portal instead of an empty list.
+    const isGeneralFallback = keptLinks.length === 0
+    const rankedResults = (
+      isGeneralFallback
+        ? reviewedLinks
+            .filter(({ review }) => isGeneralPermitsPage(review))
+            .sort(
+              (first, second) =>
+                second.review.generalPermitsPage -
+                first.review.generalPermitsPage,
+            )
+            .slice(0, MAX_GENERAL_FALLBACK_RESULTS)
+        : keptLinks
+            .sort(
+              (first, second) =>
+                second.confidentMatches - first.confidentMatches ||
+                rankResult(second.link, input) - rankResult(first.link, input),
+            )
+            .slice(0, MAX_RESULTS)
+    ).map(({ link }) => link)
+
+    if (isGeneralFallback) {
+      console.log(
+        JSON.stringify({
+          message: 'showing general permit pages',
+          urls: rankedResults.map(({ url }) => url),
+        }),
       )
-      .slice(0, MAX_RESULTS)
-      .map(({ link }) => link)
+    }
+
     return {
       query: typeof payload.query === 'string' ? payload.query : query,
       results: rankedResults,
+      isGeneralFallback: isGeneralFallback && rankedResults.length > 0,
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -175,16 +181,20 @@ export async function searchPermitsWithTavily(
   }
 }
 
-function buildSearchQuery({ city, permit }: PermitSearchInput) {
-  return `official City of "${city.name}" "${city.region}" ${permit} permit application requirements`
+function buildSearchQuery(
+  { city, permit }: PermitSearchInput,
+  permitTypes: Array<PermitType>,
+) {
+  const permits =
+    permitTypes.length > 0
+      ? permitTypes.map(({ name }) => name).join(' ')
+      : 'permit'
+  return `official City of "${city.name}" "${city.region}" ${permit} ${permits} application requirements`
     .replace(/\s+/g, ' ')
     .slice(0, 400)
 }
 
-function normalizeResult(
-  value: unknown,
-  input: PermitSearchInput,
-): PermitSearchResult | null {
+function normalizeResult(value: unknown): PermitSearchResult | null {
   if (!value || typeof value !== 'object') {
     return null
   }
@@ -205,10 +215,6 @@ function normalizeResult(
     }
 
     const domain = url.hostname.replace(/^www\./, '')
-    if (!matchesLocality(result.title, result.content, url, input)) {
-      return null
-    }
-
     return {
       title: result.title,
       url: url.toString(),
@@ -228,27 +234,17 @@ function matchesLocality(
   url: URL,
   { city }: PermitSearchInput,
 ) {
-  if (typeof city.region !== 'string') {
-    return false
-  }
-
+  // Only the city name is required: official pages often never name their
+  // state, and Jev's jurisdiction question rejects same-named cities elsewhere.
   const cityName = normalizeText(city.name)
-  const region = normalizeText(city.region)
-  const stateAbbreviation = US_STATE_ABBREVIATIONS[region]
   const text = normalizeText(
     `${title} ${content} ${url.hostname} ${url.pathname}`,
   )
   const compactUrl = compactText(`${url.hostname}${url.pathname}`)
-  const cityMatches =
-    includesPhrase(text, cityName) || compactUrl.includes(compactText(cityName))
-  const regionMatches =
-    includesPhrase(text, region) ||
-    (stateAbbreviation
-      ? includesPhrase(text, stateAbbreviation) ||
-        compactUrl.includes(`${compactText(cityName)}${stateAbbreviation}`)
-      : false)
 
-  return cityMatches && regionMatches
+  return (
+    includesPhrase(text, cityName) || compactUrl.includes(compactText(cityName))
+  )
 }
 
 function rankResult(result: PermitSearchResult, input: PermitSearchInput) {

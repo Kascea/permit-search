@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { CityCombobox } from '#/components/CityCombobox'
+import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { reverseGeocodeCity } from '#/lib/location/mapbox'
 import type { City } from '#/lib/location/types'
 import { isPdfUrl } from '#/lib/pdf/url'
@@ -139,30 +140,7 @@ function Home() {
             aria-label="Permit Search home"
             className="inline-flex items-center gap-3 text-left text-[#302d2d]"
           >
-            <svg aria-hidden="true" className="size-10" viewBox="0 0 64 64">
-              <rect width="64" height="64" rx="14" fill="#302d2d" />
-              <circle
-                cx="29.5"
-                cy="29.5"
-                r="16"
-                fill="none"
-                stroke="#fdfff1"
-                strokeWidth="3.5"
-              />
-              <path d="M21 26L29.5 20.5L38 26Z" fill="#fdfff1" />
-              <path
-                d="M23.5 28.5v7M29.5 28.5v7M35.5 28.5v7M21 37.5h17"
-                stroke="#fdfff1"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M41.6 41.6L50.3 50.3"
-                stroke="#fdfff1"
-                strokeWidth="5.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <PermitSearchLogo />
             <span>
               <span className="block text-[0.65rem] font-medium tracking-[0.2em] uppercase">
                 City services
@@ -202,34 +180,35 @@ function Home() {
               value={cityInput}
               onChange={updateCityInput}
               onCitySelected={selectCity}
-            />
-
-            <button
-              type="button"
-              className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#302d2d] px-4 py-2 text-sm font-medium text-[#302d2d] transition hover:bg-[#302d2d] hover:text-[#fdfff1] disabled:cursor-wait disabled:opacity-60"
-              disabled={isLocating}
-              onClick={useCurrentLocation}
-            >
-              {isLocating ? (
-                <span className="size-3.5 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]" />
-              ) : (
-                <svg
-                  aria-hidden="true"
-                  className="size-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
+              labelAction={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#302d2d]/40 px-2.5 py-1 text-xs font-medium text-[#302d2d] transition hover:border-[#302d2d] hover:bg-[#302d2d] hover:text-[#fdfff1] disabled:cursor-wait disabled:opacity-60"
+                  disabled={isLocating}
+                  onClick={useCurrentLocation}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c1.243 0 2.25-4.03 2.25-9S13.243 3 12 3s-2.25 4.03-2.25 9S10.757 21 12 21ZM3.6 9h16.8M3.6 15h16.8"
-                  />
-                </svg>
-              )}
-              {isLocating ? 'Finding your city…' : 'Detect my city'}
-            </button>
+                  {isLocating ? (
+                    <span className="size-3 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]" />
+                  ) : (
+                    <svg
+                      aria-hidden="true"
+                      className="size-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c1.243 0 2.25-4.03 2.25-9S13.243 3 12 3s-2.25 4.03-2.25 9S10.757 21 12 21ZM3.6 9h16.8M3.6 15h16.8"
+                      />
+                    </svg>
+                  )}
+                  {isLocating ? 'Finding…' : 'Detect my city'}
+                </button>
+              }
+            />
 
             {locationError && (
               <p
@@ -321,6 +300,14 @@ function Home() {
                 {searchResponse.results.length === 1 ? 'result' : 'results'}
               </span>
             </div>
+
+            {searchResponse.isGeneralFallback && (
+              <p className="mt-6 border-t border-[#302d2d] pt-5 text-sm leading-6 text-[#302d2d]/70">
+                We couldn’t find a page specific to this project. These are the
+                city’s general permit pages, where you can find the permits it
+                needs and apply.
+              </p>
+            )}
 
             {searchResponse.results.length > 0 ? (
               <ol className="mt-6 divide-y divide-[#302d2d]/20 border-t border-[#302d2d]">

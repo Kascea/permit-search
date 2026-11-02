@@ -17,4 +17,7 @@ export interface PermitSearchResult {
 export interface PermitSearchResponse {
   query: string
   results: Array<PermitSearchResult>
+  // True when no project-specific link was found and the results are the
+  // city's general permit pages instead.
+  isGeneralFallback: boolean
 }

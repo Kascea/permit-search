@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import {
   createMapboxSessionToken,
@@ -13,6 +14,7 @@ interface CityComboboxProps {
   value: string
   onChange: (value: string) => void
   onCitySelected: (city: City) => void
+  labelAction?: ReactNode
 }
 
 export function CityCombobox({
@@ -21,6 +23,7 @@ export function CityCombobox({
   value,
   onChange,
   onCitySelected,
+  labelAction,
 }: CityComboboxProps) {
   const inputId = useId()
   const listboxId = useId()
@@ -81,13 +84,8 @@ export function CityCombobox({
     setError('')
 
     try {
-      const activeSession =
-        sessionToken.current ?? createMapboxSessionToken()
-      const city = await retrieveCity(
-        suggestion,
-        accessToken,
-        activeSession,
-      )
+      const activeSession = sessionToken.current ?? createMapboxSessionToken()
+      const city = await retrieveCity(suggestion, accessToken, activeSession)
       onCitySelected(city)
       setSuggestions([])
       setActiveIndex(-1)
@@ -112,8 +110,7 @@ export function CityCombobox({
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       setActiveIndex(
-        (current) =>
-          (current - 1 + suggestions.length) % suggestions.length,
+        (current) => (current - 1 + suggestions.length) % suggestions.length,
       )
     } else if (event.key === 'Enter' && activeIndex >= 0) {
       event.preventDefault()
@@ -128,12 +125,15 @@ export function CityCombobox({
 
   return (
     <div className="relative">
-      <label
-        className="mb-2 block text-sm font-medium text-[#302d2d]"
-        htmlFor={inputId}
-      >
-        City
-      </label>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label
+          className="block text-sm font-medium text-[#302d2d]"
+          htmlFor={inputId}
+        >
+          City
+        </label>
+        {labelAction}
+      </div>
       <div className="relative">
         <svg
           aria-hidden="true"

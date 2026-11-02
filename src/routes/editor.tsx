@@ -14,6 +14,8 @@ import {
 } from 'pdf-lib'
 import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from 'pdfjs-dist'
 
+import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+
 type EditorTool = 'text' | 'check' | 'date' | 'signature'
 
 interface PdfRect {
@@ -229,9 +231,7 @@ function PdfEditor() {
       <header className="sticky top-0 z-50 border-b border-[#302d2d] bg-[#fdfff1] px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3">
           <a className="flex items-center gap-3 text-[#302d2d]" href="/">
-            <span className="grid size-9 place-items-center rounded-[2px] bg-[#302d2d] text-[#fdfff1]">
-              <PermitIcon />
-            </span>
+            <PermitSearchLogo className="size-9" />
             <span>
               <span className="block text-[0.6rem] font-medium tracking-[0.2em] uppercase">
                 Permit Search
@@ -868,23 +868,4 @@ function toArrayBuffer(bytes: Uint8Array) {
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength,
   ) as ArrayBuffer
-}
-
-function PermitIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      viewBox="0 0 24 24"
-    >
-      <path
-        d="M3 21h18M4.5 9h15M6 9v9m4-9v9m4-9v9m4-9v9M3.75 6 12 2.25 20.25 6v3H3.75V6Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
 }
