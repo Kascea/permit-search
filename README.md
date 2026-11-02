@@ -132,6 +132,23 @@ npx cf auth login
 npm run deploy
 ```
 
+Pushes to `main` deploy automatically through Cloudflare Workers Builds,
+connected to this repo in the Cloudflare dashboard (Workers & Pages →
+permit-search → Settings → Builds):
+
+- Build command: none (`cf deploy` builds the project itself)
+- Deploy command: `npm run deploy`
+- Non-production branch builds: off, or `npx cf deploy --dry-run` (the
+  default `wrangler versions upload` doesn't work without Wrangler config)
+- Build variable `CLOUDFLARE_HYPERDRIVE_ID`: required. `cloudflare.config.ts`
+  only adds the `DATABASE` binding when it's set, so a build without it
+  deploys a Worker with no database.
+- Node comes from `.node-version`.
+
+`cf` signs in with the `CLOUDFLARE_API_TOKEN` that Workers Builds provides.
+Builds don't run database migrations: run `npm run db:migrate` before pushing
+code that needs them.
+
 This project uses `cloudflare.config.ts`, not Wrangler configuration. Keep the
 beta `cf` CLI pinned through the lockfile and review changes when upgrading it.
 Logs and traces are enabled in the Worker configuration.
