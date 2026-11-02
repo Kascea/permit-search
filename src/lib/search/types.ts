@@ -20,4 +20,6 @@ export interface PermitSearchResponse {
   // True when no project-specific link was found and the results are the
   // city's general permit pages instead.
   isGeneralFallback: boolean
+  // The permit types Jev identified for the project, such as "building permit".
+  permitTypes: Array<string>
 }

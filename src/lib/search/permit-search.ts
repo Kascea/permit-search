@@ -1,11 +1,32 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { searchPermitsWithTavily } from '#/lib/search/tavily.server'
+import {
+  loadSavedSearch,
+  runSavedSearch,
+} from '#/lib/saved-searches/saved-searches.server'
 import type { PermitSearchInput } from '#/lib/search/types'
 
-export const searchPermits = createServerFn({ method: 'POST' })
-  .validator(validatePermitSearch)
-  .handler(({ data }) => searchPermitsWithTavily(data))
+interface StartSearchInput extends PermitSearchInput {
+  // Run the search even when a recent matching one is saved.
+  fresh?: boolean
+}
+
+// Reuses or runs a search and returns the saved search's public ID.
+export const startSearch = createServerFn({ method: 'POST' })
+  .validator((input: StartSearchInput): StartSearchInput => ({
+    ...validatePermitSearch(input),
+    fresh: input.fresh === true,
+  }))
+  .handler(({ data }) => runSavedSearch(data, { fresh: data.fresh }))
+
+export const getSavedSearch = createServerFn({ method: 'GET' })
+  .validator((input: { publicId: string }) => {
+    if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
+      throw new Error('That search link is not valid.')
+    }
+    return input
+  })
+  .handler(({ data }) => loadSavedSearch(data.publicId))
 
 function validatePermitSearch(input: PermitSearchInput): PermitSearchInput {
   const cityName = input.city.name.trim()

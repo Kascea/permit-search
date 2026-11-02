@@ -1,0 +1,225 @@
+import { useId, useState } from 'react'
+
+import { CityCombobox } from '#/components/CityCombobox'
+import { formatCity } from '#/lib/location/format'
+import { reverseGeocodeCity } from '#/lib/location/mapbox'
+import type { City } from '#/lib/location/types'
+
+interface PermitSearchFormProps {
+  initialCity?: City
+  initialPermit?: string
+  onSearch: (city: City, permit: string) => void
+}
+
+// The city and project form shared by the home page and the results page's
+// search modal. It validates input and hands the search to onSearch.
+export function PermitSearchForm({
+  initialCity,
+  initialPermit = '',
+  onSearch,
+}: PermitSearchFormProps) {
+  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
+  const permitInputId = useId()
+  const [cityInput, setCityInput] = useState(
+    initialCity ? formatCity(initialCity) : '',
+  )
+  const [selectedCity, setSelectedCity] = useState(initialCity)
+  const [permitQuery, setPermitQuery] = useState(initialPermit)
+  const [formError, setFormError] = useState('')
+  const [locationError, setLocationError] = useState('')
+  const [isLocating, setIsLocating] = useState(false)
+
+  function updateCityInput(value: string) {
+    setCityInput(value)
+    setSelectedCity(undefined)
+    setFormError('')
+  }
+
+  function selectCity(city: City) {
+    setSelectedCity(city)
+    setCityInput(formatCity(city))
+    setFormError('')
+    setLocationError('')
+  }
+
+  function useCurrentLocation() {
+    setLocationError('')
+
+    if (!mapboxToken) {
+      setLocationError(
+        'Add a Mapbox token to use your location, or enter a city.',
+      )
+      return
+    }
+
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const city = await reverseGeocodeCity(
+            coords.latitude,
+            coords.longitude,
+            mapboxToken,
+          )
+          selectCity(city)
+        } catch (error) {
+          setLocationError(
+            error instanceof Error
+              ? error.message
+              : 'We could not determine your city.',
+          )
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      (error) => {
+        setIsLocating(false)
+        setLocationError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access was declined. Enter your city instead.'
+            : 'Your location is unavailable. Enter your city instead.',
+        )
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    )
+  }
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const cityValue = cityInput.trim()
+    const permitValue = permitQuery.trim()
+
+    if (!cityValue || !permitValue) {
+      setFormError('Enter a city and describe the permit you need.')
+      return
+    }
+
+    const manualParts = cityValue.split(',').map((part) => part.trim())
+    const city =
+      selectedCity ??
+      ({
+        name: manualParts[0],
+        region: manualParts[1],
+        country: 'United States',
+      } satisfies City)
+
+    if (!city.region) {
+      setFormError(
+        'Select a city and state, then describe the permit you need.',
+      )
+      return
+    }
+
+    setFormError('')
+    onSearch(city, permitValue)
+  }
+
+  return (
+    <form
+      className="border border-[#302d2d] bg-[#fdfff1] p-5 sm:p-6"
+      noValidate
+      onSubmit={submitSearch}
+    >
+      <div className="mb-8 flex items-center justify-between border-b border-[#302d2d] pb-5">
+        <span className="text-sm font-medium text-[#302d2d]">
+          Start your search
+        </span>
+        <span className="flex items-center gap-2 text-sm font-medium text-[#302d2d]/60">
+          <span className="size-2 rounded-full bg-[#1968b4]" />
+          Local lookup
+        </span>
+      </div>
+
+      <CityCombobox
+        accessToken={mapboxToken}
+        selectedCity={selectedCity}
+        value={cityInput}
+        onChange={updateCityInput}
+        onCitySelected={selectCity}
+        labelAction={
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#302d2d]/40 px-2.5 py-1 text-xs font-medium text-[#302d2d] transition hover:border-[#302d2d] hover:bg-[#302d2d] hover:text-[#fdfff1] disabled:cursor-wait disabled:opacity-60"
+            disabled={isLocating}
+            onClick={useCurrentLocation}
+          >
+            {isLocating ? (
+              <span className="size-3 animate-spin rounded-full border-2 border-[#1968b4]/20 border-t-[#1968b4]" />
+            ) : (
+              <svg
+                aria-hidden="true"
+                className="size-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c1.243 0 2.25-4.03 2.25-9S13.243 3 12 3s-2.25 4.03-2.25 9S10.757 21 12 21ZM3.6 9h16.8M3.6 15h16.8"
+                />
+              </svg>
+            )}
+            {isLocating ? 'Finding…' : 'Detect my city'}
+          </button>
+        }
+      />
+
+      {locationError && (
+        <p className="mt-2 text-sm font-medium text-amber-700" role="alert">
+          {locationError}
+        </p>
+      )}
+
+      <div className="mt-7">
+        <label
+          className="mb-2 block text-sm font-medium text-[#302d2d]"
+          htmlFor={permitInputId}
+        >
+          Project or permit
+        </label>
+        <textarea
+          id={permitInputId}
+          className="field-input min-h-24 resize-none"
+          placeholder="e.g. Build a deck, replace a roof, add a bathroom"
+          value={permitQuery}
+          onChange={(event) => {
+            setPermitQuery(event.target.value)
+            setFormError('')
+          }}
+        />
+      </div>
+
+      {formError && (
+        <p
+          className="mt-4 border border-[#953012] bg-[#953012]/10 px-4 py-3 text-sm font-medium text-[#953012]"
+          role="alert"
+        >
+          {formError}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        className="mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-[#1968b4] px-5 py-4 text-lg font-medium text-[#fdfff1] transition hover:bg-[#145390] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1968b4]"
+      >
+        Find my permit
+        <svg
+          aria-hidden="true"
+          className="size-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="m9 18 6-6-6-6"
+          />
+        </svg>
+      </button>
+    </form>
+  )
+}

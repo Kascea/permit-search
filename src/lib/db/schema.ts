@@ -4,12 +4,16 @@ import {
   char,
   date,
   index,
+  integer,
+  jsonb,
   pgEnum,
   pgTable,
   timestamp,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
+
+import type { PermitSearchResponse } from '#/lib/search/types'
 
 export const contactsStatus = pgEnum('contacts_status', [
   'found',
@@ -102,5 +106,67 @@ export const cityOffices = pgTable(
   ],
 )
 
+export const searches = pgTable(
+  'searches',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    // Random ID used in URLs, such as /results/k7Qm2xPz9aB4, so saved searches
+    // can't be found by counting up.
+    publicId: varchar('public_id', { length: 16 }).notNull(),
+
+    cityId: bigint('city_id', { mode: 'number' })
+      .notNull()
+      .references(() => cities.id, { onDelete: 'cascade' }),
+    // As typed, such as "Bathroom remodel!".
+    permitQuery: varchar('permit_query', { length: 240 }).notNull(),
+    // Lowercase, punctuation removed: "bathroom remodel".
+    normalizedQuery: varchar('normalized_query', { length: 240 }).notNull(),
+    // City key, normalized query, and pipeline version; see searchKey().
+    queryKey: varchar('query_key', { length: 500 }).notNull(),
+    // Bumped when the search flow changes so older results aren't reused.
+    pipelineVersion: integer('pipeline_version').notNull(),
+
+    permitTypes: jsonb('permit_types').$type<Array<string>>().notNull(),
+    response: jsonb('response').$type<PermitSearchResponse>().notNull(),
+    resultCount: integer('result_count').notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    // Matching searches after this run fresh instead of reusing this one.
+    reuseUntil: timestamp('reuse_until', { withTimezone: true }).notNull(),
+    timesServed: integer('times_served').notNull().default(1),
+    lastServedAt: timestamp('last_served_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('searches_public_id').on(table.publicId),
+    index('searches_query_key_created_at').on(table.queryKey, table.createdAt),
+    index('searches_city_id').on(table.cityId),
+  ],
+)
+
+export const searchRequests = pgTable(
+  'search_requests',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    searchId: bigint('search_id', { mode: 'number' })
+      .notNull()
+      .references(() => searches.id, { onDelete: 'cascade' }),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    // True when a saved search was reused instead of running again.
+    wasReused: boolean('was_reused').notNull(),
+  },
+  (table) => [index('search_requests_search_id').on(table.searchId)],
+)
+
 export type City = typeof cities.$inferSelect
 export type CityOffice = typeof cityOffices.$inferSelect
+export type Search = typeof searches.$inferSelect

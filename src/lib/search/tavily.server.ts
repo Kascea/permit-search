@@ -175,6 +175,7 @@ export async function searchPermitsWithTavily(
       query: typeof payload.query === 'string' ? payload.query : query,
       results: rankedResults,
       isGeneralFallback: isGeneralFallback && rankedResults.length > 0,
+      permitTypes: permitTypes.map(({ name }) => name),
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
