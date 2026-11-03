@@ -18,7 +18,7 @@ interface PermitSearchFormProps {
   onSearch: (city: City, permit: string) => void
 }
 
-// The city and project form shared by the home page and the results page's
+// The city and project form shared by the search page and the header's
 // search modal. It validates input and hands the search to onSearch.
 export function PermitSearchForm({
   initialCity,

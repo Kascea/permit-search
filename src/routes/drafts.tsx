@@ -2,12 +2,11 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { AppPage } from '#/components/AppPage'
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
 import { EditedDate } from '#/components/EditedDate'
 import { SearchLinkText } from '#/components/SearchLinkText'
 import { Pending } from '#/components/Pending'
-import { SiteFooter } from '#/components/SiteFooter'
-import { SiteHeader } from '#/components/SiteHeader'
 import { SignInButton } from '#/components/SignInDialog'
 import { deleteAccountDraft, listAccountDrafts } from '#/lib/drafts/drafts'
 import type { DraftSummary } from '#/lib/drafts/types'
@@ -45,42 +44,34 @@ function Drafts() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader
-        isSearchOpen={isSearchOpen}
-        onSearchOpenChange={setIsSearchOpen}
-      />
+    <AppPage
+      isSearchOpen={isSearchOpen}
+      onSearchOpenChange={setIsSearchOpen}
+    >
+      <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
+        Drafts
+      </p>
+      <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+        Forms you’ve started
+      </h1>
 
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
-        <section className="mx-auto max-w-[780px] py-8">
-          <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
-            Drafts
+      {drafts && projects ? (
+        <DraftList
+          drafts={drafts}
+          projects={projects}
+          onProjectsChange={setProjects}
+          onStartSearch={() => setIsSearchOpen(true)}
+        />
+      ) : (
+        <div className="mt-6 border-t border-ink pt-5">
+          <p className="text-base leading-6 text-ink/70">
+            Sign in to see forms you’ve saved to your account. Forms you
+            fill out while signed out are saved on this device.
           </p>
-          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
-            Forms you’ve started
-          </h1>
-
-          {drafts && projects ? (
-            <DraftList
-              drafts={drafts}
-              projects={projects}
-              onProjectsChange={setProjects}
-              onStartSearch={() => setIsSearchOpen(true)}
-            />
-          ) : (
-            <div className="mt-6 border-t border-ink pt-5">
-              <p className="text-base leading-6 text-ink/70">
-                Sign in to see forms you’ve saved to your account. Forms you
-                fill out while signed out are saved on this device.
-              </p>
-              <SignInButton className="mt-5 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep" />
-            </div>
-          )}
-        </section>
-      </main>
-
-      <SiteFooter />
-    </div>
+          <SignInButton className="mt-5 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep" />
+        </div>
+      )}
+    </AppPage>
   )
 }
 

@@ -9,7 +9,7 @@ export function SearchLinkText({ search }: { search: SearchLink }) {
     <>
       From{' '}
       <Link
-        to="/results/$searchId"
+        to="/search/results/$searchId"
         params={{ searchId: search.publicId }}
         className="text-blueprint underline-offset-2 hover:underline"
       >

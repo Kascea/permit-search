@@ -36,15 +36,29 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
-  margin: 0;
-  /* A faint 32px grid behind every page. */
-  background:
+/* A faint 32px grid on paper: the sheet behind every page. */
+:root {
+  --sheet:
     linear-gradient(to right, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
       32px 32px,
     linear-gradient(to bottom, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
       32px 32px,
     var(--color-paper);
+}
+
+/* An opaque surface that shows the same sheet, lined up with the page's, such
+   as the sticky header that content scrolls under. */
+@utility bg-sheet {
+  background: var(--sheet);
+  background-attachment: fixed;
+}
+
+body {
+  margin: 0;
+  background: var(--sheet);
+  /* Fixed to the window, so the sticky sidebar and header stay on its lines
+     while the page scrolls. */
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

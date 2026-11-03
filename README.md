@@ -76,7 +76,10 @@ copy. Do not add proprietary reference-site fonts.
 
 ## Repository structure
 
-- `src/routes/index.tsx` — search page, geolocation flow, and result shell
+- `src/routes/index.tsx` — signed-in dashboard, or the search landing page
+  when signed out
+- `src/routes/history.tsx` — past searches
+- `src/routes/search.results.*.tsx` — running and showing a search
 - `src/components/CityCombobox.tsx` — accessible city autocomplete
 - `src/lib/location/places.ts` — in-browser city search over the place list
 - `src/lib/location/census.server.ts` — server-only Census reverse geocoding

@@ -1,4 +1,4 @@
-import { Link, useRouter } from '@tanstack/react-router'
+import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import type { ErrorComponentProps } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
@@ -51,14 +51,31 @@ function ErrorPage({
   message: string
   children?: ReactNode
 }) {
+  // AppSidebar is beside the page when the root route loaded a user; from lg
+  // up it has the logo, and this is the bare top bar beside it, as in
+  // SiteHeader. Read without throwing, for the same reason.
+  const besideSidebar = useRouterState({
+    select: (state) => {
+      const root = state.matches.at(0)?.loaderData
+
+      return Boolean(root && 'user' in root && root.user)
+    },
+  })
+
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-ink bg-paper px-4 sm:px-6">
-        <div className="mx-auto flex h-14 max-w-[1120px] items-center">
+      <header className="border-b border-ink bg-sheet px-4 sm:px-6">
+        <div
+          className={`mx-auto flex h-14 max-w-[1120px] items-center ${
+            besideSidebar ? 'lg:h-16' : ''
+          }`}
+        >
           <Link
             to="/"
             aria-label="Permit Search home"
-            className="flex items-center gap-2.5 text-ink"
+            className={`flex items-center gap-2.5 text-ink ${
+              besideSidebar ? 'lg:hidden' : ''
+            }`}
           >
             <PermitSearchLogo className="size-7" />
             <span className="text-sm font-medium tracking-tight">

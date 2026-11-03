@@ -9,6 +9,7 @@ import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
+import { AppPage } from '#/components/AppPage'
 import { Breadcrumbs, crumbLinkClass } from '#/components/Breadcrumbs'
 import { primaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
@@ -16,8 +17,6 @@ import { Pending } from '#/components/Pending'
 import { ProjectForm } from '#/components/ProjectForm'
 import { SearchLinkText } from '#/components/SearchLinkText'
 import { SignInButton } from '#/components/SignInDialog'
-import { SiteFooter } from '#/components/SiteFooter'
-import { SiteHeader } from '#/components/SiteHeader'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { originParam } from '#/lib/navigation/origin'
 import type { DraftSummary } from '#/lib/drafts/types'
@@ -32,6 +31,7 @@ import {
   formatProjectAddress,
 } from '#/lib/projects/types'
 import type { Project } from '#/lib/projects/types'
+import { setAccountProjects } from '#/lib/projects/use-account-projects'
 
 export const Route = createFileRoute('/projects/$projectId')({
   loader: async ({ params }) => {
@@ -58,7 +58,7 @@ export const Route = createFileRoute('/projects/$projectId')({
       },
     ],
   }),
-  component: ProjectPage,
+  component: ProjectRoute,
   notFoundComponent: () => (
     <Page>
       <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
@@ -76,6 +76,15 @@ export const Route = createFileRoute('/projects/$projectId')({
 
 const linkButtonClass =
   'inline-flex items-center gap-1.5 text-sm text-ink/60 underline-offset-2 transition hover:text-redline hover:underline disabled:cursor-wait'
+
+// Going from one project to another (such as from the sidebar) keeps this
+// route mounted, so the page is keyed by project: otherwise ProjectForm would
+// keep the last project's fields under the new name and show unsaved changes.
+function ProjectRoute() {
+  const { projectId } = Route.useParams()
+
+  return <ProjectPage key={projectId} />
+}
 
 function ProjectPage() {
   const { project, drafts } = Route.useLoaderData()
@@ -118,7 +127,9 @@ function ProjectPage() {
     setIsDeleting(true)
 
     try {
-      await deleteAccountProject({ data: { publicId: current.publicId } })
+      setAccountProjects(
+        await deleteAccountProject({ data: { publicId: current.publicId } }),
+      )
       toast.success('Project deleted.')
       await navigate({ to: '/projects' })
     } catch {
@@ -186,9 +197,11 @@ function ProjectPage() {
           submitLabel="Save changes"
           pendingLabel="Saving…"
           onSubmit={async (input) => {
-            await updateAccountProject({
-              data: { ...input, publicId: project.publicId },
-            })
+            setAccountProjects(
+              await updateAccountProject({
+                data: { ...input, publicId: project.publicId },
+              }),
+            )
             await router.invalidate()
             toast.success('Project saved.')
           }}
@@ -293,33 +306,27 @@ function Page({
   children: ReactNode
   // Ends the breadcrumb once the project has loaded.
   projectName?: string
-} & React.ComponentProps<typeof SiteHeader>) {
+} & React.ComponentProps<typeof AppPage>) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader {...header} />
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
-        <section className="mx-auto max-w-[780px] py-8">
-          <Breadcrumbs
-            className="mb-5"
-            current={
-              projectName === undefined ? undefined : (
-                <span className="text-ink">{projectName}</span>
-              )
-            }
-          >
-            <Link
-              to="/projects"
-              activeOptions={{ exact: true }}
-              className={crumbLinkClass}
-            >
-              Projects
-            </Link>
-          </Breadcrumbs>
-          {children}
-        </section>
-      </main>
-      <SiteFooter />
-    </div>
+    <AppPage {...header}>
+      <Breadcrumbs
+        className="mb-5"
+        current={
+          projectName === undefined ? undefined : (
+            <span className="text-ink">{projectName}</span>
+          )
+        }
+      >
+        <Link
+          to="/projects"
+          activeOptions={{ exact: true }}
+          className={crumbLinkClass}
+        >
+          Projects
+        </Link>
+      </Breadcrumbs>
+      {children}
+    </AppPage>
   )
 }
 

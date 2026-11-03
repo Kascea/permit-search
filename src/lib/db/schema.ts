@@ -115,8 +115,8 @@ export const searches = pgTable(
     id: bigint('id', { mode: 'number' })
       .primaryKey()
       .generatedAlwaysAsIdentity(),
-    // Random ID used in URLs, such as /results/k7Qm2xPz9aB4, so saved searches
-    // can't be found by counting up.
+    // Random ID used in URLs, such as /search/results/k7Qm2xPz9aB4, so saved
+    // searches can't be found by counting up.
     publicId: varchar('public_id', { length: 16 }).notNull(),
 
     cityId: bigint('city_id', { mode: 'number' })

@@ -58,7 +58,7 @@ export function OriginCrumb({
   if (origin.kind === 'search') {
     return (
       <Link
-        to="/results/$searchId"
+        to="/search/results/$searchId"
         params={{ searchId: origin.id }}
         className={crumbLinkClass}
       >

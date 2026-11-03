@@ -3,12 +3,11 @@ import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
+import { AppPage } from '#/components/AppPage'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { Notice } from '#/components/Notice'
 import type { Tone } from '#/components/Notice'
 import { SignInButton } from '#/components/SignInDialog'
-import { SiteFooter } from '#/components/SiteFooter'
-import { SiteHeader } from '#/components/SiteHeader'
 import { authClient, settled, signInWithGoogle } from '#/lib/auth/auth-client'
 import type { AccountUser } from '#/lib/auth/session'
 import { useAuth } from '#/lib/auth/use-auth'
@@ -55,38 +54,30 @@ function Settings() {
   }, [user])
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
+    <AppPage>
+      <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
+        Settings
+      </p>
+      <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+        Your account
+      </h1>
 
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
-        <section className="mx-auto max-w-[780px] py-8">
-          <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
-            Settings
+      {user ? (
+        <>
+          <ProfileSection user={user} />
+          <SignInSection user={user} method={method} />
+          <DevicesSection />
+          <DeleteSection method={method} />
+        </>
+      ) : (
+        <div className="mt-6 border-t border-ink pt-5">
+          <p className="text-base leading-6 text-ink/70">
+            Sign in to manage your account.
           </p>
-          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
-            Your account
-          </h1>
-
-          {user ? (
-            <>
-              <ProfileSection user={user} />
-              <SignInSection user={user} method={method} />
-              <DevicesSection />
-              <DeleteSection method={method} />
-            </>
-          ) : (
-            <div className="mt-6 border-t border-ink pt-5">
-              <p className="text-base leading-6 text-ink/70">
-                Sign in to manage your account.
-              </p>
-              <SignInButton className={`mt-5 ${buttonClass}`} />
-            </div>
-          )}
-        </section>
-      </main>
-
-      <SiteFooter />
-    </div>
+          <SignInButton className={`mt-5 ${buttonClass}`} />
+        </div>
+      )}
+    </AppPage>
   )
 }
 

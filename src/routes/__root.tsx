@@ -1,6 +1,13 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+  useRouterState,
+} from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
+import { AppSidebar } from '#/components/AppSidebar'
 import { getAuthState } from '#/lib/auth/session'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
 import { Toaster } from '#/components/Toaster'
@@ -69,7 +76,30 @@ export const Route = createRootRoute({
   loader: () => getAuthState(),
   staleTime: Infinity,
   shellComponent: RootDocument,
+  component: AppLayout,
 })
+
+// Signed-in pages sit beside the sidebar. The editor fills the window with its
+// own toolbar, so it goes without.
+function AppLayout() {
+  const { user } = Route.useLoaderData()
+
+  const isEditor = useRouterState({
+    select: (state) => state.location.pathname.startsWith('/editor'),
+  })
+
+  if (!user || isEditor) return <Outlet />
+
+  return (
+    <div className="lg:flex">
+      <AppSidebar />
+      {/* Its left border is the sidebar's edge, on the grid line 8 cells in. */}
+      <div className="min-w-0 flex-1 lg:border-l lg:border-ink">
+        <Outlet />
+      </div>
+    </div>
+  )
+}
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (

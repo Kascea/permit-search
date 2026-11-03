@@ -21,7 +21,10 @@ import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projec
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ResultsIndexRouteImport } from './routes/results.index'
 import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
+import { Route as SearchIndexRouteImport } from './routes/search.index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as SearchResultsIndexRouteImport } from './routes/search.results.index'
+import { Route as SearchResultsSearchIdRouteImport } from './routes/search.results.$searchId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -83,9 +86,24 @@ const ResultsSearchIdRoute = ResultsSearchIdRouteImport.update({
   path: '/results/$searchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchIndexRoute = SearchIndexRouteImport.update({
+  id: '/search/',
+  path: '/search/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchResultsIndexRoute = SearchResultsIndexRouteImport.update({
+  id: '/search/results/',
+  path: '/search/results/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchResultsSearchIdRoute = SearchResultsSearchIdRouteImport.update({
+  id: '/search/results/$searchId',
+  path: '/search/results/$searchId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -102,7 +120,10 @@ export interface FileRoutesByFullPath {
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
+  '/search/': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
+  '/search/results/': typeof SearchResultsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -117,7 +138,10 @@ export interface FileRoutesByTo {
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/projects': typeof ProjectsIndexRoute
   '/results': typeof ResultsIndexRoute
+  '/search': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
+  '/search/results': typeof SearchResultsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -133,7 +157,10 @@ export interface FileRoutesById {
   '/results/$searchId': typeof ResultsSearchIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
+  '/search/': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
+  '/search/results/': typeof SearchResultsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -150,7 +177,10 @@ export interface FileRouteTypes {
     | '/results/$searchId'
     | '/projects/'
     | '/results/'
+    | '/search/'
     | '/api/auth/$'
+    | '/search/results/$searchId'
+    | '/search/results/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -165,7 +195,10 @@ export interface FileRouteTypes {
     | '/results/$searchId'
     | '/projects'
     | '/results'
+    | '/search'
     | '/api/auth/$'
+    | '/search/results/$searchId'
+    | '/search/results'
   id:
     | '__root__'
     | '/'
@@ -180,7 +213,10 @@ export interface FileRouteTypes {
     | '/results/$searchId'
     | '/projects/'
     | '/results/'
+    | '/search/'
     | '/api/auth/$'
+    | '/search/results/$searchId'
+    | '/search/results/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,7 +232,10 @@ export interface RootRouteChildren {
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
+  SearchIndexRoute: typeof SearchIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  SearchResultsSearchIdRoute: typeof SearchResultsSearchIdRoute
+  SearchResultsIndexRoute: typeof SearchResultsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -285,11 +324,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search/': {
+      id: '/search/'
+      path: '/search'
+      fullPath: '/search/'
+      preLoaderRoute: typeof SearchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search/results/': {
+      id: '/search/results/'
+      path: '/search/results'
+      fullPath: '/search/results/'
+      preLoaderRoute: typeof SearchResultsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search/results/$searchId': {
+      id: '/search/results/$searchId'
+      path: '/search/results/$searchId'
+      fullPath: '/search/results/$searchId'
+      preLoaderRoute: typeof SearchResultsSearchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -308,7 +368,10 @@ const rootRouteChildren: RootRouteChildren = {
   ResultsSearchIdRoute: ResultsSearchIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ResultsIndexRoute: ResultsIndexRoute,
+  SearchIndexRoute: SearchIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  SearchResultsSearchIdRoute: SearchResultsSearchIdRoute,
+  SearchResultsIndexRoute: SearchResultsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
