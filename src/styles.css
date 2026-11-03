@@ -11,6 +11,10 @@
   --color-blueprint-pale: #d1e1f0;
   --color-coral: #ff8a7a;
   --color-success: #2e7d32;
+  /* Solid paper tinted 10% toward success or redline, for notices and toasts
+     that sit over other content and so can't be see-through. */
+  --color-success-wash: color-mix(in srgb, #2e7d32 10%, #fdfff1);
+  --color-redline-wash: color-mix(in srgb, #953012 10%, #fdfff1);
 
   /* Loaded from Google Fonts in __root.tsx. */
   --font-sans:

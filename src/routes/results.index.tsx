@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { errorMessage } from '#/lib/errors'
 import { ResultsPage } from '#/components/ResultsPage'
 import { startSearch } from '#/lib/search/permit-search'
+import { Notice } from '#/components/Notice'
 
 interface PendingSearch {
   city: string
@@ -92,12 +93,9 @@ function PendingResults() {
   return (
     <ResultsPage search={{ city: { name: city, region }, permit }}>
       {error ? (
-        <p
-          className="mt-6 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-          role="alert"
-        >
+        <Notice tone="error" className="mt-6">
           {error}
-        </p>
+        </Notice>
       ) : (
         <div
           className="mt-6 flex items-center gap-3 border-t border-ink pt-5 text-sm text-ink/70"

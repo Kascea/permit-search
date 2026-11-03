@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
+import { Notice } from '#/components/Notice'
+import type { Tone } from '#/components/Notice'
 import { SignInButton } from '#/components/SignInDialog'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
@@ -107,24 +109,11 @@ function Section({
   )
 }
 
-function Message({
-  tone,
-  children,
-}: {
-  tone: 'error' | 'ok'
-  children: ReactNode
-}) {
+function Message({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
-    <p
-      className={`mt-3 w-fit text-sm font-medium ${
-        tone === 'error'
-          ? 'text-redline'
-          : 'rounded-full bg-success/10 px-3 py-1 text-success'
-      }`}
-      role={tone === 'error' ? 'alert' : 'status'}
-    >
+    <Notice tone={tone} className="mt-3 w-fit">
       {children}
-    </p>
+    </Notice>
   )
 }
 
@@ -134,7 +123,7 @@ function ProfileSection({ user }: { user: AccountUser }) {
   const [name, setName] = useState(user.name)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{
-    tone: 'error' | 'ok'
+    tone: Tone
     text: string
   }>()
 
@@ -153,7 +142,7 @@ function ProfileSection({ user }: { user: AccountUser }) {
       setMessage({ tone: 'error', text: 'Your name couldn’t be saved.' })
       return
     }
-    setMessage({ tone: 'ok', text: 'Saved.' })
+    setMessage({ tone: 'success', text: 'Saved.' })
     await router.invalidate()
   }
 
@@ -229,7 +218,7 @@ function PasswordSection() {
   const [confirm, setConfirm] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{
-    tone: 'error' | 'ok'
+    tone: Tone
     text: string
   }>()
 
@@ -278,7 +267,7 @@ function PasswordSection() {
     setNext('')
     setConfirm('')
     setMessage({
-      tone: 'ok',
+      tone: 'success',
       text: 'Password changed. Other devices were signed out.',
     })
   }

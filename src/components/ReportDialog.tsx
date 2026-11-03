@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 import { errorMessage } from '#/lib/errors'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { reportResults } from '#/lib/reports/reports'
+import { Notice } from '#/components/Notice'
 
 interface ReportDialogProps {
   isOpen: boolean
@@ -95,12 +96,9 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
       />
 
       {error && (
-        <p
-          className="mt-3 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-          role="alert"
-        >
+        <Notice tone="error" className="mt-3">
           {error}
-        </p>
+        </Notice>
       )}
 
       <div className="mt-4 flex items-center justify-between gap-4">

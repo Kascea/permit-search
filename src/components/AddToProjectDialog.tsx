@@ -16,6 +16,7 @@ import {
   MAX_PROJECT_NAME_LENGTH,
 } from '#/lib/projects/types'
 import type { Project, ProjectItem } from '#/lib/projects/types'
+import { Notice } from '#/components/Notice'
 
 interface AddToProjectDialogProps {
   isOpen: boolean
@@ -255,12 +256,9 @@ function ProjectPicker({
       </form>
 
       {error && (
-        <p
-          className="mt-4 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-          role="alert"
-        >
+        <Notice tone="error" className="mt-4">
           {error}
-        </p>
+        </Notice>
       )}
     </div>
   )

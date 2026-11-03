@@ -116,8 +116,32 @@ card link with `relative z-10`. Don't put two look-alike icons side by side
 that go to different places. PDFs get two labeled actions this way: "Fill out
 this form" and "Add to project".
 
-**Alert.** `border border-redline bg-redline/10 text-redline text-sm
-font-medium`.
+**Alert.** Use `<Notice tone="error">` (see Feedback below), not hand-written
+classes.
+
+## Feedback
+
+Success and errors look the same everywhere, inline or in a toast:
+
+| Tone    | Classes (`toneClass` in `Notice.tsx`)         | Icon                         |
+| ------- | --------------------------------------------- | ---------------------------- |
+| Success | `border-success bg-success-wash text-success` | Check in a circle            |
+| Error   | `border-redline bg-redline-wash text-redline` | Exclamation mark in a circle |
+
+The `-wash` tokens are paper tinted 10% toward the color, solid so a toast
+reads over whatever is under it.
+
+- **Inline** (`<Notice tone>`): a result tied to a form or action on screen,
+  such as a failed save. Put it right beside that form's button.
+- **Toast** (`toast.success()` / `toast.error()` from `sonner`): a result of
+  an action that isn't tied to a form, or that moves you elsewhere, such as
+  "Project saved." or "Draft deleted.". Keep it to one short sentence ending
+  in a period. Offer Undo as the toast's action when the change can be put
+  back.
+- A single field's problem, such as "Choose a city from the list", stays as
+  small `text-redline` text under the field.
+- Primary and quiet buttons come from `components/buttons.ts`, so the same
+  action (Save, Cancel) looks the same in every place it appears.
 
 **Spinner.** Use the `.spinner` class and set its size (`size-3`, `size-4`).
 Show one only while the user is waiting on something they asked for. For data

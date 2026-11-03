@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { authClient, signInWithGoogle } from '#/lib/auth/auth-client'
+import { Notice } from '#/components/Notice'
 
 type Mode = 'sign-in' | 'sign-up'
 
@@ -195,12 +196,9 @@ function SignInForm({ onClose }: { onClose: () => void }) {
       </div>
 
       {error && (
-        <p
-          className="mt-4 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-          role="alert"
-        >
+        <Notice tone="error" className="mt-4">
           {error}
-        </p>
+        </Notice>
       )}
 
       <button

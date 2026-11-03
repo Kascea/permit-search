@@ -150,7 +150,7 @@ function resolveCollisions(all) {
 
     for (const entry of members) {
       if (entry.kind === 'township' && largestCity) {
-        entry.name = /township$/.test(entry.rawName)
+        entry.name = entry.rawName.endsWith('township')
           ? `${entry.name} Township`
           : `Town of ${entry.name}`
       } else if (entry.kind === 'city' && entry !== largestCity) {

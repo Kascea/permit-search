@@ -5,10 +5,11 @@ import {
   useNavigate,
   useRouter,
 } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
+import { primaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
 import { Pending } from '#/components/Pending'
 import { ProjectForm } from '#/components/ProjectForm'
@@ -23,7 +24,10 @@ import {
   removeFromAccountProject,
   updateAccountProject,
 } from '#/lib/projects/projects'
-import { formatProjectAddress } from '#/lib/projects/types'
+import {
+  MAX_PROJECT_NAME_LENGTH,
+  formatProjectAddress,
+} from '#/lib/projects/types'
 import type { Project } from '#/lib/projects/types'
 
 export const Route = createFileRoute('/projects/$projectId')({
@@ -63,8 +67,6 @@ export const Route = createFileRoute('/projects/$projectId')({
   ),
 })
 
-const buttonClass =
-  'inline-flex items-center gap-2 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
 const linkButtonClass =
   'inline-flex items-center gap-1.5 text-sm text-ink/60 underline-offset-2 transition hover:text-redline hover:underline disabled:cursor-wait'
 
@@ -74,6 +76,14 @@ function ProjectPage() {
   const navigate = useNavigate()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  // The title's name, saved with the details form; see ProjectTitle.
+  const formId = useId()
+  const [name, setName] = useState(project?.name ?? '')
+  const [savedName, setSavedName] = useState(project?.name)
+  if (project && project.name !== savedName) {
+    setSavedName(project.name)
+    setName(project.name)
+  }
 
   if (!project) {
     return (
@@ -82,7 +92,7 @@ function ProjectPage() {
           <p className="text-base leading-6 text-ink/70">
             Sign in to see this project.
           </p>
-          <SignInButton className={`mt-5 ${buttonClass}`} />
+          <SignInButton className={`mt-5 ${primaryButtonClass}`} />
         </div>
       </Page>
     )
@@ -121,9 +131,12 @@ function ProjectPage() {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             Project
           </p>
-          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] break-words text-ink sm:text-4xl">
-            {project.name}
-          </h1>
+          <ProjectTitle
+            name={name}
+            savedName={project.name}
+            formId={formId}
+            onChange={setName}
+          />
           <p className="mt-2 text-base leading-6 text-ink/70">
             {address || 'No address yet'}
           </p>
@@ -155,6 +168,9 @@ function ProjectPage() {
         </p>
         <ProjectForm
           variant="edit"
+          formId={formId}
+          name={name}
+          onNameChange={setName}
           initial={project}
           submitLabel="Save changes"
           pendingLabel="Saving…"
@@ -168,6 +184,92 @@ function ProjectPage() {
         />
       </section>
     </Page>
+  )
+}
+
+const titleClass =
+  'text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl'
+
+// The project's name, with a pencil to rename it in place. The name joins
+// the details form below, so its save bar saves or discards the rename with
+// everything else. Enter saves; Escape puts the saved name back.
+function ProjectTitle({
+  name,
+  savedName,
+  formId,
+  onChange,
+}: {
+  name: string
+  savedName: string
+  formId: string
+  onChange: (name: string) => void
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  // A save (such as Enter in the input) ends editing.
+  const [lastSavedName, setLastSavedName] = useState(savedName)
+  if (savedName !== lastSavedName) {
+    setLastSavedName(savedName)
+    setIsEditing(false)
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="mt-1 flex items-start gap-2">
+        <h1
+          className={`${titleClass} min-w-0 break-words ${
+            name.trim() ? '' : 'text-ink/40'
+          }`}
+        >
+          {name.trim() || 'Untitled project'}
+        </h1>
+        <button
+          type="button"
+          aria-label="Rename project"
+          title="Rename project"
+          className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full text-ink/40 transition hover:bg-ink/10 hover:text-ink focus-visible:text-ink sm:mt-1"
+          onClick={() => setIsEditing(true)}
+        >
+          <svg
+            aria-hidden="true"
+            className="size-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+            />
+          </svg>
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-1">
+      <h1 className="sr-only">{savedName}</h1>
+      <input
+        aria-label="Project name"
+        autoFocus
+        form={formId}
+        className={`${titleClass} w-full min-w-0 border-b border-blueprint bg-transparent outline-none`}
+        maxLength={MAX_PROJECT_NAME_LENGTH}
+        placeholder="Untitled project"
+        value={name}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={(event) => event.target.select()}
+        onBlur={() => setIsEditing(false)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            onChange(savedName)
+            setIsEditing(false)
+          }
+        }}
+      />
+    </div>
   )
 }
 

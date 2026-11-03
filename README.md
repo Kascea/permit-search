@@ -111,7 +111,7 @@ npm run dev
 
 ```sh
 npm run typecheck
-npm run lint        # oxlint, then eslint
+npm run lint        # oxlint (npm run lint:fix applies its fixes)
 npm run build
 npx cf deploy --dry-run
 ```

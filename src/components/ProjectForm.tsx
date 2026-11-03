@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { errorMessage } from '#/lib/errors'
+import { primaryButtonClass, textButtonClass } from '#/components/buttons'
 import { CityCombobox } from '#/components/CityCombobox'
 import { Pending } from '#/components/Pending'
 import { formatCity } from '#/lib/location/format'
@@ -23,6 +24,7 @@ import type {
   ProjectInput,
   ProjectTextKey,
 } from '#/lib/projects/types'
+import { Notice } from '#/components/Notice'
 
 interface ProjectFormProps {
   // create: a submit button at the end. edit: always editable, with a save
@@ -34,6 +36,12 @@ interface ProjectFormProps {
   // Throws to show the error by the save button.
   onSubmit: (input: ProjectInput) => Promise<void>
   onCancel?: () => void
+  // So an input elsewhere on the page can join the form, with form={formId}.
+  formId?: string
+  // A name edited outside the form, such as in the page's title. It counts
+  // toward unsaved changes and is saved and discarded with the rest.
+  name?: string
+  onNameChange?: (name: string) => void
 }
 
 interface FormFields {
@@ -69,8 +77,6 @@ function snapshotOf(fields: FormFields) {
   })
 }
 
-const buttonClass =
-  'inline-flex items-center gap-2 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint disabled:cursor-wait disabled:opacity-80'
 const chipClass =
   'rounded-full border border-ink/40 px-3 py-1 text-xs font-medium text-ink transition hover:bg-ink hover:text-paper'
 
@@ -83,10 +89,15 @@ export function ProjectForm({
   pendingLabel,
   onSubmit,
   onCancel,
+  formId,
+  name: outsideName,
+  onNameChange,
 }: ProjectFormProps) {
-  const [fields, setFields] = useState(() => fieldsFrom(initial))
+  const [ownFields, setFields] = useState(() => fieldsFrom(initial))
+  const fields =
+    outsideName === undefined ? ownFields : { ...ownFields, name: outsideName }
   // The last saved state; the form has changes when it differs.
-  const [saved, setSaved] = useState(() => snapshotOf(fields))
+  const [saved, setSaved] = useState(() => snapshotOf(fieldsFrom(initial)))
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const { name, cityInput, selectedCity, details, cost, extraFields } = fields
@@ -145,6 +156,7 @@ export function ProjectForm({
   function discard() {
     const reset = fieldsFrom(initial)
     setFields(reset)
+    onNameChange?.(reset.name)
     setSaved(snapshotOf(reset))
     setError('')
   }
@@ -205,23 +217,25 @@ export function ProjectForm({
   const applicantIsOwner = details.applicantIsOwner
 
   return (
-    <form noValidate onSubmit={submit}>
+    <form id={formId} noValidate onSubmit={submit}>
       <Table
         title="Property and work"
         description="Where the work happens and what it is."
       >
-        <Row label="Project name">
-          {(id) => (
-            <input
-              id={id}
-              className={cellClass}
-              maxLength={MAX_PROJECT_NAME_LENGTH}
-              placeholder="e.g. Backyard fence"
-              value={name}
-              onChange={(event) => update({ name: event.target.value })}
-            />
-          )}
-        </Row>
+        {variant === 'create' && (
+          <Row label="Project name">
+            {(id) => (
+              <input
+                id={id}
+                className={cellClass}
+                maxLength={MAX_PROJECT_NAME_LENGTH}
+                placeholder="e.g. Backyard fence"
+                value={name}
+                onChange={(event) => update({ name: event.target.value })}
+              />
+            )}
+          </Row>
+        )}
         <tr className={rowClass}>
           <th scope="row" className={labelCellClass}>
             City
@@ -437,7 +451,11 @@ export function ProjectForm({
 
       {variant === 'create' ? (
         <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-ink pt-5">
-          <button type="submit" disabled={isSaving} className={buttonClass}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className={primaryButtonClass}
+          >
             <Pending isPending={isSaving} label={pendingLabel} onFill>
               {submitLabel}
             </Pending>
@@ -445,13 +463,17 @@ export function ProjectForm({
           {onCancel && (
             <button
               type="button"
-              className="rounded-full px-4 py-2.5 text-sm font-medium text-ink/70 transition hover:text-ink"
+              className={textButtonClass}
               onClick={onCancel}
             >
               Cancel
             </button>
           )}
-          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {error && (
+            <Notice tone="error" className="mt-3 w-full">
+              {error}
+            </Notice>
+          )}
         </div>
       ) : (
         (isDirty || isSaving || error) && (
@@ -466,18 +488,26 @@ export function ProjectForm({
               <button
                 type="button"
                 disabled={isSaving}
-                className="rounded-full px-4 py-2.5 text-sm font-medium text-ink/70 transition hover:text-ink disabled:opacity-50"
+                className={textButtonClass}
                 onClick={discard}
               >
                 Discard
               </button>
-              <button type="submit" disabled={isSaving} className={buttonClass}>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className={primaryButtonClass}
+              >
                 <Pending isPending={isSaving} label={pendingLabel} onFill>
                   {submitLabel}
                 </Pending>
               </button>
             </div>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {error && (
+              <Notice tone="error" className="mt-3 w-full">
+                {error}
+              </Notice>
+            )}
           </div>
         )
       )}
@@ -644,15 +674,4 @@ function DetailRow({
 // Short hints fit in the empty cell.
 function fieldHintPlaceholder(key: ProjectTextKey) {
   return key === 'parcelNumber' ? 'PIN, APN or tax ID' : undefined
-}
-
-function ErrorMessage({ children }: { children: ReactNode }) {
-  return (
-    <p
-      className="mt-3 w-full border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-      role="alert"
-    >
-      {children}
-    </p>
-  )
 }

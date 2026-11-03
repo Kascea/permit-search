@@ -6,6 +6,7 @@ import { CityCombobox } from '#/components/CityCombobox'
 import { formatCity } from '#/lib/location/format'
 import { locateCity } from '#/lib/location/locate'
 import type { City } from '#/lib/location/types'
+import { Notice } from '#/components/Notice'
 
 interface PermitSearchFormProps {
   initialCity?: City
@@ -201,12 +202,9 @@ export function PermitSearchForm({
       </div>
 
       {formError && (
-        <p
-          className="mt-4 border border-redline bg-redline/10 px-4 py-3 text-sm font-medium text-redline"
-          role="alert"
-        >
+        <Notice tone="error" className="mt-4">
           {formError}
-        </p>
+        </Notice>
       )}
 
       <button
