@@ -116,8 +116,11 @@ The rules that make this predictable:
 3. Saving fetches the PDF and stores a blank copy, keyed by its SHA-256 hash.
    The library entry keeps the city, the permit types Jev found, and the
    search it came from. No answers are stored.
-4. "Add to project" saves to the library first, then attaches it.
-5. A PDF opened in Quick fill has a **Save to my permits** action, so a form
+4. Every saved permit carries its dates: when it was saved, when the stored
+   copy was last updated from the city, and the date written inside the PDF
+   (if any). See _Keeping saved forms current_.
+5. "Add to project" saves to the library first, then attaches it.
+6. A PDF opened in Quick fill has a **Save to my permits** action, so a form
    found outside search can join the library too. The user picks the city.
 
 ### 2a. Bring a saved permit into a project
@@ -132,6 +135,22 @@ Permits move into projects from either side:
 Adding a permit creates a project form that starts blank and fills from the
 project as soon as it opens. Adding the same permit to a second project gives
 it a second, separate project form.
+
+### 2b. Keeping saved forms current
+
+Cities replace their forms without notice. For now the library only shows
+how old each stored copy is:
+
+1. Each permit shows when it was saved and when its copy was last updated
+   from the city (`version_saved_at`, the save time for now).
+2. A copy older than `STALE_AFTER_DAYS` (30) shows _Not updated in 30+
+   days_, and its page suggests comparing with the city's link before
+   submitting.
+
+Later, a scheduled job (a Cron Trigger) downloads each permit's link again,
+stores the copy if the PDF changed, and moves `version_saved_at`. The user
+never has to check by hand. That job will need to decide what a link that
+stops working looks like in the UI.
 
 ### 3. Start a project
 
@@ -274,14 +293,16 @@ drafts sees a three-step start instead.
   6 permits". Within a city, permits are sorted by title.
 - Controls along the top: a city filter (the existing `CityCombobox`, limited
   to the cities in the library), permit type chips, and a text filter on
-  title. A sort menu offers City, Recently used, Most used and Title. Every
-  choice is kept in the URL, as in
-  `/permits?city=Minneapolis&region=Minnesota&sort=recent`.
-- Each row shows the title, permit type badges, the PDF's page count, how
-  many projects use it, and when it was last checked against the city's
-  site. Actions: **Add to project**, **Fill once** (Quick fill), and the
-  overflow menu with Rename, Check for a new version, and Remove.
-- A replaced form shows a redline "City posted a new version" badge.
+  title. A sort menu offers City, Title, Recently saved and Least recently
+  updated (Recently used and Most used wait for `last_used_at` in step 9).
+  Every choice is kept in the URL, as in
+  `/permits?city=Minneapolis&region=Minnesota&sort=title`. The library is
+  capped at 500 permits, so it loads whole and filters in the browser.
+- Each row shows the title, permit types, the PDF's page count, how many
+  projects use it, when it was saved and when its copy was last updated.
+  Actions: **Fill once** (Quick fill), **Add to project**, and **Remove**.
+  Renaming is on the permit's page.
+- A redline _Not updated in 30+ days_ badge on old copies.
 
 **Project page.**
 
@@ -330,9 +351,10 @@ The right panel's tabs:
      says what's being built and where. Always under Review.
 - (Moving between forms stays in the left sidebar, `DraftSidebar`.)
 
-**Saved permit page.** The blank PDF preview, and the field mapping as a table
-("PDF field → takes"), which can be edited. It shows the projects using the
-permit, but no answers.
+**Saved permit page.** Its dates (saved, last updated from the city, the date
+inside the PDF), the city's link and a link to the stored copy, title
+and notes, and the projects using it, but no answers. Phase 5 adds the field
+mapping as a table ("PDF field → takes"), which can be edited.
 
 **My info.** The setup fields from workflow 1, plus a list of the projects
 that link to it. Saving shows how many open forms will update.
@@ -347,8 +369,8 @@ info.
 | Table                             | Change              | Key columns                                                                                                                                                                                                       |
 | --------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `user_profiles`                   | New                 | `user_id` (primary key), `work_type` (homeowner, contractor, other), `name`, `phone`, `email`, `street_address`, `unit`, `city_name`, `city_region`, `zip_code`, `company`, `license_number`, `license_type`, `extra_fields` jsonb |
-| `blank_pdfs`                      | New                 | `source_hash` (primary key), `byte_size`, `page_count`, `field_count`, `created_at`. The PDF bytes are stored in R2 at `blank/<source_hash>.pdf`. They're shared across users because they're public city forms with no answers |
-| `saved_permits`                   | New                 | `public_id`, `user_id`, `source_url`, `source_hash` (references `blank_pdfs`), `title`, `city_name`, `city_region`, `permit_types` jsonb, `search_id`, `notes`, `last_checked_at`, `last_used_at`, `is_outdated`. Unique on (`user_id`, `source_url`). Index on (`user_id`, `city_region`, `city_name`, `title`) for the grouped library, and on (`user_id`, `last_used_at`) for Recently used. No answers |
+| `blank_pdfs`                      | Done (0011)         | `source_hash` (primary key), `byte_size`, `page_count`, `field_count`, `pdf_modified_at` (the date inside the PDF), `created_at` (first downloaded). The PDF bytes are stored in R2 at `blank/<source_hash>.pdf`. They're shared across users because they're public city forms with no answers |
+| `saved_permits`                   | Done (0011)         | `public_id`, `user_id`, `source_url`, `source_hash` (references `blank_pdfs`), `title`, `city_name`, `city_region`, `permit_types` jsonb (copied from the search), `search_id`, `notes`, `created_at` (saved), `version_saved_at` (last updated from the city). Unique on (`user_id`, `source_url`). Index on (`user_id`, `city_region`, `city_name`, `title`) for the grouped library. Step 9 adds `last_used_at`. No answers |
 | `field_mappings`                  | New                 | `source_hash`, `field_name`, `fill_key` (such as `ownerPhone`), `user_id` (null for a shared mapping), `confirmed_count`; unique on (`source_hash`, `field_name`, `user_id`). Keys only, never values               |
 | `projects`                        | Changed             | Add `property_from_profile`, `owner_from_profile`, `applicant_from_profile`, `contractor_from_profile` booleans. While a flag is on, that role's columns are ignored and My info is used                          |
 | `project_items` → `project_forms` | Renamed and changed | Add `public_id`, `saved_permit_id` (set null on delete), `source_hash`, `status` (not started, filling, needs fixes, ready, submitted), `check_summary` jsonb, `ready_at`. The form keeps its own `source_url` and `source_hash`, so removing a permit from the library doesn't break projects that use it. Backfill a `saved_permits` row for each existing item |
@@ -423,12 +445,11 @@ summary type as the area's list function.
 | Dashboard `src/lib/dashboard/` | `getDashboard` | GET | none | `{ needsAttention: Array<AttentionItem>, projects: Array<ProjectSummary>, recentPermits: Array<SavedPermitSummary>, profileComplete: boolean }` in one round trip |
 | Search `src/lib/search/` (existing) | `startSearch`, `getSavedSearch`, `getSearchSummary` | as today | as today | as today, but each result gains `savedPermitId?` for a signed-in user. The cached `searches` row stays shared, and the saved flags are added after it's read |
 | | `getSearchHistory`, `removeSearchHistory` | as today | as today | moved from `src/lib/history/` |
-| My permits `src/lib/permits/` | `listSavedPermits` | GET | `{ city?, region?, types?: Array<string>, q?, sort: 'city' \| 'recent' \| 'used' \| 'title' }` | `{ permits: Array<SavedPermitSummary>, cities: Array<{ name, region, count }>, types: Array<{ name, count }> }`. The two counts feed the filters |
-| | `getSavedPermit` | GET | `{ publicId }` | `{ permit: SavedPermit, mapping: FieldMapping, projects: Array<ProjectSummary> } \| null` |
-| | `savePermit` | POST | `{ sourceUrl, title, city: { name, region }, searchId? }` | `SavedPermit`. Fetches the PDF, hashes it, and stores the blank copy if the hash is new. Saving a URL that's already saved returns the existing entry |
-| | `updateSavedPermit` | POST | `{ publicId, title?, notes?, city? }` | `SavedPermit` |
-| | `removeSavedPermit` | POST | `{ publicId }` | the list. Project forms that use it keep working |
-| | `checkSavedPermit` | POST | `{ publicId }` | `{ permit: SavedPermit, changed: boolean }`. Refetches the source and compares hashes |
+| My permits `src/lib/permits/` | `listAccountPermits` | GET | none | `Array<SavedPermit>`, by city then title. Filtering and sorting happen in the browser |
+| | `getAccountPermit` | GET | `{ publicId }` | `{ permit: SavedPermit \| null, projects: Array<{ publicId, name }> }`. Phase 5 adds `mapping` |
+| | `saveAccountPermit` | POST | `{ sourceUrl, title, city: { name, region }, searchId? }` | `SavedPermit`. Fetches the PDF, hashes it, and stores the blank copy if the hash is new. Saving a URL that's already saved returns the existing entry |
+| | `updateAccountPermit` | POST | `{ publicId, title?, notes?, city? }` | `SavedPermit` |
+| | `removeAccountPermit` | POST | `{ publicId }` | the list. Project forms that use it keep working |
 | Projects `src/lib/projects/` (existing) | `createAccountProject`, `updateAccountProject` | POST | `projectInputSchema` plus `fromProfile: { property, owner, applicant, contractor }` | as today |
 | | `addPermitToProject` (replaces `addToAccountProject`) | POST | `{ projectId, savedPermitId }`, or `{ projectId, sourceUrl, title, searchId? }`, which saves to the library first | `ProjectForm` |
 | | `removeProjectForm` (replaces `removeFromAccountProject`) | POST | `{ projectId, formId }` | the project |
@@ -449,23 +470,22 @@ calls. The browser sends only their counts, as `checkSummary` on draft save.
 ### Core types
 
 ```ts
-interface SavedPermitSummary {
+// As built in src/lib/permits/types.ts.
+interface SavedPermit {
   publicId: string
   title: string
   city: { name: string; region: string }
   permitTypes: Array<string>
-  pageCount: number
-  projectCount: number
-  lastUsedAt: string | null
-  lastCheckedAt: string
-  isOutdated: boolean
-}
-
-interface SavedPermit extends SavedPermitSummary {
   sourceUrl: string
   sourceHash: string
+  pageCount: number
+  fieldCount: number
   notes: string
+  projectCount: number
   search?: SearchLink
+  savedAt: string
+  versionSavedAt: string
+  pdfModifiedAt: string | null
 }
 
 type FormStatus = 'not-started' | 'filling' | 'needs-fixes' | 'ready' | 'submitted'
@@ -547,18 +567,25 @@ Done. Every later phase adds its section to the sidebar (My permits in step
 
 **Phase 2: My permits**
 
-4. Add the R2 binding, the `blank_pdfs` table, and `storeBlankPdf` in
-   `fetch-pdf.server.ts`. Add `GET /api/pdf?hash=`.
-5. Add the `saved_permits` table and the `src/lib/permits/` area with
-   `savePermit`, `listSavedPermits`, `getSavedPermit`, `updateSavedPermit`
-   and `removeSavedPermit`.
-6. Add Save permit to search results, with `savedPermitId` on each result.
-7. Build the `/permits` library: city grouping, filters, sort, and URL state.
-8. Build the `/permits/$permitId` page, without the field mapping yet.
+4. ✅ Add the `BLANK_PDFS` R2 binding, the `blank_pdfs` table, and
+   `storeBlankPdf` in `src/lib/pdf/blank-pdf.server.ts`. Add
+   `GET /api/pdf?hash=`.
+5. ✅ Add the `saved_permits` table and the `src/lib/permits/` area.
+6. ✅ Add Save permit to search results. A result is marked Saved by
+   matching its URL against the user's library (`useSavedPermits`), the
+   way "Saved in" matches projects, instead of a `savedPermitId` on the
+   cached search.
+7. ✅ Build the `/permits` library: city grouping, filters, sort, and URL
+   state.
+8. ✅ Build the `/permits/$permitId` page, without the field mapping yet.
 9. Rename `project_items` to `project_forms`, backfill `saved_permits`, and
-   add `addPermitToProject` and the library picker on the project page.
-10. Add `checkSavedPermit` and the "City posted a new version" badge.
-11. Show My permits on the dashboard and add it to the header.
+   add `addPermitToProject` and the library picker on the project page. Add
+   `last_used_at` and the Recently used and Most used sorts.
+10. ✅ Show each copy's age and the _Not updated in 30+ days_ badge. Later:
+    the scheduled refresh in _Keeping saved forms current_.
+11. Show My permits on the dashboard. (✅ It's in the sidebar and the
+    account menu.)
+11a. Add **Save to my permits** in Quick fill, where the user picks the city.
 
 **Phase 3: Drafts per project**
 

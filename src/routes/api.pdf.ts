@@ -1,14 +1,40 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { errorMessage, isUserError } from '#/lib/errors'
+import { readBlankPdf } from '#/lib/pdf/blank-pdf.server'
 import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
 import { limitRequest } from '#/lib/rate-limit.server'
+
+// A saved blank form's stored copy. The hash names the bytes, so it never
+// changes and can be cached for good. Blank city forms hold no answers, so
+// they're served to anyone with the hash.
+async function storedBlankPdf(sourceHash: string) {
+  const bytes = await readBlankPdf(sourceHash)
+
+  if (!bytes) {
+    return Response.json({ error: 'That PDF wasn’t found.' }, { status: 404 })
+  }
+
+  return new Response(bytes, {
+    headers: {
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'Content-Disposition': 'inline; filename="permit.pdf"',
+      'Content-Type': 'application/pdf',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  })
+}
 
 export const Route = createFileRoute('/api/pdf')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const sourceUrl = new URL(request.url).searchParams.get('url')
+        const params = new URL(request.url).searchParams
+        const sourceHash = params.get('hash')
+
+        if (sourceHash !== null) return storedBlankPdf(sourceHash)
+
+        const sourceUrl = params.get('url')
 
         if (!sourceUrl) {
           return Response.json(

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
+import { SavePermitButton } from '#/components/SavePermitButton'
 import { useAuth } from '#/lib/auth/use-auth'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { originParam } from '#/lib/navigation/origin'
@@ -122,6 +123,12 @@ export function SearchResultsList({
                         Fill out this form
                       </span>
                     </Link>
+                    <SavePermitButton
+                      sourceUrl={searchResult.url}
+                      title={searchResult.title}
+                      city={city}
+                      searchId={searchId}
+                    />
                     <AddToProjectButton
                       city={city}
                       item={{

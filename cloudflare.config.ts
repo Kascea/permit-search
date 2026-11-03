@@ -67,6 +67,9 @@ export default defineConfig({
         namespace: '1001',
         simple: { limit: 10, period: 60 },
       }),
+      // Stored copies of blank permit forms saved to users' libraries, so
+      // they keep working when a city moves or deletes the original.
+      BLANK_PDFS: bindings.r2({ name: 'permit-search-blank-pdfs' }),
       ...databaseBinding(),
     },
   },

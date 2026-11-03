@@ -405,6 +405,76 @@ export const projectItems = pgTable(
   ],
 )
 
+// One version of a blank city form, named by the SHA-256 of its bytes. The
+// bytes are in the BLANK_PDFS bucket at blank/<source_hash>.pdf. Shared by
+// every user who saved it: it's a public form with no answers in it.
+export const blankPdfs = pgTable('blank_pdfs', {
+  sourceHash: char('source_hash', { length: 64 }).primaryKey(),
+  byteSize: integer('byte_size').notNull(),
+  pageCount: integer('page_count').notNull(),
+  fieldCount: integer('field_count').notNull(),
+  // The modification date written inside the PDF by whoever made it, if
+  // any. Often the closest thing to the form's revision date.
+  pdfModifiedAt: timestamp('pdf_modified_at', { withTimezone: true }),
+  // When this version was first downloaded.
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
+// A blank form in a user's library, such as "Fence Permit Application" for
+// Minneapolis. Holds no answers, so it can go into any number of projects.
+export const savedPermits = pgTable(
+  'saved_permits',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    // Random ID used in URLs, such as /permits/Hn3pQ8rT2wXa.
+    publicId: varchar('public_id', { length: 16 }).notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    // Where the city posts the form; checked again for newer versions.
+    sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
+    // The stored copy of the version saved; see blankPdfs.
+    sourceHash: char('source_hash', { length: 64 })
+      .notNull()
+      .references(() => blankPdfs.sourceHash),
+    title: varchar('title', { length: 300 }).notNull(),
+    cityName: varchar('city_name', { length: 100 }).notNull(),
+    cityRegion: varchar('city_region', { length: 100 }).notNull(),
+    // As Jev named them for the search it was saved from.
+    permitTypes: jsonb('permit_types').$type<Array<string>>().notNull(),
+    // The saved search it was saved from, for linking back.
+    searchId: bigint('search_id', { mode: 'number' }).references(
+      () => searches.id,
+      { onDelete: 'set null' },
+    ),
+    notes: varchar('notes', { length: 2000 }).notNull().default(''),
+
+    // When the stored copy was last downloaded from the city's link: the
+    // save for now, and later each automatic refresh.
+    versionSavedAt: timestamp('version_saved_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+
+    // createdAt is when the user saved it.
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('saved_permits_public_id').on(table.publicId),
+    uniqueIndex('saved_permits_user_source').on(table.userId, table.sourceUrl),
+    index('saved_permits_user_city_title').on(
+      table.userId,
+      table.cityRegion,
+      table.cityName,
+      table.title,
+    ),
+  ],
+)
+
 export type City = typeof cities.$inferSelect
 
 export type CityOffice = typeof cityOffices.$inferSelect

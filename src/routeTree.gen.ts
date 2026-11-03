@@ -16,6 +16,8 @@ import { Route as EditorRouteImport } from './routes/editor'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
+import { Route as PermitsIndexRouteImport } from './routes/permits.index'
+import { Route as PermitsPermitIdRouteImport } from './routes/permits.$permitId'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
@@ -59,6 +61,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiPdfRoute = ApiPdfRouteImport.update({
   id: '/api/pdf',
   path: '/api/pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PermitsIndexRoute = PermitsIndexRouteImport.update({
+  id: '/permits/',
+  path: '/permits/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PermitsPermitIdRoute = PermitsPermitIdRouteImport.update({
+  id: '/permits/$permitId',
+  path: '/permits/$permitId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
@@ -115,9 +127,11 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/search/': typeof SearchIndexRoute
@@ -133,9 +147,11 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/permits': typeof PermitsIndexRoute
   '/projects': typeof ProjectsIndexRoute
   '/results': typeof ResultsIndexRoute
   '/search': typeof SearchIndexRoute
@@ -152,9 +168,11 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/search/': typeof SearchIndexRoute
@@ -172,9 +190,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/results/$searchId'
+    | '/permits/'
     | '/projects/'
     | '/results/'
     | '/search/'
@@ -190,9 +210,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/results/$searchId'
+    | '/permits'
     | '/projects'
     | '/results'
     | '/search'
@@ -208,9 +230,11 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/results/$searchId'
+    | '/permits/'
     | '/projects/'
     | '/results/'
     | '/search/'
@@ -227,9 +251,11 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
   ApiPdfRoute: typeof ApiPdfRoute
+  PermitsPermitIdRoute: typeof PermitsPermitIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
+  PermitsIndexRoute: typeof PermitsIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
   SearchIndexRoute: typeof SearchIndexRoute
@@ -287,6 +313,20 @@ declare module '@tanstack/react-router' {
       path: '/api/pdf'
       fullPath: '/api/pdf'
       preLoaderRoute: typeof ApiPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/permits/': {
+      id: '/permits/'
+      path: '/permits'
+      fullPath: '/permits/'
+      preLoaderRoute: typeof PermitsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/permits/$permitId': {
+      id: '/permits/$permitId'
+      path: '/permits/$permitId'
+      fullPath: '/permits/$permitId'
+      preLoaderRoute: typeof PermitsPermitIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/': {
@@ -363,9 +403,11 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
   ApiPdfRoute: ApiPdfRoute,
+  PermitsPermitIdRoute: PermitsPermitIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
   ResultsSearchIdRoute: ResultsSearchIdRoute,
+  PermitsIndexRoute: PermitsIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ResultsIndexRoute: ResultsIndexRoute,
   SearchIndexRoute: SearchIndexRoute,
