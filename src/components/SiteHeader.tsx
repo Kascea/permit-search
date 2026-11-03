@@ -4,11 +4,17 @@ import { useState } from 'react'
 import { AccountMenu } from '#/components/AccountMenu'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { SearchModal } from '#/components/SearchModal'
+import { useAuth } from '#/lib/auth/use-auth'
 import { formatCity } from '#/lib/location/format'
 import type { City } from '#/lib/location/types'
 
-// Page links beside the logo. Add more here.
-const NAV_LINKS = [{ to: '/about', label: 'About' }] as const
+// Page links beside the logo. Signed-out visitors see only Drafts, which
+// explains where their forms are saved. Below md they move into AccountMenu.
+const NAV_LINKS = [
+  { to: '/projects', label: 'Projects', signedOut: false },
+  { to: '/drafts', label: 'Drafts', signedOut: true },
+  { to: '/history', label: 'History', signedOut: false },
+] as const
 
 interface SiteHeaderProps {
   // The page's current search, if any. Its city shows in the search pill, and
@@ -27,6 +33,8 @@ export function SiteHeader({
   onSearchOpenChange,
 }: SiteHeaderProps) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const navLinks = NAV_LINKS.filter((link) => user || link.signedOut)
   const [ownIsOpen, setOwnIsOpen] = useState(false)
   const isSearchOpen = controlledIsOpen ?? ownIsOpen
   const setIsSearchOpen = onSearchOpenChange ?? setOwnIsOpen
@@ -54,14 +62,19 @@ export function SiteHeader({
             </span>
           </Link>
 
-          <span aria-hidden="true" className="h-5 w-px bg-ink/20" />
+          <span
+            aria-hidden="true"
+            className={`h-5 w-px bg-ink/20 ${user ? 'hidden md:block' : ''}`}
+          />
 
           <nav aria-label="Main" className="flex items-center gap-5">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className="text-sm text-ink/70 transition hover:text-ink"
+                className={`text-sm text-ink/70 transition hover:text-ink ${
+                  user ? 'hidden md:block' : ''
+                }`}
                 activeProps={{ className: 'font-medium text-blueprint' }}
               >
                 {link.label}
