@@ -21,6 +21,8 @@ import { AccountMenu } from '#/components/AccountMenu'
 import { SidebarBrand } from '#/components/AppSidebar'
 import { Breadcrumbs, OriginCrumb } from '#/components/Breadcrumbs'
 import { DraftSidebar } from '#/components/DraftSidebar'
+import { FormCheckPanel } from '#/components/FormCheckPanel'
+import type { FormCheckState } from '#/components/FormCheckPanel'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { ProjectFillMenu } from '#/components/ProjectFillMenu'
 import { SignInButton } from '#/components/SignInDialog'
@@ -40,6 +42,9 @@ import {
   useDraftAutosave,
 } from '#/lib/drafts/use-draft-autosave'
 import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
+import type { FieldIssue, IssueSeverity } from '#/lib/forms/checks'
+import { checkFormDraft, prepareFormSchema } from '#/lib/forms/forms'
+import type { FieldRole } from '#/lib/forms/roles'
 import { projectFills } from '#/lib/projects/autofill'
 import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
@@ -174,6 +179,14 @@ function PdfEditor({
   const { projects } = useAccountProjects(signedIn)
   // The project chosen in the fill menu, or the one the editor was opened from.
   const [fillProjectId, setFillProjectId] = useState(projectId)
+  // What each field asks for, by field name, once the server has read the
+  // form; autofill uses it before guessing from field names.
+  const [formRoles, setFormRoles] = useState<Record<string, FieldRole>>({})
+  // The last form check, and the entries it checked, to tell when it's out
+  // of date.
+  const [formCheck, setFormCheck] = useState<FormCheckState>()
+  const [checkedContent, setCheckedContent] = useState<string>()
+  const [isCheckOpen, setIsCheckOpen] = useState(false)
   const scrollRef = useRef<HTMLElement>(null)
   // Page 1's width at scale 1, for fitting the page to the window.
   const pageWidthRef = useRef(612)
@@ -186,14 +199,14 @@ function PdfEditor({
     [nativeFields],
   )
 
-  // The project to fill from: the chosen one, else the first holding this PDF,
-  // else the most recent.
+  // The project Autofill fills from: the one chosen in its menu (or opened
+  // from), else the one holding this PDF. None when the PDF isn't in a
+  // project, so Autofill asks which to use instead of guessing.
   const fillProject =
     projects?.find((project) => project.publicId === fillProjectId) ??
     projects?.find((project) =>
       project.items.some((item) => item.sourceUrl === url),
-    ) ??
-    projects?.at(0)
+    )
 
   // The text fields still empty, which a project can fill.
   const emptyTextFields = useMemo(
@@ -212,10 +225,10 @@ function PdfEditor({
       new Map(
         (projects ?? []).map((project) => [
           project.publicId,
-          projectFills(emptyTextFields, project).size,
+          projectFills(emptyTextFields, project, formRoles).size,
         ]),
       ),
-    [projects, emptyTextFields],
+    [projects, emptyTextFields, formRoles],
   )
 
   const draftContent = useMemo<DraftContent>(
@@ -238,6 +251,122 @@ function PdfEditor({
     signedIn,
     searchId: origin.kind === 'search' ? origin.id : undefined,
   })
+
+  // Reads the form on the server as soon as it opens, so checking is quick
+  // and autofill knows each field's role. A failure here only means the
+  // check button does the work later.
+  const hasNativeFields = nativeFields.length > 0
+  useEffect(() => {
+    if (!sourceHash || !hasNativeFields) return
+
+    let cancelled = false
+
+    prepareFormSchema({ data: { sourceUrl: url, sourceHash } })
+      .then(({ roles }) => {
+        if (!cancelled) setFormRoles(roles)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [url, sourceHash, hasNativeFields])
+
+  // The project the form is checked against: the one it's in, else the one
+  // chosen in the fill menu or opened from.
+  const checkProject =
+    projects?.find((project) =>
+      project.items.some((item) => item.sourceUrl === url),
+    ) ?? projects?.find((project) => project.publicId === fillProjectId)
+
+  const contentKey = useMemo(() => JSON.stringify(draftContent), [draftContent])
+
+  const shownCheck: FormCheckState | undefined =
+    formCheck?.status === 'done'
+      ? { ...formCheck, stale: checkedContent !== contentKey }
+      : formCheck
+
+  // The fields with findings, by native field name or placed field ID, while
+  // the check is current.
+  const flaggedFields = useMemo(() => {
+    const flagged = new Map<string, IssueSeverity>()
+
+    if (formCheck?.status !== 'done' || checkedContent !== contentKey) {
+      return flagged
+    }
+
+    for (const issue of formCheck.result.issues) {
+      const { target } = issue
+
+      const key =
+        target.kind === 'native'
+          ? target.name
+          : target.kind === 'placed'
+            ? target.id
+            : undefined
+
+      if (key && !(flagged.get(key) === 'error')) {
+        flagged.set(key, issue.severity)
+      }
+    }
+
+    return flagged
+  }, [formCheck, checkedContent, contentKey])
+
+  async function checkForm() {
+    if (!sourceHash) return
+
+    setIsCheckOpen(true)
+    setFormCheck({ status: 'checking' })
+    const checked = contentKey
+
+    try {
+      const result = await checkFormDraft({
+        data: {
+          sourceUrl: url,
+          sourceHash,
+          content: draftContent,
+          projectId: checkProject?.publicId,
+        },
+      })
+
+      setCheckedContent(checked)
+      setFormCheck({ status: 'done', result, stale: false })
+    } catch (checkError) {
+      setFormCheck({
+        status: 'failed',
+        message: errorMessage(checkError, 'The form couldn’t be checked.'),
+      })
+    }
+  }
+
+  // Scrolls to the field a finding is about and focuses it.
+  function showIssue(issue: FieldIssue) {
+    setIsCheckOpen(window.matchMedia('(min-width: 64rem)').matches)
+    const { target } = issue
+
+    const fieldId =
+      target.kind === 'native'
+        ? nativeFields.find((field) => field.name === target.name)?.id
+        : target.kind === 'placed'
+          ? target.id
+          : undefined
+
+    const element = fieldId
+      ? scrollRef.current?.querySelector<HTMLElement>(
+          `[data-field-id="${CSS.escape(fieldId)}"]`,
+        )
+      : null
+
+    if (!element) {
+      scrollToPage(issue.pageIndex + 1)
+
+      return
+    }
+
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    element.focus({ preventScroll: true })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -539,7 +668,7 @@ function PdfEditor({
   // still holding the filled value, so later typing is kept.
   function fillFromProject(project: Project) {
     setFillProjectId(project.publicId)
-    const filled = projectFills(emptyTextFields, project)
+    const filled = projectFills(emptyTextFields, project, formRoles)
 
     if (filled.size === 0) {
       toast(`“${project.name}” has nothing to fill in the empty fields.`)
@@ -624,6 +753,13 @@ function PdfEditor({
       link.download = `${pdfFilename(url)}-completed.pdf`
       link.click()
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
+
+      // A nudge, not a gate: the download has already started.
+      if (formCheck?.status !== 'done' || checkedContent !== contentKey) {
+        toast('Check this form for mistakes before you submit it?', {
+          action: { label: 'Check form', onClick: () => void checkForm() },
+        })
+      }
     } catch (saveError) {
       toast.error(
         errorMessage(saveError, 'The edited PDF couldn’t be created.'),
@@ -747,6 +883,17 @@ function PdfEditor({
                       status={draftStatus}
                     />
                   </div>
+                  <button
+                    aria-expanded={isCheckOpen}
+                    className="flex h-8 items-center gap-1.5 rounded-full border border-ink/35 pr-3 pl-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:opacity-50"
+                    disabled={!sourceHash || formCheck?.status === 'checking'}
+                    onClick={() => void checkForm()}
+                    title="Check your entries for mistakes"
+                    type="button"
+                  >
+                    <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    {formCheck?.status === 'checking' ? 'Checking…' : 'Check'}
+                  </button>
                   <button
                     className="flex h-8 items-center gap-1.5 rounded-full bg-blueprint pr-3 pl-2.5 text-xs font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
                     disabled={isSaving}
@@ -974,6 +1121,7 @@ function PdfEditor({
                 Array.from({ length: pdf.numPages }, (_, pageIndex) => (
                   <EditorPage
                     activeTool={activeTool}
+                    flaggedFields={flaggedFields}
                     key={pageIndex}
                     nativeFields={nativeFields}
                     onNativeChange={updateNativeField}
@@ -994,6 +1142,25 @@ function PdfEditor({
           )}
         </section>
       </div>
+
+      {isCheckOpen && shownCheck && (
+        <>
+          <button
+            aria-label="Close form check"
+            className="fixed inset-0 z-[60] bg-ink/40 lg:hidden"
+            onClick={() => setIsCheckOpen(false)}
+            type="button"
+          />
+          <aside className="fixed inset-y-0 right-0 z-[60] flex w-80 max-w-[85vw] flex-col border-l border-ink bg-paper lg:static lg:z-auto lg:max-w-none lg:shrink-0">
+            <FormCheckPanel
+              state={shownCheck}
+              onCheck={() => void checkForm()}
+              onClose={() => setIsCheckOpen(false)}
+              onSelect={showIssue}
+            />
+          </aside>
+        </>
+      )}
     </div>
   )
 }
@@ -1002,6 +1169,7 @@ function EditorPage({
   pdf,
   pageIndex,
   activeTool,
+  flaggedFields,
   nativeFields,
   placedFields,
   onPlace,
@@ -1013,6 +1181,9 @@ function EditorPage({
   pdf: PDFDocumentProxy
   pageIndex: number
   activeTool?: EditorTool
+  // Fields the last form check found problems with, by native field name or
+  // placed field ID.
+  flaggedFields: Map<string, IssueSeverity>
   nativeFields: Array<NativeField>
   placedFields: Array<PlacedField>
   onPlace: (pageIndex: number, x: number, y: number) => void
@@ -1117,6 +1288,7 @@ function EditorPage({
           pageNativeFields.map(({ field, widget }) => (
             <NativeFieldControl
               field={field}
+              flag={flaggedFields.get(field.name)}
               key={`${field.id}-${widget.x}-${widget.y}`}
               onChange={(update) => onNativeChange(field.id, update)}
               style={rectStyle(widget, viewport)}
@@ -1129,6 +1301,7 @@ function EditorPage({
             .map((field) => (
               <PlacedFieldControl
                 field={field}
+                flag={flaggedFields.get(field.id)}
                 key={field.id}
                 onChange={(value) => onPlacedChange(field.id, value)}
                 onDelete={() => onPlacedDelete(field.id)}
@@ -1142,17 +1315,18 @@ function EditorPage({
 
 function NativeFieldControl({
   field,
+  flag,
   widget,
   style,
   onChange,
 }: {
   field: NativeField
+  flag?: IssueSeverity
   widget: PdfRect
   style: React.CSSProperties
   onChange: (update: (field: NativeField) => NativeField) => void
 }) {
-  const className =
-    'absolute border border-blueprint/60 bg-[#e9f4ff]/70 text-[#172635] outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/25'
+  const className = `absolute border border-blueprint/60 bg-[#e9f4ff]/70 text-[#172635] outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/25 ${flagClass(flag)}`
 
   if (field.kind === 'text') {
     const shared = {
@@ -1264,19 +1438,22 @@ function NativeFieldControl({
 
 function PlacedFieldControl({
   field,
+  flag,
   style,
   onChange,
   onDelete,
 }: {
   field: PlacedField
+  flag?: IssueSeverity
   style: React.CSSProperties
   onChange: (value: string) => void
   onDelete: () => void
 }) {
   return (
     <div
-      className="group absolute border border-dashed border-redline bg-white/80"
+      className={`group absolute border border-dashed border-redline bg-white/80 ${flagClass(flag)}`}
       data-editor-control
+      data-field-id={field.id}
       style={style}
     >
       {field.kind === 'check' ? (
@@ -1311,6 +1488,16 @@ function PlacedFieldControl({
       </button>
     </div>
   )
+}
+
+// An outline around a field the form check flagged: solid redline for a
+// likely mistake or a missing entry, faint for one worth a look.
+function flagClass(flag?: IssueSeverity) {
+  if (!flag) return ''
+
+  return flag === 'review'
+    ? 'outline-2 outline-offset-1 outline-redline/45'
+    : 'outline-2 outline-offset-1 outline-redline'
 }
 
 // A row of joined toolbar buttons with thin dividers.

@@ -1,3 +1,5 @@
+import { roleFillKey } from '#/lib/forms/roles'
+import type { FieldRole } from '#/lib/forms/roles'
 import { STATE_NAMES } from '#/lib/location/states'
 import { PROJECT_TEXT_FIELDS } from '#/lib/projects/types'
 import type { Project, ProjectTextKey } from '#/lib/projects/types'
@@ -8,9 +10,16 @@ import type { Project, ProjectTextKey } from '#/lib/projects/types'
 // the user, who can copy the value from the project instead.
 
 // What a project can put in a field: its text details, plus the city, state,
-// cost, and "City, ST 55416" for forms that ask for them in one box.
-type FillKey =
-  ProjectTextKey | 'estimatedCost' | 'city' | 'state' | 'cityStateZip'
+// cost, and "City, ST 55416" for forms that ask for them in one box. Also
+// today's date, for the date beside a signature; only a field Jev gave that
+// role is filled with it, never one matched by name.
+export type FillKey =
+  | ProjectTextKey
+  | 'estimatedCost'
+  | 'city'
+  | 'state'
+  | 'cityStateZip'
+  | 'todaysDate'
 
 const STATE_ABBREVIATIONS = new Map(
   Object.entries(STATE_NAMES).map(([abbreviation, name]) => [
@@ -151,7 +160,7 @@ export function matchProjectField(fieldName: string): FillKey | null {
 
 // The value for each fill key, using the owner's details for the applicant
 // when they're the same person.
-function fillValues(project: Project): Partial<Record<FillKey, string>> {
+export function fillValues(project: Project): Partial<Record<FillKey, string>> {
   const { details, city } = project
 
   const values: Partial<Record<FillKey, string>> = Object.fromEntries(
@@ -182,6 +191,16 @@ function fillValues(project: Project): Partial<Record<FillKey, string>> {
     ? `${city.name}, ${STATE_ABBREVIATIONS.get(city.region) ?? city.region} ${details.zipCode}`.trim()
     : ''
 
+  const today = new Date()
+
+  values.todaysDate = [
+    today.getMonth() + 1,
+    today.getDate(),
+    today.getFullYear(),
+  ]
+    .map((part) => String(part).padStart(2, '0'))
+    .join('/')
+
   return values
 }
 
@@ -204,16 +223,26 @@ function matchExtraField(fieldName: string, project: Project) {
 
 // Field IDs to the value each should get. Takes the PDF's empty text fields;
 // width is the field's first box in PDF points, so narrow state boxes get
-// "MN" instead of "Minnesota".
+// "MN" instead of "Minnesota". roles: what each field asks for, by field
+// name, once the form has been read (see FormSchema); only fields without
+// one are matched by name.
 export function projectFills(
   fields: Array<{ id: string; name: string; width: number }>,
   project: Project,
+  roles: Partial<Record<string, FieldRole>> = {},
 ) {
   const values = fillValues(project)
   const fills = new Map<string, string>()
 
   for (const field of fields) {
-    const key = matchProjectField(field.name)
+    const role = roles[field.name]
+
+    // Jev's role wins, even when it fills nothing: a contractor's address
+    // named only "Address_2" would otherwise get the job site's.
+    const key = role
+      ? (roleFillKey(role) ?? null)
+      : matchProjectField(field.name)
+
     let value = key ? values[key] : matchExtraField(field.name, project)
 
     if (key === 'state' && value && field.width < 60) {

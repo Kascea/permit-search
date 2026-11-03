@@ -1,7 +1,51 @@
 # Form verification plan
 
 A **Check form** button in the editor that uses Jev (TypeSafe) to catch mistakes
-before the user downloads a filled permit PDF. Not built yet.
+before the user downloads a filled permit PDF.
+
+## Status
+
+Built in `src/lib/forms/`, `src/components/FormCheckPanel.tsx` and the editor.
+Where the build differs from the plan below:
+
+- **Project as state.** When the form is in a project (or one was chosen in
+  the fill menu), the project's filled details go to Jev as `project`.
+  `matchesProject` applies to every text field: code skips the question when
+  a role's project value is the same, and Jev judges the rest, so "Dr" and
+  "Drive" match but a different phone number doesn't.
+- **Results panel** is a drawer on the right of the editor, not in
+  `DraftSidebar`, which stays a file browser.
+- **Fields the user places** are named from the stored page text and get
+  `valueFitsLabel` and `matchesProject`. Their roles aren't saved on the
+  draft yet.
+- **The section question** runs only for the owner, applicant and contractor
+  roles (`SECTION_DEPENDENT_ROLES`); other required fields are missing when
+  empty. It also sees the boxes the user checked, such as "Owner and
+  occupant".
+- **`descriptionSpecific`** flags a description when Jev puts at least 0.5 of
+  its probability on the vaguest level. The expected score sat near 1 for
+  descriptions with one detail, which aren't vague.
+- **Required fields.** A field is required when its role is one every form
+  needs (see `CHECKS_BY_ROLE`), the PDF flags it as required, Jev reads a
+  marker beside its label, or its heading carries one ("Property owner
+  *REQUIRED*"). Headings are asked about once each. Unit numbers are never
+  made required by a heading. Except for roles in `ALWAYS_APPLIES_ROLES`, an
+  empty required field under a heading is reported only when Jev is
+  confident its section applies; an unsure answer is silent.
+- **Dates.** Autofill puts today's date in fields with the `signatureDate`
+  role, and only those; `projectDate` fields (start, completion, inspection)
+  are left alone. The `dateCurrent` check flags a signature date more than 7
+  days old or in the future, including dates the user places.
+- **Autofill trusts roles.** Once the form has been read, a field with a
+  role is filled only from that role; name matching is used only for fields
+  without one.
+- **Dropdowns, lists and radio buttons** get only the required check.
+- **Labels are read on the server** with the pdf.js legacy build, which adds
+  about 0.5 MB gzipped to the Worker (2.6 MB in all).
+
+Tested against the live API on St. Louis Park's fence and mechanical forms,
+with made-up values. Every planted mistake was caught, and no correct field
+was flagged.
 
 ## Decisions
 

@@ -9,7 +9,8 @@ import { setAccountProjects } from '#/lib/projects/use-account-projects'
 interface ProjectFillMenuProps {
   // Undefined while loading.
   projects: Array<Project> | undefined
-  // The project last filled from, or the one the editor was opened from.
+  // The project Autofill fills from: the one chosen here or opened from, else
+  // the one holding the PDF. Undefined when there's none to assume.
   project: Project | undefined
   // Empty fields each project can fill, by public ID.
   fillCounts: Map<string, number>
@@ -18,9 +19,11 @@ interface ProjectFillMenuProps {
   item: { sourceUrl: string; title: string }
 }
 
-// The editor's "Fill from project" menu: choosing a project fills the PDF's
-// empty fields that it can match. Values it can't match are copied from the
-// project's page, which each row links to.
+// The editor's Autofill split button. The button fills the PDF's empty
+// fields from the form's project; the caret opens a menu to choose another
+// project, and the button opens it too when there's no project to assume.
+// Values a project can't match are copied from its page, which each row
+// links to.
 export function ProjectFillMenu({
   projects,
   project,
@@ -78,19 +81,26 @@ export function ProjectFillMenu({
     project?.items.some(({ sourceUrl }) => sourceUrl === item.sourceUrl) ??
     false
 
+  const halfClass = `flex h-8 items-center border text-xs font-medium transition ${
+    isOpen
+      ? 'border-blueprint bg-blueprint/10 text-blueprint'
+      : 'border-ink/35 text-ink hover:border-ink'
+  }`
+
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={menuRef} className="relative flex">
       <button
         type="button"
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        className={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition ${
-          isOpen
-            ? 'border-blueprint bg-blueprint/10 text-blueprint'
-            : 'border-ink/35 text-ink hover:border-ink'
-        }`}
-        onClick={() => setIsOpen((open) => !open)}
-        title="Fill in this form from a project"
+        className={`${halfClass} gap-1.5 rounded-l-full border-r-0 pr-2.5 pl-3`}
+        onClick={() => {
+          if (project) onFill(project)
+          else setIsOpen(true)
+        }}
+        title={
+          project
+            ? `Fill empty fields from “${project.name}”`
+            : 'Choose a project to fill this form from'
+        }
       >
         <svg
           aria-hidden="true"
@@ -104,18 +114,40 @@ export function ProjectFillMenu({
         >
           <path d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
         </svg>
-        <span className="hidden sm:inline">Fill from project</span>
+        <span className="hidden sm:inline">Autofill</span>
         {fillCount > 0 && (
           <span className="rounded-full bg-blueprint px-1.5 text-[0.65rem] leading-4 text-paper tabular-nums">
             {fillCount}
           </span>
         )}
       </button>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-label="Choose a project to fill from"
+        className={`${halfClass} rounded-r-full pr-2.5 pl-2`}
+        onClick={() => setIsOpen((open) => !open)}
+        title="Choose a project to fill from"
+      >
+        <svg
+          aria-hidden="true"
+          className={`size-3.5 transition ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
 
       {isOpen && (
         <div
           role="dialog"
-          aria-label="Fill from project"
+          aria-label="Choose a project to fill from"
           className="absolute top-full right-0 z-50 mt-2 flex max-h-[min(70vh,30rem)] w-72 max-w-[calc(100vw-1.5rem)] flex-col rounded-xs border border-ink bg-paper text-sm"
         >
           {projects === undefined ? (

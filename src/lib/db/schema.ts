@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import type { DraftContent } from '#/lib/drafts/types'
+import type { FormSchema } from '#/lib/forms/types'
 import type { ExtraField } from '#/lib/projects/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
@@ -423,6 +424,18 @@ export const blankPdfs = pgTable('blank_pdfs', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
+})
+
+// What a version of a form asks for: each field's label, section and role,
+// and the checks it gets. Worked out once per version with Jev and shared by
+// everyone who opens it, like blank_pdfs, but kept for any PDF opened in the
+// editor, saved or not. Rebuilt when schema_version is older than
+// FORM_SCHEMA_VERSION.
+export const formSchemas = pgTable('form_schemas', {
+  sourceHash: char('source_hash', { length: 64 }).primaryKey(),
+  schemaVersion: integer('schema_version').notNull(),
+  schema: jsonb('schema').$type<FormSchema>().notNull(),
+  ...timestamps,
 })
 
 // A blank form in a user's library, such as "Fence Permit Application" for
