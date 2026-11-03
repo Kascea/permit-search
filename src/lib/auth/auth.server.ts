@@ -32,8 +32,17 @@ function createAuth(db: Database) {
     trustedOrigins: [
       'https://permitsearch.app',
       'https://www.permitsearch.app',
-      'http://localhost:3000',
+      ...(import.meta.env.DEV ? ['http://localhost:3000'] : []),
     ],
+    // On by default in production. Counts go in the database: memory would
+    // be per Worker isolate, so each new isolate would start from zero.
+    rateLimit: { storage: 'database' },
+    advanced: {
+      // Cloudflare sets this to the visitor's IP. X-Forwarded-For can carry
+      // addresses the visitor made up, and Better Auth then can't tell
+      // visitors apart, so they'd all share one sign-in limit.
+      ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] },
+    },
     session: {
       // A signed cookie answers most session checks without a database query.
       cookieCache: { enabled: true, maxAge: 5 * 60 },

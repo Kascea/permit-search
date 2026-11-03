@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { getCityContacts } from '#/lib/contacts/city-contacts.server'
 import { UserError } from '#/lib/errors'
+import { rateLimited } from '#/lib/rate-limit'
 
 interface CityContactsInput {
   name: string
@@ -10,6 +11,7 @@ interface CityContactsInput {
 
 // Loaded alongside the search so contact collection never delays results.
 export const fetchCityContacts = createServerFn({ method: 'POST' })
+  .middleware([rateLimited])
   .validator(validateCity)
   .handler(({ data }) => getCityContacts(data))
 

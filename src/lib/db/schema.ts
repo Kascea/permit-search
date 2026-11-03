@@ -270,6 +270,15 @@ export const verifications = pgTable(
   (table) => [index('verifications_identifier').on(table.identifier)],
 )
 
+// Better Auth's rate limit counts, one row per client IP and auth endpoint.
+// lastRequest is in milliseconds since the epoch.
+export const rateLimits = pgTable('rate_limits', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+})
+
 // A signed-in user's saved progress on one PDF form; see DraftContent.
 export const pdfDrafts = pgTable(
   'pdf_drafts',

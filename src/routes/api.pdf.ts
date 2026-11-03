@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { errorMessage, isUserError } from '#/lib/errors'
 import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
+import { limitRequest } from '#/lib/rate-limit.server'
 
 export const Route = createFileRoute('/api/pdf')({
   server: {
@@ -12,6 +13,15 @@ export const Route = createFileRoute('/api/pdf')({
           return Response.json(
             { error: 'A PDF URL is required.' },
             { status: 400 },
+          )
+        }
+
+        try {
+          await limitRequest('pdf', request.headers)
+        } catch (error) {
+          return Response.json(
+            { error: errorMessage(error, 'Too many requests.') },
+            { status: 429 },
           )
         }
 

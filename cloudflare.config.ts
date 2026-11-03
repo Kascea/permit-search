@@ -39,6 +39,12 @@ export default defineConfig({
       BETTER_AUTH_URL: bindings.secret(),
       GOOGLE_CLIENT_ID: bindings.secret(),
       GOOGLE_CLIENT_SECRET: bindings.secret(),
+      // Per client IP and kind of request: searches, contact lookups, result
+      // reports and PDF downloads. See limitRequest().
+      RATE_LIMITER: bindings.rateLimit({
+        namespace: '1001',
+        simple: { limit: 10, period: 60 },
+      }),
       ...(process.env.CLOUDFLARE_HYPERDRIVE_ID
         ? {
             DATABASE: bindings.hyperdrive({

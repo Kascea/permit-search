@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 
 import { getSessionUser } from '#/lib/auth/auth.server'
+import { rateLimited } from '#/lib/rate-limit'
 import {
   loadSavedSearch,
   loadSearchSummary,
@@ -17,6 +18,7 @@ interface StartSearchInput extends PermitSearchInput {
 
 // Reuses or runs a search and returns the saved search's public ID.
 export const startSearch = createServerFn({ method: 'POST' })
+  .middleware([rateLimited])
   .validator((input: StartSearchInput): StartSearchInput => ({
     ...validatePermitSearch(input),
     fresh: input.fresh === true,

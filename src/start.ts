@@ -3,7 +3,11 @@ import {
   isNotFound,
   isRedirect,
 } from '@tanstack/react-router'
-import { createMiddleware, createStart } from '@tanstack/react-start'
+import {
+  createCsrfMiddleware,
+  createMiddleware,
+  createStart,
+} from '@tanstack/react-start'
 
 import { GENERIC_ERROR, UserError, isUserError } from '#/lib/errors'
 
@@ -71,7 +75,46 @@ const userErrorAdapter = createSerializationAdapter({
   fromSerializable: (message) => new UserError(message),
 })
 
+// Sent with every page, API and server function response. The policy doesn't
+// limit scripts, since the page's own hydration scripts are inline, but other
+// sites can't frame the app to trick people into clicking in it.
+// Geolocation is for "Detect my city".
+const SECURITY_HEADERS = {
+  'Content-Security-Policy':
+    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+}
+
+const securityHeaders = createMiddleware().server(async ({ next }) => {
+  const result = await next()
+  let { response } = result
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    try {
+      response.headers.set(name, value)
+    } catch {
+      // A Response.redirect()'s headers can't be changed; copy it once.
+      response = new Response(response.body, response)
+      response.headers.set(name, value)
+    }
+  }
+  return { ...result, response }
+})
+
+// Turns away server function calls from other sites, such as a page posting to
+// saveAccountDraft with a signed-in visitor's cookie. Start adds this itself
+// only when there's no startInstance, so defining one here turned it off.
+// /api/auth has Better Auth's own origin check.
+const csrfMiddleware = createCsrfMiddleware({
+  filter: (ctx) => ctx.handlerType === 'serverFn',
+})
+
 export const startInstance = createStart(() => ({
+  // securityHeaders goes first so it also covers a CSRF rejection.
+  requestMiddleware: [securityHeaders, csrfMiddleware],
   functionMiddleware: [hideInternalErrors],
   serializationAdapters: [userErrorAdapter],
 }))

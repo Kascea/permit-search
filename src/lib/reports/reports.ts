@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { saveResultReport } from '#/lib/reports/reports.server'
 import { UserError } from '#/lib/errors'
+import { rateLimited } from '#/lib/rate-limit'
 
 interface ReportInput {
   publicId: string
@@ -9,6 +10,7 @@ interface ReportInput {
 }
 
 export const reportResults = createServerFn({ method: 'POST' })
+  .middleware([rateLimited])
   .validator((input: ReportInput): ReportInput => {
     const message = input.message.trim()
     if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
