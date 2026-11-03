@@ -24,7 +24,7 @@ function NewProject() {
       <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
         New project
       </p>
-      <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+      <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
         Start a project
       </h1>
       <p className="mt-3 max-w-[60ch] text-base leading-6 text-ink/70">

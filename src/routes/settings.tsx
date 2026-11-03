@@ -58,7 +58,7 @@ function Settings() {
       <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
         Settings
       </p>
-      <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+      <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
         Your account
       </h1>
 
@@ -91,7 +91,7 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <section className="mt-8 grid gap-4 border-t border-ink pt-5 sm:grid-cols-[220px_1fr] sm:gap-8">
+    <section className="mt-8 grid gap-4 border-t border-ink pt-5 sm:grid-cols-[13.75rem_1fr] sm:gap-8">
       <div>
         <h2 className="font-medium text-ink">{title}</h2>
         {description && (
@@ -469,7 +469,7 @@ function DeleteSection({ method }: { method?: SignInMethod }) {
       <Modal
         isOpen={isOpen}
         label="Delete account"
-        widthClass="max-w-[440px]"
+        widthClass="max-w-110"
         onClose={() => setIsOpen(false)}
       >
         {method && (

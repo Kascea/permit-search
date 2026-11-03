@@ -128,7 +128,7 @@ export function AccountMenu({
       {isOpen && (
         <div
           role="menu"
-          className={`absolute z-50 w-60 rounded-[2px] border border-ink bg-paper text-sm ${
+          className={`absolute z-50 w-60 rounded-xs border border-ink bg-paper text-sm ${
             inSidebar ? 'bottom-full left-8 mb-2' : 'top-full right-0 mt-2'
           }`}
         >

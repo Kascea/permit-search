@@ -93,8 +93,7 @@ function AppLayout() {
   return (
     <div className="lg:flex">
       <AppSidebar />
-      {/* Its left border is the sidebar's edge, on the grid line 8 cells in. */}
-      <div className="min-w-0 flex-1 lg:border-l lg:border-ink">
+      <div className="min-w-0 flex-1">
         <Outlet />
       </div>
     </div>

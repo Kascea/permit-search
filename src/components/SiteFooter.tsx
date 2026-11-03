@@ -15,7 +15,7 @@ export function SiteFooter() {
         user ? 'lg:hidden' : ''
       }`}
     >
-      <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs">
+      <div className="mx-auto flex max-w-280 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs">
         <div className="flex items-center gap-2.5">
           <PermitSearchLogo className="size-5 shrink-0" />
           <p className="text-paper/70">

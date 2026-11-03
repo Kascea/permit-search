@@ -97,7 +97,7 @@ function DashboardPage({ dashboard }: { dashboard: Dashboard }) {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             Dashboard
           </p>
-          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+          <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             What’s next
           </h1>
         </div>

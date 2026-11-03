@@ -212,7 +212,7 @@ function ProjectPage() {
 }
 
 const titleClass =
-  'text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl'
+  'text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl'
 
 // The project's name, with a pencil to rename it in place. The name joins
 // the details form below, so its save bar saves or discards the rename with

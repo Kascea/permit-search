@@ -292,7 +292,25 @@ drafts sees a three-step start instead.
 - **Details:** today's `ProjectForm`, restructured into the steps of workflow
   3. Linked roles are read-only cards, and **Use someone else** unlinks one.
 
-**Editor.** Keep the PDF desk. The side panel gets three tabs:
+**Editor.** A separate, full-window screen, built from the app's parts:
+
+- **Left panel:** framed like `AppSidebar` (logo, 8 cells wide, the account
+  row at the foot) but styled as a file browser on plain paper, since these
+  are PDF files: a Dashboard link back, then projects as folders (caret, open
+  or closed folder icon, file count) with their PDFs indented under them on a
+  faint guide, and a Drafts folder for forms not in a project. The open PDF is
+  selected; each PDF shows when it was last edited.
+- **Top bar,** two cells tall, its rule running on from the sidebar's: the
+  breadcrumb and title, then Fill from project, save status and Download.
+- **Tool palette:** the second row, floating at the top of the desk and
+  staying as the pages scroll: the field tools, zoom, pages and next-empty.
+  The placement hint and draft notices stack under it.
+- **Desk:** the page grid a shade darker (`bg-desk`), with white PDF pages.
+- **Right panel (later):** a closeable panel for the Fill and Check tabs
+  below, so the forms stay on the left and everything about the open form
+  is on the right.
+
+The right panel's tabs:
 
 - **Fill:** replaces `ProjectFillMenu`. It has the fill count, filled fields
   with source tags, unplaced fields with Assign and Answer here, and the
@@ -310,8 +328,7 @@ drafts sees a three-step start instead.
   5. _Current form:_ the PDF's hash differs from the saved permit's.
   6. _Plain-language checks with Jev:_ such as whether the work description
      says what's being built and where. Always under Review.
-- **Drafts:** today's `DraftSidebar`, limited to this project's forms when
-  opened from a project.
+- (Moving between forms stays in the left sidebar, `DraftSidebar`.)
 
 **Saved permit page.** The blank PDF preview, and the field mapping as a table
 ("PDF field → takes"), which can be edited. It shows the projects using the

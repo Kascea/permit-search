@@ -36,8 +36,9 @@ interface SiteHeaderProps {
 // On every page: the search pill on the right shows the current search,
 // the same on every page until cleared, and opens the search modal. Signed
 // in, from lg up, it's the top bar beside AppSidebar: the logo and account
-// move to the sidebar, the search pill grows, and the bar is 64px tall so its
-// bottom rule lands on a grid line and runs on into the sidebar's.
+// move to the sidebar, the search pill grows, and the bar is two grid cells
+// tall so its rule (rule-b) lands on a grid line and runs on into the
+// sidebar's.
 export function SiteHeader({
   search,
   isSearchOpen: controlledIsOpen,
@@ -63,12 +64,12 @@ export function SiteHeader({
   return (
     <>
       <header
-        className={`sticky top-0 z-40 border-b border-ink bg-sheet px-4 sm:px-6 ${
+        className={`sticky top-0 z-40 bg-sheet px-4 rule-b sm:px-6 ${
           user ? 'lg:px-8' : ''
         }`}
       >
         <div
-          className={`mx-auto flex h-14 max-w-[1120px] items-center gap-4 ${
+          className={`mx-auto flex h-14 max-w-280 items-center gap-4 ${
             user ? 'lg:h-16 lg:max-w-none' : ''
           }`}
         >
@@ -108,7 +109,7 @@ export function SiteHeader({
             <span className="ml-auto" />
           ) : (
             <div
-              className={`relative ml-auto w-full max-w-[300px] min-w-0 ${
+              className={`relative ml-auto w-full max-w-75 min-w-0 ${
                 user ? 'lg:w-96 lg:max-w-none' : ''
               }`}
             >

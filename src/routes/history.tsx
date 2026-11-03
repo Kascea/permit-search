@@ -23,7 +23,7 @@ function History() {
       <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
         History
       </p>
-      <h1 className="mt-1 mb-6 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+      <h1 className="mt-1 mb-6 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
         Your searches
       </h1>
 

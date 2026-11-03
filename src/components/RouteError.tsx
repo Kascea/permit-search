@@ -64,9 +64,9 @@ function ErrorPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-ink bg-sheet px-4 sm:px-6">
+      <header className="bg-sheet px-4 rule-b sm:px-6">
         <div
-          className={`mx-auto flex h-14 max-w-[1120px] items-center ${
+          className={`mx-auto flex h-14 max-w-280 items-center ${
             besideSidebar ? 'lg:h-16' : ''
           }`}
         >
@@ -85,9 +85,9 @@ function ErrorPage({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
-        <section className="mx-auto max-w-[780px] py-8" role="alert">
-          <h1 className="text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+      <main className="mx-auto w-full max-w-280 flex-1 px-4 pt-8 sm:px-6">
+        <section className="mx-auto max-w-3xl py-8" role="alert">
+          <h1 className="text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             {title}
           </h1>
           <p className="mt-3 text-base leading-6 text-ink/70">{message}</p>

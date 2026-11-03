@@ -9,7 +9,7 @@ classes (`text-ink`, `bg-paper`, `border-blueprint`), never raw hex values.
 
 ## Principles
 
-- **Paper first.** Every page sits on the cream sheet with its 32px grid. A
+- **Paper first.** Every page sits on the cream sheet with its 2rem grid. A
   section can tint the paper so text reads clearly, but it should still let the
   grid show through.
 - **Lines, not cards.** Group content with full-strength ink rules (`border-ink`)
@@ -48,20 +48,30 @@ Make softer shades with opacity instead of new colors:
   placeholders, `/20` for light rules, `/10` for hover fills.
 - Blueprint and redline: `/10` for badge and alert backgrounds.
 
-The PDF editor is the one exception. Its workspace uses a grey desk
-(`#e8e8e2`) and white PDF pages, so the document reads as a real sheet of
-paper set on the desk.
+The PDF editor's desk (`bg-desk`) is the same grid a shade darker, like a
+drafting table, so its white PDF pages read as real sheets laid on it.
 
 ## The sheet
 
-- The grid is drawn on `body` in `styles.css`: 1px lines in ink at 4% opacity,
-  every 32px. Don't add it again on individual pages.
+- The grid is drawn on `body` in `styles.css` (`--sheet`): ink at 4% opacity,
+  one cell every `--grid` (2rem, so it grows with the reader's text size).
+  Each line is in the last pixel of its cell. Don't add it again on a page;
+  an opaque surface that needs it, such as a sticky header, uses `bg-sheet`.
+- Size layout in rem or Tailwind's spacing scale, never in pixels, so pages
+  scale with the reader's settings. Hairlines (1px borders and rules) are
+  the exception.
+- Structural rules that must sit on the grid (the sidebar's edge, the top
+  bar's foot) use `rule-r` and `rule-b`: an ink hairline in the box's last
+  pixel that takes no space. A box sized in whole cells then has its rule on
+  a grid line, with no 1px adjustments.
 - A content section that needs to be easier to read uses `bg-paper/50`. That
   keeps the grid faintly visible. Close it with a single ink rule below; don't
   stack a second rule directly under the header.
-- Widths: `max-w-[780px]` for a single column such as the home form, and
-  `max-w-[1120px]` for the full page with the results and their sidebar. Side
-  padding is `px-4 sm:px-6`.
+- Widths: `max-w-3xl` (24 cells) for a single column, and `max-w-280` (35
+  cells) for the full page with the results and their sidebar. Beside the
+  app sidebar, `AppPage` places them with `sheet-column` and
+  `sheet-column-wide`, which center them with the offset rounded to whole
+  cells. Side padding is `px-4 sm:px-6`.
 
 ## Type
 
@@ -73,7 +83,7 @@ bold.
 | Role         | Classes                                                        |
 | ------------ | -------------------------------------------------------------- |
 | Display      | `text-[clamp(3rem,9vw,5.5rem)] leading-[1] tracking-[-0.04em]` |
-| Page heading | `text-[28px] sm:text-4xl leading-[1.05] tracking-[-0.03em]`    |
+| Page heading | `text-[1.75rem] sm:text-4xl leading-[1.05] tracking-[-0.03em]` |
 | Item heading | `text-lg leading-6`                                            |
 | Body         | `text-base leading-6 text-ink/70`                              |
 | Small label  | `text-xs tracking-[0.16em] uppercase text-blueprint`           |
@@ -84,7 +94,7 @@ names the sheet ("Permit sources", "City permit office").
 
 ## Shape
 
-- **Fields and panels:** square, with a 2px radius at most (`rounded-[2px]`).
+- **Fields and panels:** square, with a 2px radius at most (`rounded-xs`).
 - **Buttons, chips and badges:** fully round (`rounded-full`). That's the one
   soft shape on the sheet, and it shows what can be clicked.
 - **Borders:** always 1px.

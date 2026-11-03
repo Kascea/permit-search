@@ -116,7 +116,7 @@ export function ProjectFillMenu({
         <div
           role="dialog"
           aria-label="Fill from project"
-          className="absolute top-full right-0 z-50 mt-2 flex max-h-[min(70vh,480px)] w-72 max-w-[calc(100vw-1.5rem)] flex-col rounded-[2px] border border-ink bg-paper text-sm"
+          className="absolute top-full right-0 z-50 mt-2 flex max-h-[min(70vh,30rem)] w-72 max-w-[calc(100vw-1.5rem)] flex-col rounded-xs border border-ink bg-paper text-sm"
         >
           {projects === undefined ? (
             <p className="flex items-center gap-2 px-4 py-4 text-ink/60">

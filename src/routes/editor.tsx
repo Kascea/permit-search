@@ -18,6 +18,7 @@ import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from 'pdfjs-dist'
 
 import { UserError, errorMessage } from '#/lib/errors'
 import { AccountMenu } from '#/components/AccountMenu'
+import { SidebarBrand } from '#/components/AppSidebar'
 import { Breadcrumbs, OriginCrumb } from '#/components/Breadcrumbs'
 import { DraftSidebar } from '#/components/DraftSidebar'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
@@ -629,266 +630,293 @@ function PdfEditor({
     }
   }
 
+  // Framed like AppSidebar (its logo and account row) around a file browser
+  // of the PDFs, on plain paper: these are files, not pages of the app.
   const sidebar = (
-    <DraftSidebar
-      currentUrl={url}
-      signedIn={signedIn}
-      refreshKey={draftStatus}
-      onNavigate={() => setIsDraftsOpen(false)}
-    />
+    <>
+      <SidebarBrand />
+      <DraftSidebar
+        currentUrl={url}
+        signedIn={signedIn}
+        refreshKey={draftStatus}
+        onNavigate={() => setIsDraftsOpen(false)}
+      />
+      {signedIn && (
+        <div className="shrink-0 pt-8">
+          <AccountMenu variant="sidebar" />
+        </div>
+      )}
+    </>
   )
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#e8e8e2]">
-      <header className="z-50 shrink-0 border-b border-ink bg-paper">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0 px-3 sm:px-4">
-          <div className="flex h-12 min-w-0 flex-1 items-center gap-2">
-            <Link
-              aria-label="Permit Search home"
-              className="shrink-0 text-ink"
-              to="/"
-            >
-              <PermitSearchLogo className="size-7" />
-            </Link>
-            <button
-              aria-expanded={isDraftsOpen}
-              aria-label="Show drafts"
-              className="grid size-8 shrink-0 place-items-center rounded-[2px] text-ink transition hover:bg-ink/10 lg:hidden"
-              onClick={() => setIsDraftsOpen(true)}
-              type="button"
-            >
-              <Icon path="M4 6h16M4 12h16M4 18h10" />
-            </button>
-            <span aria-hidden="true" className="h-5 w-px shrink-0 bg-ink/20" />
-            <div className="min-w-0 flex-1">
-              <Breadcrumbs
-                current={
-                  <h1 className="truncate text-sm leading-tight font-medium text-ink">
-                    {url ? draftTitle(url) : 'PDF editor'}
-                  </h1>
-                }
-              >
-                <OriginCrumb
-                  origin={origin}
-                  label={
-                    origin.kind === 'search'
-                      ? searchName
-                      : origin.kind === 'project'
-                        ? projects?.find(
-                            (project) => project.publicId === origin.id,
-                          )?.name
-                        : undefined
-                  }
-                />
-              </Breadcrumbs>
-              {url && (
-                <p className="truncate text-xs leading-tight text-ink/60">
-                  {hostname(url)}
-                </p>
-              )}
-            </div>
-          </div>
+    <div className="flex h-dvh overflow-hidden">
+      <aside className="hidden w-64 shrink-0 flex-col bg-paper rule-r lg:flex">
+        {sidebar}
+      </aside>
 
-          {pdf && (
-            // The toolbar row, below the title and actions.
-            <div className="order-last -mx-3 flex w-[calc(100%+1.5rem)] items-center gap-2 overflow-x-auto border-t border-ink/15 px-3 py-1.5 sm:-mx-4 sm:w-[calc(100%+2rem)] sm:px-4">
-              <SegmentGroup label="Add a field">
-                {TOOLS.map(({ tool, label, icon, key }) => (
-                  <SegmentButton
-                    active={activeTool === tool}
-                    key={tool}
-                    onClick={() =>
-                      setActiveTool((current) =>
-                        current === tool ? undefined : tool,
-                      )
-                    }
-                    title={`Add ${label.toLowerCase()} (${key.toUpperCase()})`}
-                  >
-                    <span
-                      className={
-                        activeTool === tool ? undefined : 'text-blueprint'
-                      }
-                    >
-                      <Icon path={icon} />
-                    </span>
-                    <span className="hidden sm:inline">{label}</span>
-                  </SegmentButton>
-                ))}
-              </SegmentGroup>
-
-              <SegmentGroup label="Zoom">
-                <SegmentButton
-                  disabled={scale <= ZOOM_STEPS[0]}
-                  onClick={() => zoom(-1)}
-                  title="Zoom out (−)"
-                >
-                  <Icon path="M6 12h12" />
-                </SegmentButton>
-                <SegmentButton
-                  onClick={() =>
-                    setScale(
-                      fitWidthScale(scrollRef.current, pageWidthRef.current),
-                    )
-                  }
-                  title="Fit to width"
-                >
-                  <span className="w-9 text-center tabular-nums">
-                    {Math.round(scale * 100)}%
-                  </span>
-                </SegmentButton>
-                <SegmentButton
-                  disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-                  onClick={() => zoom(1)}
-                  title="Zoom in (+)"
-                >
-                  <Icon path="M12 6v12M6 12h12" />
-                </SegmentButton>
-              </SegmentGroup>
-
-              {pdf.numPages > 1 && (
-                <SegmentGroup label="Pages">
-                  <SegmentButton
-                    disabled={currentPage <= 1}
-                    onClick={() => scrollToPage(currentPage - 1)}
-                    title="Previous page"
-                  >
-                    <Icon path="m15 6-6 6 6 6" />
-                  </SegmentButton>
-                  <span className="grid h-8 place-items-center px-2 text-xs font-medium whitespace-nowrap text-ink tabular-nums">
-                    {currentPage} / {pdf.numPages}
-                  </span>
-                  <SegmentButton
-                    disabled={currentPage >= pdf.numPages}
-                    onClick={() => scrollToPage(currentPage + 1)}
-                    title="Next page"
-                  >
-                    <Icon path="m9 6 6 6-6 6" />
-                  </SegmentButton>
-                </SegmentGroup>
-              )}
-
-              {fieldCounts.total > 0 && (
-                <button
-                  className="group flex h-8 shrink-0 items-center gap-2 rounded-[2px] border border-ink/30 px-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:cursor-default disabled:hover:border-ink/30"
-                  disabled={fieldCounts.filled === fieldCounts.total}
-                  onClick={focusNextEmptyField}
-                  title="Go to the next empty field (N)"
-                  type="button"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="h-1.5 w-12 overflow-hidden rounded-full bg-ink/15"
-                  >
-                    <span
-                      className={`block h-full transition-[width] ${
-                        fieldCounts.filled === fieldCounts.total
-                          ? 'bg-success'
-                          : 'bg-blueprint'
-                      }`}
-                      style={{
-                        width: `${(fieldCounts.filled / fieldCounts.total) * 100}%`,
-                      }}
-                    />
-                  </span>
-                  <span className="whitespace-nowrap tabular-nums">
-                    {fieldCounts.filled}/{fieldCounts.total}
-                  </span>
-                  <span className="hidden whitespace-nowrap text-ink/70 group-enabled:group-hover:text-ink sm:inline">
-                    {fieldCounts.filled === fieldCounts.total
-                      ? 'All filled'
-                      : 'Next empty'}
-                  </span>
-                  {fieldCounts.filled < fieldCounts.total && (
-                    <Icon path="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                  )}
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex h-12 shrink-0 items-center gap-2">
-            {pdf && (
-              <>
-                {signedIn && (
-                  <ProjectFillMenu
-                    projects={projects}
-                    project={fillProject}
-                    fillCounts={fillCounts}
-                    onFill={fillFromProject}
-                    item={{ sourceUrl: url, title: draftTitle(url) }}
-                  />
-                )}
-                <div className="hidden sm:block">
-                  <DraftStatusLabel
-                    onDiscard={() => void discardDraft()}
-                    signedIn={signedIn}
-                    status={draftStatus}
-                  />
-                </div>
-                <button
-                  className="flex h-8 items-center gap-1.5 rounded-full bg-blueprint pr-3 pl-2.5 text-xs font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
-                  disabled={isSaving}
-                  onClick={() => void downloadPdf()}
-                  title="Download the filled PDF"
-                  type="button"
-                >
-                  <Icon path="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  {isSaving ? 'Preparing…' : 'Download'}
-                </button>
-              </>
-            )}
-            <AccountMenu />
-          </div>
+      {isDraftsOpen && (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+          <button
+            aria-label="Close sidebar"
+            className="absolute inset-0 bg-ink/40"
+            onClick={() => setIsDraftsOpen(false)}
+            type="button"
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col bg-paper rule-r">
+            {sidebar}
+          </aside>
         </div>
+      )}
 
-        {activeTool && (
-          <p className="border-t border-blueprint/30 bg-blueprint/10 px-4 py-1 text-center text-xs font-medium text-blueprint">
-            Click a page to place the {activeTool} field. Press Escape to
-            cancel.
-          </p>
-        )}
-      </header>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* One bar, two grid cells tall from lg up, its rule running on from
+            the sidebar logo's: the title, then saving and download. The tools
+            float over the desk below it. */}
+        <header className="z-50 shrink-0 bg-sheet rule-b">
+          <div className="flex h-12 items-center gap-x-2 px-3 sm:px-4 lg:h-16 lg:gap-x-4 lg:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Link
+                aria-label="Permit Search home"
+                className="shrink-0 text-ink lg:hidden"
+                to="/"
+              >
+                <PermitSearchLogo className="size-7" />
+              </Link>
+              <button
+                aria-expanded={isDraftsOpen}
+                aria-label="Show drafts"
+                className="grid size-8 shrink-0 place-items-center rounded-xs text-ink transition hover:bg-ink/10 lg:hidden"
+                onClick={() => setIsDraftsOpen(true)}
+                type="button"
+              >
+                <Icon path="M4 6h16M4 12h16M4 18h10" />
+              </button>
+              <span
+                aria-hidden="true"
+                className="h-5 w-px shrink-0 bg-ink/20 lg:hidden"
+              />
+              <div className="min-w-0 flex-1">
+                <Breadcrumbs
+                  current={
+                    <h1 className="truncate text-sm leading-tight font-medium text-ink">
+                      {url ? draftTitle(url) : 'PDF editor'}
+                    </h1>
+                  }
+                >
+                  <OriginCrumb
+                    origin={origin}
+                    label={
+                      origin.kind === 'search'
+                        ? searchName
+                        : origin.kind === 'project'
+                          ? projects?.find(
+                              (project) => project.publicId === origin.id,
+                            )?.name
+                          : undefined
+                    }
+                  />
+                </Breadcrumbs>
+                {url && (
+                  <p className="truncate text-xs leading-tight text-ink/60">
+                    {hostname(url)}
+                  </p>
+                )}
+              </div>
+            </div>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 border-r border-ink bg-paper lg:block">
-          {sidebar}
-        </aside>
-
-        {isDraftsOpen && (
-          <div className="fixed inset-0 z-[60] lg:hidden">
-            <button
-              aria-label="Close sidebar"
-              className="absolute inset-0 bg-ink/40"
-              onClick={() => setIsDraftsOpen(false)}
-              type="button"
-            />
-            <aside className="absolute inset-y-0 left-0 w-80 max-w-[85vw] border-r border-ink bg-paper">
-              {sidebar}
-            </aside>
+            <div className="flex shrink-0 items-center gap-2">
+              {pdf && (
+                <>
+                  {signedIn && (
+                    <ProjectFillMenu
+                      projects={projects}
+                      project={fillProject}
+                      fillCounts={fillCounts}
+                      onFill={fillFromProject}
+                      item={{ sourceUrl: url, title: draftTitle(url) }}
+                    />
+                  )}
+                  <div className="hidden sm:block">
+                    <DraftStatusLabel
+                      onDiscard={() => void discardDraft()}
+                      signedIn={signedIn}
+                      status={draftStatus}
+                    />
+                  </div>
+                  <button
+                    className="flex h-8 items-center gap-1.5 rounded-full bg-blueprint pr-3 pl-2.5 text-xs font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
+                    disabled={isSaving}
+                    onClick={() => void downloadPdf()}
+                    title="Download the filled PDF"
+                    type="button"
+                  >
+                    <Icon path="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    {isSaving ? 'Preparing…' : 'Download'}
+                  </button>
+                </>
+              )}
+              {/* Signed in, the sidebar's account row has it from lg up. */}
+              <div className={signedIn ? 'lg:hidden' : ''}>
+                <AccountMenu />
+              </div>
+            </div>
           </div>
-        )}
+        </header>
 
         <section
-          className={`relative min-w-0 flex-1 overflow-auto ${
+          className={`relative min-h-0 flex-1 overflow-auto bg-desk ${
             activeTool ? 'cursor-crosshair' : ''
           }`}
           ref={scrollRef}
         >
-          {draftNotice && (
-            <p
-              className="sticky top-0 z-40 flex items-center justify-center gap-3 border-b border-blueprint bg-paper px-4 py-3 text-center text-sm text-blueprint"
-              role="status"
-            >
-              {draftNotice}
-              <button
-                className="font-medium underline underline-offset-2"
-                onClick={() => setDraftNotice('')}
-                type="button"
+          {/* The tools: a second row that floats over the desk and stays as
+              the pages scroll, with notices under it. It's an object on the
+              desk rather than a bar, so the top bar keeps its height and its
+              rule stays on the grid. Clicks between its parts reach the
+              page. */}
+          <div className="pointer-events-none sticky top-0 z-40 flex flex-col items-center gap-2 px-3 pt-3">
+            {pdf && (
+              <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-xs border border-ink bg-paper p-1.5">
+                <SegmentGroup label="Add a field">
+                  {TOOLS.map(({ tool, label, icon, key }) => (
+                    <SegmentButton
+                      active={activeTool === tool}
+                      key={tool}
+                      onClick={() =>
+                        setActiveTool((current) =>
+                          current === tool ? undefined : tool,
+                        )
+                      }
+                      title={`Add ${label.toLowerCase()} (${key.toUpperCase()})`}
+                    >
+                      <span
+                        className={
+                          activeTool === tool ? undefined : 'text-blueprint'
+                        }
+                      >
+                        <Icon path={icon} />
+                      </span>
+                      <span className="hidden sm:inline">
+                        {label}
+                      </span>
+                    </SegmentButton>
+                  ))}
+                </SegmentGroup>
+
+                <SegmentGroup label="Zoom">
+                  <SegmentButton
+                    disabled={scale <= ZOOM_STEPS[0]}
+                    onClick={() => zoom(-1)}
+                    title="Zoom out (−)"
+                  >
+                    <Icon path="M6 12h12" />
+                  </SegmentButton>
+                  <SegmentButton
+                    onClick={() =>
+                      setScale(
+                        fitWidthScale(scrollRef.current, pageWidthRef.current),
+                      )
+                    }
+                    title="Fit to width"
+                  >
+                    <span className="w-9 text-center tabular-nums">
+                      {Math.round(scale * 100)}%
+                    </span>
+                  </SegmentButton>
+                  <SegmentButton
+                    disabled={scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                    onClick={() => zoom(1)}
+                    title="Zoom in (+)"
+                  >
+                    <Icon path="M12 6v12M6 12h12" />
+                  </SegmentButton>
+                </SegmentGroup>
+
+                {pdf.numPages > 1 && (
+                  <SegmentGroup label="Pages">
+                    <SegmentButton
+                      disabled={currentPage <= 1}
+                      onClick={() => scrollToPage(currentPage - 1)}
+                      title="Previous page"
+                    >
+                      <Icon path="m15 6-6 6 6 6" />
+                    </SegmentButton>
+                    <span className="grid h-8 place-items-center px-2 text-xs font-medium whitespace-nowrap text-ink tabular-nums">
+                      {currentPage} / {pdf.numPages}
+                    </span>
+                    <SegmentButton
+                      disabled={currentPage >= pdf.numPages}
+                      onClick={() => scrollToPage(currentPage + 1)}
+                      title="Next page"
+                    >
+                      <Icon path="m9 6 6 6-6 6" />
+                    </SegmentButton>
+                  </SegmentGroup>
+                )}
+
+                {fieldCounts.total > 0 && (
+                  <button
+                    className="group flex h-8 shrink-0 items-center gap-2 rounded-xs border border-ink/30 px-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:cursor-default disabled:hover:border-ink/30"
+                    disabled={fieldCounts.filled === fieldCounts.total}
+                    onClick={focusNextEmptyField}
+                    title="Go to the next empty field (N)"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-12 overflow-hidden rounded-full bg-ink/15"
+                    >
+                      <span
+                        className={`block h-full transition-[width] ${
+                          fieldCounts.filled === fieldCounts.total
+                            ? 'bg-success'
+                            : 'bg-blueprint'
+                        }`}
+                        style={{
+                          width: `${(fieldCounts.filled / fieldCounts.total) * 100}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="whitespace-nowrap tabular-nums">
+                      {fieldCounts.filled}/{fieldCounts.total}
+                    </span>
+                    <span className="hidden whitespace-nowrap text-ink/70 group-enabled:group-hover:text-ink sm:inline">
+                      {fieldCounts.filled === fieldCounts.total
+                        ? 'All filled'
+                        : 'Next empty'}
+                    </span>
+                    {fieldCounts.filled < fieldCounts.total && (
+                      <Icon path="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {activeTool && (
+              <p className="pointer-events-auto rounded-full bg-blueprint px-4 py-1.5 text-center text-xs font-medium text-paper">
+                Click a page to place the {activeTool} field. Press Escape to
+                cancel.
+              </p>
+            )}
+
+            {draftNotice && (
+              <p
+                className="pointer-events-auto flex items-center justify-center gap-3 rounded-xs border border-blueprint bg-paper px-4 py-2 text-center text-sm text-blueprint"
+                role="status"
               >
-                Dismiss
-              </button>
-            </p>
-          )}
+                {draftNotice}
+                <button
+                  className="font-medium underline underline-offset-2"
+                  onClick={() => setDraftNotice('')}
+                  type="button"
+                >
+                  Dismiss
+                </button>
+              </p>
+            )}
+          </div>
 
           {isLoading ? (
             <div className="grid h-full place-items-center py-24">
@@ -1293,7 +1321,7 @@ function SegmentGroup({
   return (
     <div
       aria-label={label}
-      className="flex shrink-0 items-center divide-x divide-ink/20 overflow-hidden rounded-[2px] border border-ink/30"
+      className="flex shrink-0 items-center divide-x divide-ink/20 overflow-hidden rounded-xs border border-ink/30"
       role="group"
     >
       {children}

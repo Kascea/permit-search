@@ -44,8 +44,8 @@ export function ResultsPage({
   return (
     <AppPage search={search} wide>
       {!search ? (
-        <div className="mx-auto max-w-[780px] border-b border-ink bg-paper/85 py-10 text-center">
-          <h1 className="text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+        <div className="mx-auto max-w-3xl border-b border-ink bg-paper/85 py-10 text-center">
+          <h1 className="text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             Start a permit search
           </h1>
           <p className="mt-2 text-base text-ink/70">
@@ -63,14 +63,14 @@ export function ResultsPage({
         // when the contact card arrives.
         <section
           aria-live="polite"
-          className="bg-paper/50 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-x-10"
+          className="bg-paper/50 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-x-10"
         >
           <div className="flex items-end justify-between gap-4 lg:col-start-1 lg:row-start-1">
             <div>
               <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
                 Permit sources
               </p>
-              <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] sm:text-4xl text-ink">
+              <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] sm:text-4xl text-ink">
                 {search.permit} in {formatCity(search.city)}
               </h1>
               {meta && (

@@ -42,7 +42,7 @@ export function AddToProjectDialog({
     <Modal
       isOpen={isOpen}
       label="Add to project"
-      widthClass="max-w-[440px]"
+      widthClass="max-w-110"
       onClose={onClose}
     >
       <ProjectPicker

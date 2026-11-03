@@ -39,7 +39,7 @@ export function SearchResultsList({
             <li key={searchResult.url}>
               {/* The title link stretches over the whole card, so anywhere on
                   it opens the source. The editor link sits above it. */}
-              <div className="group relative -mx-3 rounded-[2px] px-3 py-5 transition hover:bg-ink/[0.04]">
+              <div className="group relative -mx-3 rounded-xs px-3 py-5 transition hover:bg-ink/[0.04]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -59,7 +59,7 @@ export function SearchResultsList({
                     </div>
                     <h2 className="mt-1 text-lg leading-6 font-medium text-ink group-hover:text-blueprint">
                       <a
-                        className="after:absolute after:inset-0 after:rounded-[2px] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-blueprint"
+                        className="after:absolute after:inset-0 after:rounded-xs focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-blueprint"
                         href={searchResult.url}
                         rel="noreferrer"
                         target="_blank"

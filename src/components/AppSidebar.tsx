@@ -49,15 +49,47 @@ const SECTIONS = [
   },
 ] as const
 
-// The sidebar sits on the page's 32px grid: it's 8 cells wide, every row is
-// one cell tall and starts on a line, icons start one cell in and labels two.
-// Its right edge is the content column's border, which lands on a grid line
-// (see AppLayout).
+// The sidebar sits on the page grid (one cell is 2rem): it's 8 cells wide,
+// every row is one cell tall, icons start one cell in and labels two. Its
+// right rule (rule-r) lands on a grid line.
 const rowClass = 'flex h-8 items-center gap-4 px-8 text-sm transition'
 
 const inactiveRowClass = 'text-ink/70 hover:bg-ink/5 hover:text-ink'
 
 const activeRowClass = 'bg-blueprint/10 font-medium text-blueprint'
+
+// A list tied to the row above it by a faint margin rule under that row's
+// icon; its rows put their labels in the label column.
+const ruledListClass =
+  'relative before:absolute before:inset-y-0 before:left-10 before:w-px before:bg-ink/20'
+
+const ruledRowClass =
+  'relative flex h-8 items-center gap-2 pr-8 pl-16 text-sm transition'
+
+// The sidebar's logo, two cells tall with its rule at the foot, so the rule
+// runs on into the top bar's beside it. The editor's file panel uses it too.
+export function SidebarBrand() {
+  return (
+    <Link
+      to="/"
+      aria-label="Permit Search home"
+      className="flex h-16 shrink-0 items-center gap-3 px-8 text-ink rule-b"
+    >
+      <PermitSearchLogo className="size-8" />
+      <span className="text-sm font-medium tracking-tight">Permit Search</span>
+    </Link>
+  )
+}
+
+// Marks the current row of a ruled list: a short blueprint bar on the rule.
+function RuleMarker() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-y-1.5 left-10 w-0.75 -translate-x-1/2 bg-blueprint"
+    />
+  )
+}
 
 // The signed-in app's navigation and account, beside every page from lg up.
 // SiteHeader's top bar beside it holds search; below lg the header's account
@@ -67,24 +99,13 @@ export function AppSidebar() {
   const recentProjects = projects?.slice(0, RECENT_PROJECT_COUNT) ?? []
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col lg:flex">
-      {/* 65px, so its bottom rule lands on the grid line two cells down and
-          runs on into SiteHeader's. */}
-      <Link
-        to="/"
-        aria-label="Permit Search home"
-        className="flex h-[65px] shrink-0 items-center gap-3 border-b border-ink px-8 text-ink"
-      >
-        <PermitSearchLogo className="size-8" />
-        <span className="text-sm font-medium tracking-tight">
-          Permit Search
-        </span>
-      </Link>
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col rule-r lg:flex">
+      <SidebarBrand />
 
-      {/* 31px down, so the first row starts on the next grid line. */}
+      {/* A cell down, so the first row starts a cell below the rule. */}
       <nav
         aria-label="Main"
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-[31px]"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-8"
       >
         <ul>
           {SECTIONS.map((section) => (
@@ -238,11 +259,7 @@ function ProjectsGroup({
       {isOpen && (
         // One faint margin rule under the Projects icon (x 40) ties the list
         // to it; the current project marks the rule in blueprint.
-        <ul
-          id={listId}
-          aria-label="Recent projects"
-          className="relative before:absolute before:inset-y-0 before:left-10 before:w-px before:bg-ink/20"
-        >
+        <ul id={listId} aria-label="Recent projects" className={ruledListClass}>
           {projects.map((project) => (
             <li
               key={project.publicId}
@@ -254,19 +271,14 @@ function ProjectsGroup({
               <Link
                 to="/projects/$projectId"
                 params={{ projectId: project.publicId }}
-                className="relative block h-8 truncate pr-8 pl-16 text-sm leading-8 transition"
+                className={ruledRowClass}
                 activeProps={{ className: 'font-medium text-blueprint' }}
                 inactiveProps={{ className: inactiveRowClass }}
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-1.5 left-[39px] w-[3px] bg-blueprint"
-                      />
-                    )}
-                    {project.name}
+                    {isActive && <RuleMarker />}
+                    <span className="truncate">{project.name}</span>
                   </>
                 )}
               </Link>
@@ -367,7 +379,7 @@ function SidebarMenu({
       ref={menuRef}
       role="menu"
       aria-label={project ? project.name : 'Projects'}
-      className="fixed z-50 w-48 rounded-[2px] border border-ink bg-paper py-1"
+      className="fixed z-50 w-48 rounded-xs border border-ink bg-paper py-1"
       style={{ left: menu.x, top: menu.y }}
     >
       {project ? (

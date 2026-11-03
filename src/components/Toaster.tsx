@@ -18,7 +18,7 @@ export function Toaster() {
         unstyled: true,
         classNames: {
           toast:
-            'flex w-full items-start gap-2.5 rounded-[2px] border px-4 py-3 text-sm font-medium',
+            'flex w-full items-start gap-2.5 rounded-xs border px-4 py-3 text-sm font-medium',
           default: 'border-ink bg-paper text-ink',
           success: toneClass.success,
           error: toneClass.error,

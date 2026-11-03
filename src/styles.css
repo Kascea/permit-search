@@ -36,13 +36,26 @@ html {
   scroll-behavior: smooth;
 }
 
-/* A faint 32px grid on paper: the sheet behind every page. */
+/* The sheet behind every page: a faint grid on paper. A cell is 2rem, so
+   the grid grows with the reader's text size, and each line is drawn in the
+   last pixel of its cell, where rule-b and rule-r draw. A box whose edges are
+   whole cells therefore has its rules on grid lines, at any size. */
 :root {
+  --grid: 2rem;
+  --grid-line: rgb(48 45 45 / 4%);
   --sheet:
-    linear-gradient(to right, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
-      32px 32px,
-    linear-gradient(to bottom, rgb(48 45 45 / 4%) 1px, transparent 1px) 0 0 /
-      32px 32px,
+    linear-gradient(
+        to right,
+        transparent calc(var(--grid) - 1px),
+        var(--grid-line) 0
+      )
+      0 0 / var(--grid) var(--grid),
+    linear-gradient(
+        to bottom,
+        transparent calc(var(--grid) - 1px),
+        var(--grid-line) 0
+      )
+      0 0 / var(--grid) var(--grid),
     var(--color-paper);
 }
 
@@ -51,6 +64,51 @@ html {
 @utility bg-sheet {
   background: var(--sheet);
   background-attachment: fixed;
+}
+
+/* The editor's desk under the PDF pages: the same grid, a shade darker, like
+   a drafting table, so white pages stand out. */
+@utility bg-desk {
+  background:
+    linear-gradient(
+        to right,
+        transparent calc(var(--grid) - 1px),
+        rgb(48 45 45 / 7%) 0
+      )
+      0 0 / var(--grid) var(--grid),
+    linear-gradient(
+        to bottom,
+        transparent calc(var(--grid) - 1px),
+        rgb(48 45 45 / 7%) 0
+      )
+      0 0 / var(--grid) var(--grid),
+    color-mix(in srgb, var(--color-ink) 6%, var(--color-paper));
+  background-attachment: fixed;
+}
+
+/* Ink rules in a box's last pixel row or column, taking no space, so a box
+   sized in whole cells stays whole cells and its rule lands on a grid line. */
+@utility rule-b {
+  box-shadow: inset 0 -1px 0 var(--color-ink);
+}
+
+@utility rule-r {
+  box-shadow: inset -1px 0 0 var(--color-ink);
+}
+
+/* A page column beside AppSidebar: centered in the space, with its offset
+   rounded down to whole cells so its edges stay on grid lines. 24 cells
+   wide, or 35 for wide pages. */
+@utility sheet-column {
+  margin-right: 0;
+  margin-left: max(0rem, round(down, calc((100% - 48rem) / 2), var(--grid)));
+  max-width: 48rem;
+}
+
+@utility sheet-column-wide {
+  margin-right: 0;
+  margin-left: max(0rem, round(down, calc((100% - 70rem) / 2), var(--grid)));
+  max-width: 70rem;
 }
 
 body {

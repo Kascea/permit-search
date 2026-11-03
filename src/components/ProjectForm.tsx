@@ -315,7 +315,7 @@ export function ProjectForm({
             description="Who owns the property, who’s filing, and who’s doing the work."
           />
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] border-collapse border-y border-ink text-sm">
+            <table className="w-full min-w-150 border-collapse border-y border-ink text-sm">
               <thead>
                 <tr className={rowClass}>
                   <td className={labelCellClass} />

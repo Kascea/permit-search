@@ -18,7 +18,7 @@ export function ReportDialog({ isOpen, searchId, onClose }: ReportDialogProps) {
     <Modal
       isOpen={isOpen}
       label="Report incorrect results"
-      widthClass="max-w-[440px]"
+      widthClass="max-w-110"
       onClose={onClose}
     >
       <ReportForm searchId={searchId} onClose={onClose} />

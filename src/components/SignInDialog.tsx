@@ -19,7 +19,7 @@ export function SignInDialog({ isOpen, onClose }: SignInDialogProps) {
     <Modal
       isOpen={isOpen}
       label="Sign in"
-      widthClass="max-w-[420px]"
+      widthClass="max-w-105"
       onClose={onClose}
     >
       <SignInForm onClose={onClose} />

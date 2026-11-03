@@ -27,7 +27,7 @@ function Projects() {
           <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
             Projects
           </p>
-          <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+          <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
             Your projects
           </h1>
         </div>

@@ -175,7 +175,7 @@ export function CityCombobox({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-[2px] border border-ink bg-paper p-2"
+          className="absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-xs border border-ink bg-paper p-2"
         >
           {suggestions.map((suggestion, index) => (
             <li
@@ -186,7 +186,7 @@ export function CityCombobox({
             >
               <button
                 type="button"
-                className={`flex w-full items-center gap-3 rounded-[2px] px-3 py-3 text-left transition ${
+                className={`flex w-full items-center gap-3 rounded-xs px-3 py-3 text-left transition ${
                   activeIndex === index
                     ? 'bg-blueprint text-paper'
                     : 'text-ink hover:bg-ink/10'

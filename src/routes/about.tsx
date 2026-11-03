@@ -32,7 +32,7 @@ function About() {
         <p className="text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
           About
         </p>
-        <h1 className="mt-1 text-[28px] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
+        <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
           Permit Search finds the official permit pages for your project.
         </h1>
         <p className="mt-4 text-base leading-6 text-ink/70">

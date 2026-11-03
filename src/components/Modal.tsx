@@ -16,7 +16,7 @@ interface ModalProps {
 export function Modal({
   isOpen,
   label,
-  widthClass = 'max-w-[640px]',
+  widthClass = 'max-w-160',
   onClose,
   children,
 }: ModalProps) {
