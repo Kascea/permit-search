@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { AppPage } from '#/components/AppPage'
+import { DraftName } from '#/components/DraftName'
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
 import { EditedDate } from '#/components/EditedDate'
 import { SearchLinkText } from '#/components/SearchLinkText'
@@ -92,7 +93,8 @@ function DraftList({
   const [addingDraft, setAddingDraft] = useState<DraftSummary>()
 
   async function remove(draft: DraftSummary) {
-    if (!window.confirm(`Delete your draft of “${draft.title}”?`)) return
+    if (!window.confirm(`Delete your draft of “${draft.name ?? draft.title}”?`))
+      return
     setDeletingId(draft.publicId)
 
     try {
@@ -136,8 +138,15 @@ function DraftList({
               }`}
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-ink">{draft.title}</p>
+                <DraftName
+                  publicId={draft.publicId}
+                  name={draft.name}
+                  formTitle={draft.title}
+                  className="font-medium text-ink"
+                />
                 <p className="mt-0.5 truncate text-sm text-ink/60">
+                  {/* Renamed drafts keep the form they're for in view. */}
+                  {draft.name && `${draft.title} · `}
                   {project ? (
                     <Link
                       to="/projects/$projectId"

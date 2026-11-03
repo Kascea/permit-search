@@ -297,6 +297,9 @@ export const pdfDrafts = pgTable(
     // SHA-256 of the PDF bytes, so the editor can tell the city replaced it.
     sourceHash: char('source_hash', { length: 64 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
+    // The user's name for the draft, such as "Backyard fence – Edina", shown
+    // in place of the form's title. Null until they rename it.
+    name: varchar('name', { length: 120 }),
     content: jsonb('content').$type<DraftContent>().notNull(),
     // The saved search the form was first opened from, for linking back.
     searchId: bigint('search_id', { mode: 'number' }).references(

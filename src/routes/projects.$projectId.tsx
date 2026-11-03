@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { AppPage } from '#/components/AppPage'
 import { Breadcrumbs, crumbLinkClass } from '#/components/Breadcrumbs'
 import { primaryButtonClass } from '#/components/buttons'
+import { DraftName } from '#/components/DraftName'
 import { EditedDate } from '#/components/EditedDate'
 import { Pending } from '#/components/Pending'
 import { ProjectForm } from '#/components/ProjectForm'
@@ -392,8 +393,19 @@ function FormsSection({
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-ink">{item.title}</p>
+                  {draft ? (
+                    <DraftName
+                      publicId={draft.publicId}
+                      name={draft.name}
+                      formTitle={item.title}
+                      className="text-ink"
+                    />
+                  ) : (
+                    <p className="truncate text-ink">{item.title}</p>
+                  )}
                   <p className="truncate text-sm text-ink/60">
+                    {/* Renamed drafts keep the form they're for in view. */}
+                    {draft?.name && `${item.title} · `}
                     {item.search ? (
                       <SearchLinkText search={item.search} />
                     ) : (

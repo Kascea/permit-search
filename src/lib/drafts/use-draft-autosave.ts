@@ -33,7 +33,10 @@ export async function loadNewestDraft(
     return { draft: account, status: 'saved' }
   }
 
-  return local ? { draft: local, status: 'local' } : null
+  // The name is kept only in the account.
+  return local
+    ? { draft: { ...local, name: account?.name }, status: 'local' }
+    : null
 }
 
 interface DraftAutosaveOptions {

@@ -1,0 +1,1 @@
+ALTER TABLE "pdf_drafts" ADD COLUMN "name" varchar(120);

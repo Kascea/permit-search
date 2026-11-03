@@ -164,6 +164,8 @@ function PdfEditor({
   const [sourceHash, setSourceHash] = useState<string>()
   // Shown when the restored draft was made on an older copy of the PDF.
   const [draftNotice, setDraftNotice] = useState('')
+  // The user's name for the draft, shown in place of the form's file name.
+  const [draftName, setDraftName] = useState<string>()
   // PDF.js render scale; 1 is the PDF's size at 72 DPI.
   const [scale, setScale] = useState(1.25)
   const [currentPage, setCurrentPage] = useState(1)
@@ -284,6 +286,7 @@ function PdfEditor({
           setSourceBytes(bytes)
           setPdf(pdfDocument)
           setSourceHash(hash)
+          setDraftName(saved?.draft.name)
 
           if (saved) {
             setNativeFields(
@@ -700,7 +703,7 @@ function PdfEditor({
                 <Breadcrumbs
                   current={
                     <h1 className="truncate text-sm leading-tight font-medium text-ink">
-                      {url ? draftTitle(url) : 'PDF editor'}
+                      {url ? (draftName ?? draftTitle(url)) : 'PDF editor'}
                     </h1>
                   }
                 >

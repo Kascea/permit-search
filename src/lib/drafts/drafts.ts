@@ -9,9 +9,10 @@ import {
   importDrafts,
   listDrafts,
   loadDraft,
+  renameDraft,
   saveDraft,
 } from '#/lib/drafts/drafts.server'
-import { draftSchema } from '#/lib/drafts/types'
+import { MAX_DRAFT_NAME_LENGTH, draftSchema } from '#/lib/drafts/types'
 import { UserError, parseUserInput } from '#/lib/errors'
 import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
 
@@ -72,6 +73,28 @@ export const listAccountDrafts = createServerFn({ method: 'GET' }).handler(() =>
     () => null,
   ),
 )
+
+const nameError = `Keep the name under ${MAX_DRAFT_NAME_LENGTH} characters.`
+
+// An empty name goes back to the form's title.
+export const renameAccountDraft = createServerFn({ method: 'POST' })
+  .validator(
+    parseUserInput(
+      z.object({
+        publicId: publicIdSchema('draft'),
+        name: z
+          .string({ error: nameError })
+          .trim()
+          .max(MAX_DRAFT_NAME_LENGTH, nameError)
+          .transform((name) => name || null),
+      }),
+    ),
+  )
+  .handler(({ data }) =>
+    withDraftUser((db, userId) =>
+      renameDraft(db, userId, data.publicId, data.name),
+    ),
+  )
 
 export const deleteAccountDraft = createServerFn({ method: 'POST' })
   .validator((input: { publicId: string } | { sourceUrl: string }) =>

@@ -41,15 +41,24 @@ export interface Draft {
   // ISO time of the last edit, set by the browser that made it. The newer of
   // two copies wins.
   updatedAt: string
+  // The user's name for it; see DraftSummary. Read from the account only:
+  // saving a draft never changes its name.
+  name?: string
 }
 
 export interface DraftSummary {
   publicId: string
+  // The form's title, such as "Fence Permit Application".
   title: string
+  // The user's own name for the draft, shown in place of the title. Missing
+  // until they rename it.
+  name?: string
   sourceUrl: string
   updatedAt: string
   search?: SearchLink
 }
+
+export const MAX_DRAFT_NAME_LENGTH = 120
 
 const MAX_CONTENT_BYTES = 256_000
 const MAX_PLACED_FIELDS = 500

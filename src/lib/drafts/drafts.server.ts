@@ -21,6 +21,7 @@ export async function loadDraft(
         sourceUrl: pdfDrafts.sourceUrl,
         sourceHash: pdfDrafts.sourceHash,
         content: pdfDrafts.content,
+        name: pdfDrafts.name,
         updatedAt: pdfDrafts.updatedAt,
       })
       .from(pdfDrafts)
@@ -30,7 +31,13 @@ export async function loadDraft(
       .limit(1)
   ).at(0)
 
-  return row ? { ...row, updatedAt: row.updatedAt.toISOString() } : null
+  return row
+    ? {
+        ...row,
+        name: row.name ?? undefined,
+        updatedAt: row.updatedAt.toISOString(),
+      }
+    : null
 }
 
 // Saves each draft unless the stored copy was edited more recently, such as
@@ -90,6 +97,7 @@ export async function listDrafts(
     .select({
       publicId: pdfDrafts.publicId,
       title: pdfDrafts.title,
+      name: pdfDrafts.name,
       sourceUrl: pdfDrafts.sourceUrl,
       updatedAt: pdfDrafts.updatedAt,
       searchId: searches.publicId,
@@ -107,10 +115,26 @@ export async function listDrafts(
   return rows.map((row) => ({
     publicId: row.publicId,
     title: row.title,
+    name: row.name ?? undefined,
     sourceUrl: row.sourceUrl,
     updatedAt: row.updatedAt.toISOString(),
     search: searchLinkFromColumns(row),
   }))
+}
+
+// Null goes back to the form's title. The edit time is left alone: it's the
+// time of the last change to the answers, which decides which copy of a draft
+// wins when two are saved.
+export async function renameDraft(
+  db: Database,
+  userId: string,
+  publicId: string,
+  name: string | null,
+) {
+  await db
+    .update(pdfDrafts)
+    .set({ name, updatedAt: sql`${pdfDrafts.updatedAt}` })
+    .where(and(eq(pdfDrafts.userId, userId), eq(pdfDrafts.publicId, publicId)))
 }
 
 export async function deleteDraft(

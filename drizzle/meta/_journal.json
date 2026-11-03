@@ -85,6 +85,20 @@
       "when": 1793735251343,
       "tag": "0011_saved_permits",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793739242138,
+      "tag": "0012_draft_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793740992278,
+      "tag": "0013_drop_unused_saved_permit_columns",
+      "breakpoints": true
     }
   ]
 }

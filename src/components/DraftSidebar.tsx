@@ -12,6 +12,8 @@ import { useAccountProjects } from '#/lib/projects/use-account-projects'
 interface SidebarDraft {
   sourceUrl: string
   title: string
+  // The user's name for it, from the account; see DraftSummary.
+  name?: string
   updatedAt: string
 }
 
@@ -21,7 +23,7 @@ let cachedDrafts: Array<SidebarDraft> | undefined
 // The account's drafts plus any in this browser that haven't synced yet;
 // only this browser's when signed out.
 async function loadDrafts(signedIn: boolean): Promise<Array<SidebarDraft>> {
-  const local = listLocalDrafts().map((draft) => ({
+  const local: Array<SidebarDraft> = listLocalDrafts().map((draft) => ({
     sourceUrl: draft.sourceUrl,
     title: draftTitle(draft.sourceUrl),
     updatedAt: draft.updatedAt,
@@ -35,7 +37,11 @@ async function loadDrafts(signedIn: boolean): Promise<Array<SidebarDraft>> {
     const existing = byUrl.get(draft.sourceUrl)
 
     if (!existing || existing.updatedAt < draft.updatedAt) {
-      byUrl.set(draft.sourceUrl, draft)
+      // A newer copy in this browser keeps the account's name for it.
+      byUrl.set(draft.sourceUrl, {
+        ...draft,
+        name: draft.name ?? existing?.name,
+      })
     }
   }
 
@@ -163,7 +169,9 @@ export function DraftSidebar({
                     <FileLink
                       key={item.sourceUrl}
                       sourceUrl={item.sourceUrl}
-                      title={item.title}
+                      title={
+                        draftsByUrl.get(item.sourceUrl)?.name ?? item.title
+                      }
                       editedAt={draftsByUrl.get(item.sourceUrl)?.updatedAt}
                       isCurrent={item.sourceUrl === currentUrl}
                       from={originParam({
@@ -192,7 +200,7 @@ export function DraftSidebar({
                 <FileLink
                   key={draft.sourceUrl}
                   sourceUrl={draft.sourceUrl}
-                  title={draft.title}
+                  title={draft.name ?? draft.title}
                   editedAt={draft.updatedAt}
                   isCurrent={draft.sourceUrl === currentUrl}
                   from="drafts"
