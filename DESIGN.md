@@ -114,17 +114,17 @@ background, so the paper shows through. On focus the border turns blueprint
 with a soft blueprint ring.
 
 **Badge.** `rounded-full px-2 py-0.5 text-[0.65rem] tracking-[0.08em]
-uppercase`, tinted to match the text: `bg-blueprint/10 text-blueprint` for
-"Government", and `bg-redline/10 text-redline` for "PDF".
+uppercase`, tinted to match the text: `bg-redline/10 text-redline` for "PDF".
+A government source gets a round check icon in `text-blueprint/75` beside its
+domain instead of a text badge, titled "Official government website".
 
-**Result card.** The whole card opens the source: the title link stretches
-over it (`after:absolute after:inset-0`), the card gets a faint
-`bg-ink/[0.04]` on hover, and the corner arrow turns blue. A second
-destination, such as the editor for PDFs, gets its own labeled link under the
-description (an icon in a tinted circle plus a short label), raised above the
-card link with `relative z-10`. Don't put two look-alike icons side by side
-that go to different places. PDFs get two labeled actions this way: "Fill out
-this form" and "Add to project".
+**Result card.** Only the title opens the source, with a small ↗ arrow after
+it; the rest of the card isn't a link, so its actions can't be mistaken for
+part of one. PDFs get one row of actions under the description, in order of
+weight: "Fill out form" as an outlined row button (`rowPrimaryButtonClass`),
+then "Save permit" and "Add to project" as quiet actions
+(`quietActionClass`), then "Saved in" as plain text. Both classes live in
+`components/buttons.ts`.
 
 **Alert.** Use `<Notice tone="error">` (see Feedback below), not hand-written
 classes.

@@ -3,7 +3,7 @@ import { cityKey } from '#/lib/contacts/types'
 // Bump when the search flow changes (questions, permit types, ranking) so
 // saved results from the old flow aren't reused for new searches. Saved links
 // still show what they showed before.
-export const SEARCH_PIPELINE_VERSION = 1
+export const SEARCH_PIPELINE_VERSION = 3
 
 // A matching search within this window reuses the saved result.
 export const SEARCH_REUSE_DAYS = 7

@@ -1,13 +1,22 @@
 import { Link } from '@tanstack/react-router'
 
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
+import { rowPrimaryButtonClass } from '#/components/buttons'
 import { SavePermitButton } from '#/components/SavePermitButton'
 import { useAuth } from '#/lib/auth/use-auth'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { originParam } from '#/lib/navigation/origin'
 import { isPdfUrl } from '#/lib/pdf/url'
 import type { Project } from '#/lib/projects/types'
-import type { PermitSearchResponse } from '#/lib/search/types'
+import type {
+  PermitSearchResponse,
+  PermitSearchResult,
+} from '#/lib/search/types'
+
+// Searches saved before links were checked fall back to the link's address.
+function isPdf(result: PermitSearchResult) {
+  return result.isPdf ?? isPdfUrl(result.url)
+}
 
 export function SearchResultsList({
   response,
@@ -37,47 +46,50 @@ export function SearchResultsList({
       {response.results.length > 0 ? (
         <ol className="mt-6 divide-y divide-ink/20 border-t border-ink">
           {response.results.map((searchResult) => (
-            <li key={searchResult.url}>
-              {/* The title link stretches over the whole card, so anywhere on
-                  it opens the source. The editor link sits above it. */}
-              <div className="group relative -mx-3 rounded-xs px-3 py-5 transition hover:bg-ink/[0.04]">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium tracking-[0.08em] text-ink/60 uppercase">
-                        {searchResult.domain}
-                      </span>
-                      {searchResult.isGovernmentSource && (
-                        <span className="rounded-full bg-blueprint/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-blueprint uppercase">
-                          Government
-                        </span>
-                      )}
-                      {isPdfUrl(searchResult.url) && (
-                        <span className="rounded-full bg-redline/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-redline uppercase">
-                          PDF
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="mt-1 text-lg leading-6 font-medium text-ink group-hover:text-blueprint">
-                      <a
-                        className="after:absolute after:inset-0 after:rounded-xs focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-blueprint"
-                        href={searchResult.url}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        {searchResult.title}
-                      </a>
-                    </h2>
-                    <p className="mt-1 break-all text-xs leading-5 text-blueprint underline-offset-2 group-hover:underline">
-                      {searchResult.url}
-                    </p>
-                    <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/70">
-                      {searchResult.description}
-                    </p>
-                  </div>
+            <li key={searchResult.url} className="py-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium tracking-[0.08em] text-ink/60 uppercase">
+                  {searchResult.domain}
+                </span>
+                {searchResult.isGovernmentSource && (
+                  <span
+                    className="-ml-1 inline-flex text-blueprint/75"
+                    title="Official government website"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="size-4"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
+                      />
+                    </svg>
+                    <span className="sr-only">Official government website</span>
+                  </span>
+                )}
+                {isPdf(searchResult) && (
+                  <span className="rounded-full bg-redline/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-redline uppercase">
+                    PDF
+                  </span>
+                )}
+              </div>
+              <h2 className="mt-1 text-lg leading-6 font-medium text-ink">
+                {/* Only the title opens the source, so the actions below
+                    can't be mistaken for part of the link. */}
+                <a
+                  className="group/title rounded-xs underline-offset-2 hover:text-blueprint hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+                  href={searchResult.url}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {searchResult.title}
                   <svg
                     aria-hidden="true"
-                    className="mt-1 size-4 shrink-0 text-ink/50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-blueprint"
+                    className="ml-1 inline size-4 align-[-0.125em] text-ink/50 transition group-hover/title:text-blueprint"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -89,64 +101,64 @@ export function SearchResultsList({
                       d="M7 17 17 7M8 7h9v9"
                     />
                   </svg>
-                </div>
+                </a>
+              </h2>
+              <p className="mt-1 break-all text-xs leading-5 text-ink/50">
+                {searchResult.url}
+              </p>
+              <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/70">
+                {searchResult.description}
+              </p>
 
-                {isPdfUrl(searchResult.url) && (
-                  // Actions for PDFs, labeled rather than icons beside the
-                  // arrow, and raised above the card link.
-                  <div className="relative z-10 mt-3 flex w-fit flex-wrap items-center gap-x-6 gap-y-2">
-                    <Link
-                      className="group/edit inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
-                      search={{
-                        url: searchResult.url,
-                        from: originParam({ kind: 'search', id: searchId }),
-                      }}
-                      to="/editor"
+              {isPdf(searchResult) && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
+                  <Link
+                    className={`mr-2 ${rowPrimaryButtonClass}`}
+                    search={{
+                      url: searchResult.url,
+                      from: originParam({ kind: 'search', id: searchId }),
+                    }}
+                    to="/editor"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="size-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
                     >
-                      <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/edit:border-blueprint group-hover/edit:bg-blueprint group-hover/edit:text-paper">
-                        <svg
-                          aria-hidden="true"
-                          className="size-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
-                          />
-                        </svg>
-                      </span>
-                      <span className="underline-offset-2 group-hover/edit:underline">
-                        Fill out this form
-                      </span>
-                    </Link>
-                    <SavePermitButton
-                      sourceUrl={searchResult.url}
-                      title={searchResult.title}
-                      city={city}
-                      searchId={searchId}
-                    />
-                    <AddToProjectButton
-                      city={city}
-                      item={{
-                        sourceUrl: searchResult.url,
-                        title: searchResult.title,
-                        searchId,
-                      }}
-                    />
-                    <SavedIn
-                      projects={(projects ?? []).filter((project) =>
-                        project.items.some(
-                          (item) => item.sourceUrl === searchResult.url,
-                        ),
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+                      />
+                    </svg>
+                    Fill out form
+                  </Link>
+                  <SavePermitButton
+                    sourceUrl={searchResult.url}
+                    title={searchResult.title}
+                    city={city}
+                    searchId={searchId}
+                  />
+                  <AddToProjectButton
+                    city={city}
+                    item={{
+                      sourceUrl: searchResult.url,
+                      title: searchResult.title,
+                      searchId,
+                    }}
+                  />
+                  <SavedIn
+                    projects={(projects ?? []).filter((project) =>
+                      project.items.some(
+                        (item) => item.sourceUrl === searchResult.url,
+                      ),
+                    )}
+                  />
+                </div>
+              )}
             </li>
           ))}
         </ol>
@@ -167,7 +179,7 @@ function SavedIn({ projects }: { projects: Array<Project> }) {
   if (!first) return null
 
   return (
-    <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
+    <span className="ml-2 flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
       <span className="shrink-0">Saved in</span>
       <Link
         to="/projects/$projectId"

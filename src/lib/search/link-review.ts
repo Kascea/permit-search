@@ -207,7 +207,14 @@ export function rejectionReasons(review: LinkReview) {
   return reasons
 }
 
-// Primary sort key: how many of jurisdiction, permit match, and actionable
+// Primary sort key: whether Jev is confident the link is about the project the
+// user described, so a "retaining wall" handout ranks above a general
+// "building permit" page that matched only through a related permit type.
+export function matchesSearchedProject(review: LinkReview) {
+  return review.rightPermit >= YES_THRESHOLD
+}
+
+// Secondary sort key: how many of jurisdiction, permit match, and actionable
 // document Jev answered with a confident yes (0–3).
 export function confidentMatches(review: LinkReview) {
   return [

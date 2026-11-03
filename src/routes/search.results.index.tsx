@@ -97,10 +97,10 @@ function PendingResults() {
         </Notice>
       ) : (
         <div
-          className="mt-6 flex items-center gap-3 border-t border-ink pt-5 text-sm text-ink/70"
+          className="flex flex-col items-center justify-center gap-4 py-24 text-sm text-ink/70"
           role="status"
         >
-          <span className="size-4 spinner" />
+          <span className="size-6 spinner" />
           Searching official sources…
         </div>
       )}

@@ -59,7 +59,7 @@ const SECTIONS = [
 // right rule (rule-r) lands on a grid line.
 const rowClass = 'flex h-8 items-center gap-4 px-8 text-sm transition'
 
-const inactiveRowClass = 'text-ink/70 hover:bg-ink/5 hover:text-ink'
+const inactiveRowClass = 'text-ink/90 hover:bg-ink/5 hover:text-ink'
 
 const activeRowClass = 'bg-blueprint/10 font-medium text-blueprint'
 
@@ -236,7 +236,7 @@ function ProjectsGroup({
             aria-expanded={isOpen}
             aria-controls={listId}
             aria-label={isOpen ? 'Hide recent projects' : 'Show recent projects'}
-            className="absolute top-1 right-8 grid size-6 place-items-center rounded-full text-ink/60 transition hover:bg-ink/10 hover:text-ink"
+            className="absolute top-1 right-8 grid size-6 place-items-center rounded-full text-ink/80 transition hover:bg-ink/10 hover:text-ink"
             onClick={() => writeProjectsOpen(!isOpen)}
           >
             <svg

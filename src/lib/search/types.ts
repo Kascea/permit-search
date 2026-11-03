@@ -12,6 +12,9 @@ export interface PermitSearchResult {
   description: string
   score: number
   isGovernmentSource: boolean
+  // Whether the link opened a PDF when the search checked it. Missing on
+  // searches saved before links were checked.
+  isPdf?: boolean
 }
 
 export interface PermitSearchResponse {

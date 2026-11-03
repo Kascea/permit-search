@@ -1,3 +1,4 @@
+import { isPdfUrl } from '#/lib/pdf/url'
 import type { PermitType } from '#/lib/search/permit-types'
 import type { PermitSearchInput, PermitSearchResult } from '#/lib/search/types'
 
@@ -230,7 +231,7 @@ function scoreLink(link: ExtractedLink, url: URL, permit: string) {
     score += 500
   }
 
-  if (url.pathname.toLowerCase().endsWith('.pdf')) {
+  if (isPdfUrl(url.href)) {
     score += 300
   }
 

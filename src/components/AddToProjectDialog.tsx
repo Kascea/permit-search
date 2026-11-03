@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 
 import { errorMessage } from '#/lib/errors'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
+import { quietActionClass } from '#/components/buttons'
 import { SignInButton } from '#/components/SignInDialog'
 import { useAuth } from '#/lib/auth/use-auth'
 import { formatCity } from '#/lib/location/format'
@@ -287,40 +288,33 @@ export function AddToProjectButton({
 
   const label = (
     <>
-      <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/project:border-blueprint group-hover/project:bg-blueprint group-hover/project:text-paper">
-        <svg
-          aria-hidden="true"
-          className="size-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
-          />
-        </svg>
-      </span>
-      <span className="text-sm underline-offset-2 group-hover/project:underline">
-        Add to project
-      </span>
+      <svg
+        aria-hidden="true"
+        className="size-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
+        />
+      </svg>
+      Add to project
     </>
   )
 
-  const className =
-    'group/project inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
-
   if (!user) {
-    return <SignInButton className={className}>{label}</SignInButton>
+    return <SignInButton className={quietActionClass}>{label}</SignInButton>
   }
 
   return (
     <>
       <button
         type="button"
-        className={className}
+        className={quietActionClass}
         onClick={() => setIsOpen(true)}
       >
         {label}

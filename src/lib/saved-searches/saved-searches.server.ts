@@ -62,6 +62,9 @@ export async function runSavedSearch(
             and(
               eq(searches.queryKey, queryKey),
               gt(searches.reuseUntil, new Date()),
+              // An empty result is often a bad run of the search, not the
+              // city's answer, so it's tried again rather than reused.
+              gt(searches.resultCount, 0),
               fresh ? gt(searches.createdAt, refreshCutoff) : undefined,
             ),
           )

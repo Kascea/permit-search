@@ -2,6 +2,7 @@ import { env, waitUntil } from 'cloudflare:workers'
 import { z } from 'zod'
 
 import { saveCityPermitsUrl } from '#/lib/contacts/store.server'
+import { isPdfUrl } from '#/lib/pdf/url'
 import { hasDatabase, withDatabase } from '#/lib/db/client.server'
 import type { ReviewedLink } from '#/lib/search/link-review.server'
 
@@ -10,11 +11,15 @@ import type {
   PermitSearchResponse,
   PermitSearchResult,
 } from '#/lib/search/types'
-import { isGeneralPermitsPage } from '#/lib/search/link-review'
+import {
+  isGeneralPermitsPage,
+  matchesSearchedProject,
+} from '#/lib/search/link-review'
 import { reviewPermitLinks } from '#/lib/search/link-review.server'
 import type { PermitType } from '#/lib/search/permit-types'
 import { identifyPermitTypes } from '#/lib/search/permit-types.server'
 import { extractRelevantOfficialLinks } from '#/lib/search/official-links.server'
+import { verifyLinks } from '#/lib/search/verify-links.server'
 import { UserError } from '#/lib/errors'
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
@@ -22,6 +27,7 @@ const SEARCH_TIMEOUT_MS = 15_000
 const MAX_RESULTS = 10
 const MAX_OFFICIAL_PAGES_TO_EXTRACT = 4
 const MAX_GENERAL_FALLBACK_RESULTS = 3
+const MAX_LINKS_TO_VERIFY = 15
 
 const tavilySearchResultSchema = z.object({
   title: z.string(),
@@ -113,7 +119,10 @@ export async function searchPermitsWithTavily(
 
     const officialPages = results
       .filter(
-        (result) => result.isGovernmentSource && isLikelyHtmlPage(result.url),
+        (result) =>
+          result.isGovernmentSource &&
+          isLikelyHtmlPage(result.url) &&
+          !isPdfUrl(result.url),
       )
       .sort(
         (first, second) =>
@@ -156,7 +165,7 @@ export async function searchPermitsWithTavily(
     // permit pages and application portal instead of an empty list.
     const isGeneralFallback = keptLinks.length === 0
 
-    const rankedResults = (
+    const candidates = (
       isGeneralFallback
         ? reviewedLinks
             .filter(({ review }) => isGeneralPermitsPage(review))
@@ -165,15 +174,23 @@ export async function searchPermitsWithTavily(
                 second.review.generalPermitsPage -
                 first.review.generalPermitsPage,
             )
-            .slice(0, MAX_GENERAL_FALLBACK_RESULTS)
-        : keptLinks
-            .sort(
-              (first, second) =>
-                second.confidentMatches - first.confidentMatches ||
-                rankResult(second.link, input) - rankResult(first.link, input),
-            )
-            .slice(0, MAX_RESULTS)
+        : keptLinks.sort(
+            (first, second) =>
+              Number(matchesSearchedProject(second.review)) -
+                Number(matchesSearchedProject(first.review)) ||
+              second.confidentMatches - first.confidentMatches ||
+              rankResult(second.link, input) - rankResult(first.link, input),
+          )
     ).map(({ link }) => link)
+
+    // More than are shown are checked, so dead links can be replaced by the
+    // next ones down.
+    const rankedResults = (
+      await verifyLinks(candidates.slice(0, MAX_LINKS_TO_VERIFY))
+    ).slice(
+      0,
+      isGeneralFallback ? MAX_GENERAL_FALLBACK_RESULTS : MAX_RESULTS,
+    )
 
     if (isGeneralFallback) {
       console.log(
@@ -314,7 +331,7 @@ function rankResult(result: PermitSearchResult, input: PermitSearchInput) {
   const matchesAllKeywords =
     permitKeywords.length > 0 && matchingKeywords === permitKeywords.length
 
-  const isPdf = result.url.toLowerCase().endsWith('.pdf')
+  const isPdf = isPdfUrl(result.url)
 
   const cityGovernmentTitle =
     includesPhrase(normalizedTitle, `city of ${normalizeText(city.name)}`) ||
