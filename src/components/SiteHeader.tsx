@@ -133,7 +133,7 @@ export function SiteHeader({
             </span>
           </button>
 
-          <AccountMenu />
+          <AccountMenu withNav />
         </div>
       </header>
 

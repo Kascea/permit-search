@@ -7,7 +7,9 @@ import { authClient, settled } from '#/lib/auth/auth-client'
 import { useAuth } from '#/lib/auth/use-auth'
 
 // The header's sign-in pill, or the signed-in user's initial with a menu.
-export function AccountMenu() {
+// withNav: the header beside it shows the inHeader links from md up, so the
+// menu leaves them out there. Home has no such nav.
+export function AccountMenu({ withNav = false }: { withNav?: boolean }) {
   const { user } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -83,7 +85,7 @@ export function AccountMenu() {
               to={link.to}
               role="menuitem"
               className={`${menuItemClass} ${
-                link.inHeader ? 'md:hidden' : ''
+                withNav && link.inHeader ? 'md:hidden' : ''
               }`}
               onClick={() => setIsOpen(false)}
             >
@@ -113,8 +115,8 @@ export function AccountMenu() {
 const menuItemClass =
   'flex items-center gap-3 px-4 py-2.5 text-ink transition hover:bg-ink/5'
 
-// Outline icon paths on a 24px grid. inHeader links show here only below md,
-// where SiteHeader's nav hides them.
+// Outline icon paths on a 24px grid. inHeader links are also in SiteHeader's
+// nav from md up; see withNav.
 const MENU_LINKS = [
   {
     to: '/projects',
