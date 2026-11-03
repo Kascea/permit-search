@@ -16,12 +16,15 @@ import { join } from 'node:path'
 
 const GAZETTEER_URL =
   'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip'
+
 const POPULATION_URL =
   'https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv'
+
 const PLACES_OUTPUT = new URL(
   '../src/lib/location/us-places.tsv',
   import.meta.url,
 )
+
 const IDS_OUTPUT = new URL(
   '../src/lib/location/us-place-ids.txt',
   import.meta.url,
@@ -75,6 +78,7 @@ for (const row of populationRows) {
     // Places split across counties: remember the county with the most people.
     const geoid = row.STATE + row.PLACE
     const current = placeCounty.get(geoid)
+
     if (!current || pop > current.pop) {
       placeCounty.set(geoid, { county: row.STATE + row.COUNTY, pop })
     }
@@ -98,6 +102,7 @@ for (const row of populationRows) {
 
 for (const row of parseDelimited(gazetteer, '\t')) {
   if (row.FUNCSTAT !== 'A' && row.FUNCSTAT !== 'S') continue
+
   if (row.USPS === 'PR') continue
 
   entries.push({
@@ -117,18 +122,24 @@ for (const row of parseDelimited(gazetteer, '\t')) {
 const unique = [
   ...new Map(entries.map((entry) => [entry.geoid, entry])).values(),
 ]
+
 const results = resolveCollisions(unique)
+
 results.sort((a, b) => b.pop - a.pop || a.name.localeCompare(b.name))
 
 const lines = results.map((entry) =>
   [entry.name, entry.state, entry.countyLabel].filter(Boolean).join('\t'),
 )
+
 writeFileSync(PLACES_OUTPUT, lines.join('\n') + '\n')
+
 writeFileSync(IDS_OUTPUT, results.map((entry) => entry.geoid).join('\n') + '\n')
+
 console.log(`Wrote ${lines.length} places to ${PLACES_OUTPUT.pathname}`)
 
 function cleanName(rawName) {
   if (NAME_OVERRIDES[rawName]) return NAME_OVERRIDES[rawName]
+
   return rawName.replace(/ \(balance\)$/, '').replace(LEGAL_SUFFIX, '')
 }
 
@@ -141,6 +152,7 @@ function resolveCollisions(all) {
     const governments = group
       .filter((entry) => entry.kind !== 'cdp')
       .sort((a, b) => b.pop - a.pop)
+
     // A CDP sharing a name with a city or town lies inside or beside it,
     // and that government is the one issuing permits. Same-named CDPs can't
     // be told apart without a county, which the place file lacks, so only
@@ -156,10 +168,12 @@ function resolveCollisions(all) {
       } else if (entry.kind === 'city' && entry !== largestCity) {
         // A city and a village of one name, like Waukesha, Wisconsin.
         const type = legalType(entry)
+
         if (type && type !== legalType(largestCity)) {
           entry.name = `${type[0].toUpperCase()}${type.slice(1)} of ${entry.name}`
         }
       }
+
       kept.push(entry)
     }
   }
@@ -167,8 +181,10 @@ function resolveCollisions(all) {
   // Any names still repeated, such as the many Washington Townships, get
   // their county shown alongside.
   const counts = Map.groupBy(kept, (entry) => `${entry.state}|${entry.name}`)
+
   for (const group of counts.values()) {
     if (group.length < 2) continue
+
     for (const entry of group) {
       entry.countyLabel = countyNames.get(entry.county)
     }
@@ -185,6 +201,7 @@ async function downloadGazetteer() {
   const directory = mkdtempSync(join(tmpdir(), 'us-places-'))
   const zipPath = join(directory, 'places.zip')
   writeFileSync(zipPath, await download(GAZETTEER_URL))
+
   return execFileSync('unzip', ['-p', zipPath], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
@@ -193,7 +210,9 @@ async function downloadGazetteer() {
 
 async function download(url) {
   const response = await fetch(url)
+
   if (!response.ok) throw new Error(`${url} returned ${response.status}`)
+
   return new Uint8Array(await response.arrayBuffer())
 }
 
@@ -204,6 +223,7 @@ function parseDelimited(text, delimiter) {
 
   return lines.map((line) => {
     const values = line.split(delimiter)
+
     return Object.fromEntries(
       columns.map((column, index) => [column, values[index]?.trim() ?? '']),
     )

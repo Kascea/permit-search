@@ -28,10 +28,11 @@ function wordsOf(text: string) {
     .filter(Boolean)
 }
 
-const PARTY_WORDS: Record<
-  'owner' | 'applicant' | 'contractor',
-  Array<string>
-> = {
+const PARTIES = ['owner', 'applicant', 'contractor'] as const
+
+type Party = (typeof PARTIES)[number]
+
+const PARTY_WORDS: Record<Party, Array<string>> = {
   owner: ['owner', 'owners', 'homeowner', 'landowner'],
   applicant: ['applicant', 'applicants', 'requester', 'requestor'],
   contractor: [
@@ -61,20 +62,25 @@ const SKIP_WORDS = [
 
 // The party the field's name mentions first, if any.
 function partyOf(words: Array<string>) {
-  let found: { party: keyof typeof PARTY_WORDS; index: number } | undefined
-  for (const [party, partyWords] of Object.entries(PARTY_WORDS)) {
-    const index = words.findIndex((word) => partyWords.includes(word))
+  let found: { party: Party; index: number } | undefined
+
+  for (const party of PARTIES) {
+    const index = words.findIndex((word) => PARTY_WORDS[party].includes(word))
+
     if (index >= 0 && (!found || index < found.index)) {
-      found = { party: party as keyof typeof PARTY_WORDS, index }
+      found = { party, index }
     }
   }
+
   return found?.party
 }
 
 export function matchProjectField(fieldName: string): FillKey | null {
   const words = wordsOf(fieldName)
+
   const has = (...options: Array<string>) =>
     options.some((option) => words.includes(option))
+
   if (has(...SKIP_WORDS)) return null
 
   const party = partyOf(words)
@@ -87,6 +93,7 @@ export function matchProjectField(fieldName: string): FillKey | null {
         ? 'contractorEmail'
         : 'applicantEmail'
   }
+
   if (has('phone', 'telephone', 'tel', 'cell', 'mobile', 'ph')) {
     return party === 'owner'
       ? 'ownerPhone'
@@ -94,30 +101,41 @@ export function matchProjectField(fieldName: string): FillKey | null {
         ? 'contractorPhone'
         : 'applicantPhone'
   }
+
   if (has('license', 'licence', 'lic')) {
     return party === 'owner' ? null : 'contractorLicense'
   }
+
   if (has('parcel', 'pin', 'apn', 'pid') || (has('tax') && has('id'))) {
     return 'parcelNumber'
   }
+
   if (has('valuation', 'value', 'cost')) return 'estimatedCost'
+
   if (has('description', 'describe', 'scope')) return 'workDescription'
 
   // City, state, ZIP and unit mean the property's unless a party or mailing
   // address is named.
   const isProperty = !party && !isMailing
+
   if (has('city') && has('state') && has('zip')) {
     return isProperty ? 'cityStateZip' : null
   }
+
   if (has('zip', 'zipcode', 'postal')) return isProperty ? 'zipCode' : null
+
   if (has('state')) return isProperty ? 'state' : null
+
   if (has('city', 'town')) return isProperty ? 'city' : null
+
   if (has('unit', 'apt', 'suite', 'ste')) return isProperty ? 'unit' : null
 
   if (has('address', 'addr', 'street', 'location')) {
     if (party === 'owner') return 'ownerMailingAddress'
+
     return party || isMailing ? null : 'streetAddress'
   }
+
   if (has('name') || (party && words.length <= 2)) {
     return party === 'owner'
       ? 'ownerName'
@@ -125,7 +143,9 @@ export function matchProjectField(fieldName: string): FillKey | null {
         ? 'contractorCompany'
         : 'applicantName'
   }
+
   if (has('work') && !party) return 'workDescription'
+
   return null
 }
 
@@ -133,14 +153,17 @@ export function matchProjectField(fieldName: string): FillKey | null {
 // when they're the same person.
 function fillValues(project: Project): Partial<Record<FillKey, string>> {
   const { details, city } = project
+
   const values: Partial<Record<FillKey, string>> = Object.fromEntries(
     PROJECT_TEXT_FIELDS.map((field) => [field.key, details[field.key]]),
   )
+
   if (details.applicantIsOwner) {
     values.applicantName = details.ownerName
     values.applicantPhone = details.ownerPhone
     values.applicantEmail = details.ownerEmail
   }
+
   // The owner's mailing address defaults to the property's.
   if (!details.ownerMailingAddress && details.streetAddress) {
     values.ownerMailingAddress = [
@@ -150,6 +173,7 @@ function fillValues(project: Project): Partial<Record<FillKey, string>> {
       .filter(Boolean)
       .join(', ')
   }
+
   values.estimatedCost =
     details.estimatedCost === null ? '' : String(details.estimatedCost)
   values.city = city?.name ?? ''
@@ -157,6 +181,7 @@ function fillValues(project: Project): Partial<Record<FillKey, string>> {
   values.cityStateZip = city
     ? `${city.name}, ${STATE_ABBREVIATIONS.get(city.region) ?? city.region} ${details.zipCode}`.trim()
     : ''
+
   return values
 }
 
@@ -164,6 +189,7 @@ function fillValues(project: Project): Partial<Record<FillKey, string>> {
 // such as "Lot" for "LotNumber". Longer labels win.
 function matchExtraField(fieldName: string, project: Project) {
   const words = wordsOf(fieldName)
+
   return project.extraFields
     .filter((field) => field.value)
     .map((field) => ({ field, labelWords: wordsOf(field.label) }))
@@ -185,13 +211,17 @@ export function projectFills(
 ) {
   const values = fillValues(project)
   const fills = new Map<string, string>()
+
   for (const field of fields) {
     const key = matchProjectField(field.name)
     let value = key ? values[key] : matchExtraField(field.name, project)
+
     if (key === 'state' && value && field.width < 60) {
       value = STATE_ABBREVIATIONS.get(value) ?? value
     }
+
     if (value) fills.set(field.id, value)
   }
+
   return fills
 }

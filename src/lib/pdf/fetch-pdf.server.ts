@@ -16,11 +16,13 @@ export async function fetchPdfBytes(value: string) {
     }
 
     const contentLength = Number(response.headers.get('content-length'))
+
     if (Number.isFinite(contentLength) && contentLength > MAX_PDF_BYTES) {
       throw new UserError('This PDF is too large to edit here.')
     }
 
     const bytes = await response.arrayBuffer()
+
     if (bytes.byteLength > MAX_PDF_BYTES) {
       throw new UserError('This PDF is too large to edit here.')
     }
@@ -34,6 +36,7 @@ export async function fetchPdfBytes(value: string) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new UserError('The PDF took too long to download.')
     }
+
     throw error
   } finally {
     clearTimeout(timeout)
@@ -44,6 +47,7 @@ export async function fetchPdfBytes(value: string) {
 // the first: a public page could otherwise redirect to a private one.
 async function fetchFollowingRedirects(value: string, signal: AbortSignal) {
   let url = validatePublicPdfUrl(value)
+
   for (let redirects = 0; ; redirects++) {
     const response = await fetch(url, {
       headers: {
@@ -55,19 +59,24 @@ async function fetchFollowingRedirects(value: string, signal: AbortSignal) {
     })
 
     const location = response.headers.get('location')
+
     if (response.status < 300 || response.status >= 400 || !location) {
       return response
     }
+
     await response.body?.cancel()
+
     if (redirects === MAX_REDIRECTS) {
       throw new UserError('The PDF’s website redirected too many times.')
     }
+
     url = validatePublicPdfUrl(new URL(location, url).href)
   }
 }
 
 function validatePublicPdfUrl(value: string) {
   const url = new URL(value)
+
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     throw new UserError('Only web-hosted PDFs can be opened.')
   }
@@ -76,6 +85,7 @@ function validatePublicPdfUrl(value: string) {
     .toLowerCase()
     .replace(/^\[|\]$/g, '')
     .replace(/\.$/, '')
+
   if (
     hostname === 'localhost' ||
     hostname.endsWith('.localhost') ||
@@ -93,6 +103,7 @@ function validatePublicPdfUrl(value: string) {
 // any embedded IPv4 address in hex, such as "::ffff:7f00:1" for 127.0.0.1.
 function isPrivateIpv6(hostname: string) {
   if (!hostname.includes(':')) return false
+
   return (
     hostname === '::' ||
     hostname === '::1' ||
@@ -107,6 +118,7 @@ function isPrivateIpv6(hostname: string) {
 
 function isPrivateIpv4(hostname: string) {
   const parts = hostname.split('.')
+
   if (
     parts.length !== 4 ||
     parts.some((part) => !/^\d{1,3}$/.test(part) || Number(part) > 255)
@@ -115,6 +127,7 @@ function isPrivateIpv4(hostname: string) {
   }
 
   const [first, second] = parts.map(Number)
+
   return (
     first === 0 ||
     first === 10 ||
@@ -130,5 +143,6 @@ function isPrivateIpv4(hostname: string) {
 
 function hasPdfSignature(bytes: ArrayBuffer) {
   const signature = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 5))
+
   return String.fromCharCode(...signature) === '%PDF-'
 }

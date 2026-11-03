@@ -1,4 +1,5 @@
-import { UserError } from '#/lib/errors'
+import { z } from 'zod'
+
 import type { SearchLink } from '#/lib/navigation/origin'
 
 // A PDF saved to a project.
@@ -264,124 +265,126 @@ const MAX_TITLE_LENGTH = 300
 
 const PUBLIC_ID = /^[A-Za-z0-9]{8,16}$/
 
-export function validatePublicId(value: unknown, what = 'project') {
-  if (typeof value !== 'string' || !PUBLIC_ID.test(value)) {
-    throw new UserError(`That ${what} is not valid.`)
-  }
-  return value
+export function publicIdSchema(what = 'project') {
+  const invalid = `That ${what} is not valid.`
+
+  return z.string({ error: invalid }).regex(PUBLIC_ID, invalid)
 }
 
-export function validateProjectName(value: unknown) {
-  const name = typeof value === 'string' ? value.trim() : ''
-  if (!name) throw new UserError('Give the project a name.')
-  if (name.length > MAX_PROJECT_NAME_LENGTH) {
-    throw new UserError('That project name is too long.')
-  }
-  return name
+const projectNameSchema = z
+  .string({ error: 'Give the project a name.' })
+  .trim()
+  .min(1, 'Give the project a name.')
+  .max(MAX_PROJECT_NAME_LENGTH, 'That project name is too long.')
+
+const projectCitySchema = z
+  .object(
+    {
+      name: z.string().max(100),
+      region: z.string().max(100),
+    },
+    { error: 'That city is not valid.' },
+  )
+  .nullish()
+  .transform((city) => city ?? null)
+
+// Missing text reads as "", so older clients can send less.
+function projectTextSchema(field: (typeof PROJECT_TEXT_FIELDS)[number]) {
+  const label = field.label.toLowerCase()
+
+  return z
+    .string({ error: `That ${label} is not valid.` })
+    .trim()
+    .max(field.maxLength, `That ${label} is too long.`)
+    .nullish()
+    .transform((text) => text ?? '')
 }
 
-export function validateProjectCity(value: unknown): Project['city'] {
-  if (value === null || value === undefined) return null
-  const city = value as Record<string, unknown>
-  if (
-    typeof city.name !== 'string' ||
-    typeof city.region !== 'string' ||
-    city.name.length > 100 ||
-    city.region.length > 100
-  ) {
-    throw new UserError('That city is not valid.')
-  }
-  return { name: city.name, region: city.region }
-}
+// SAFETY: PROJECT_TEXT_FIELDS is typed by ProjectTextKey and lists each key
+// once; a key it left out would still read as "" from EMPTY_PROJECT_DETAILS.
+const projectTextSchemas = Object.fromEntries(
+  PROJECT_TEXT_FIELDS.map((field) => [field.key, projectTextSchema(field)]),
+) as Record<ProjectTextKey, ReturnType<typeof projectTextSchema>>
 
-// Missing fields are treated as empty, so older clients can send less.
-export function validateProjectDetails(value: unknown): ProjectDetails {
-  const input = (value ?? {}) as Record<string, unknown>
-  const details: ProjectDetails = { ...EMPTY_PROJECT_DETAILS }
+const costError = 'Enter the estimated cost in whole dollars.'
 
-  for (const field of PROJECT_TEXT_FIELDS) {
-    const text = input[field.key]
-    if (text === undefined || text === null) continue
-    if (typeof text !== 'string') {
-      throw new UserError(`That ${field.label.toLowerCase()} is not valid.`)
-    }
-    const trimmed = text.trim()
-    if (trimmed.length > field.maxLength) {
-      throw new UserError(`That ${field.label.toLowerCase()} is too long.`)
-    }
-    details[field.key] = trimmed
-  }
+const projectDetailsSchema = z
+  .object(
+    {
+      ...projectTextSchemas,
+      estimatedCost: z
+        .number({ error: costError })
+        .int(costError)
+        .min(0, costError)
+        .max(MAX_ESTIMATED_COST, costError)
+        .nullish()
+        .transform((cost) => cost ?? null),
+      applicantIsOwner: z.boolean().catch(false),
+    },
+    { error: 'Those project details are not valid.' },
+  )
+  .nullish()
+  .transform(
+    (details): ProjectDetails => ({ ...EMPTY_PROJECT_DETAILS, ...details }),
+  )
 
-  const cost = input.estimatedCost
-  if (cost !== undefined && cost !== null) {
-    if (
-      typeof cost !== 'number' ||
-      !Number.isInteger(cost) ||
-      cost < 0 ||
-      cost > MAX_ESTIMATED_COST
-    ) {
-      throw new UserError('Enter the estimated cost in whole dollars.')
-    }
-    details.estimatedCost = cost
-  }
-  details.applicantIsOwner = input.applicantIsOwner === true
-  return details
-}
-
-// Drops rows with no label and no value.
-export function validateExtraFields(value: unknown): Array<ExtraField> {
-  if (value === undefined || value === null) return []
-  if (!Array.isArray(value) || value.length > MAX_EXTRA_FIELDS) {
-    throw new UserError(
-      `A project can have up to ${MAX_EXTRA_FIELDS} extra fields.`,
-    )
-  }
-  return value.flatMap((item: unknown) => {
-    const field = (item ?? {}) as Record<string, unknown>
-    const label = typeof field.label === 'string' ? field.label.trim() : ''
-    const text = typeof field.value === 'string' ? field.value.trim() : ''
-    if (!label && !text) return []
-    if (!label) throw new UserError('Give each extra field a label.')
-    if (
-      label.length > MAX_EXTRA_LABEL_LENGTH ||
-      text.length > MAX_EXTRA_VALUE_LENGTH
-    ) {
-      throw new UserError(
-        `The extra field “${label.slice(0, 40)}” is too long.`,
-      )
-    }
-    return [{ label, value: text }]
+// A row with neither a label nor a value is dropped.
+const extraFieldSchema = z
+  .object({
+    label: z.string().trim().catch(''),
+    value: z.string().trim().catch(''),
   })
-}
+  .catch({ label: '', value: '' })
+  .superRefine((field, context) => {
+    if (!field.label && field.value) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Give each extra field a label.',
+      })
+    } else if (
+      field.label.length > MAX_EXTRA_LABEL_LENGTH ||
+      field.value.length > MAX_EXTRA_VALUE_LENGTH
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: `The extra field “${field.label.slice(0, 40)}” is too long.`,
+      })
+    }
+  })
 
-export function validateProjectInput(value: unknown): ProjectInput {
-  const input = (value ?? {}) as Record<string, unknown>
-  return {
-    name: validateProjectName(input.name),
-    city: validateProjectCity(input.city),
-    details: validateProjectDetails(input.details),
-    extraFields: validateExtraFields(input.extraFields),
-  }
-}
+const tooManyExtraFields = `A project can have up to ${MAX_EXTRA_FIELDS} extra fields.`
 
-export function validateProjectItem(value: unknown): ProjectItem {
-  const item = (value ?? {}) as Record<string, unknown>
-  if (
-    typeof item.sourceUrl !== 'string' ||
-    item.sourceUrl.length > MAX_URL_LENGTH ||
-    !/^https?:\/\//.test(item.sourceUrl)
-  ) {
-    throw new UserError('That PDF link is not valid.')
-  }
-  const title = typeof item.title === 'string' ? item.title.trim() : ''
-  return {
-    sourceUrl: item.sourceUrl,
-    title: (title || 'PDF form').slice(0, MAX_TITLE_LENGTH),
-    ...(item.searchId === undefined
-      ? {}
-      : { searchId: validatePublicId(item.searchId, 'search') }),
-  }
-}
+const extraFieldsSchema = z
+  .array(extraFieldSchema, { error: tooManyExtraFields })
+  .max(MAX_EXTRA_FIELDS, tooManyExtraFields)
+  .nullish()
+  .transform((fields): Array<ExtraField> =>
+    (fields ?? []).filter((field) => field.label || field.value),
+  )
+
+export const projectInputSchema = z.object({
+  name: projectNameSchema,
+  city: projectCitySchema,
+  details: projectDetailsSchema,
+  extraFields: extraFieldsSchema,
+})
+
+const invalidPdfLink = 'That PDF link is not valid.'
+
+export const projectSourceUrlSchema = z
+  .string({ error: invalidPdfLink })
+  .max(MAX_URL_LENGTH, invalidPdfLink)
+  .regex(/^https?:\/\//, invalidPdfLink)
+
+export const projectItemSchema = z.object({
+  sourceUrl: projectSourceUrlSchema,
+  title: z
+    .string()
+    .trim()
+    .catch('')
+    .transform((title) => (title || 'PDF form').slice(0, MAX_TITLE_LENGTH)),
+  searchId: publicIdSchema('search').optional(),
+})
 
 // "123 Main St, Unit 4, St Louis Park, Minnesota 55416", leaving out what's
 // missing. Empty when the project has no address or city.
@@ -389,12 +392,14 @@ export function formatProjectAddress(
   project: Pick<Project, 'city' | 'details'>,
 ) {
   const { streetAddress, unit, zipCode } = project.details
+
   const place = [
     project.city ? `${project.city.name}, ${project.city.region}` : '',
     zipCode,
   ]
     .filter(Boolean)
     .join(' ')
+
   return [streetAddress, unit && `Unit ${unit}`, place]
     .filter(Boolean)
     .join(', ')

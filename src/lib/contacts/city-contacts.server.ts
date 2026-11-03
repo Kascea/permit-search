@@ -44,6 +44,7 @@ export async function getCityContacts(
       if (!isFresh(saved.city) || saved.city.expiresOn === null) {
         waitUntil(refreshCityContacts(input, saved.city, saved.offices))
       }
+
       console.log(
         JSON.stringify({
           message: 'city contacts served',
@@ -52,6 +53,7 @@ export async function getCityContacts(
           status: saved.city.contactsStatus,
         }),
       )
+
       return toResponse(saved.city, saved.offices.map(toOfficeContact))
     }
 
@@ -64,6 +66,7 @@ export async function getCityContacts(
         savedUrls: saved ? savedUrlsFor(saved.city, []) : [],
       }),
     ])
+
     await withDatabase((db) => saveCollectedContacts(db, city.id, collected))
 
     return toResponse(
@@ -83,6 +86,7 @@ export async function getCityContacts(
         error: error instanceof Error ? error.message : String(error),
       }),
     )
+
     return UNAVAILABLE
   }
 }
@@ -97,6 +101,7 @@ async function refreshCityContacts(
       ...input,
       savedUrls: savedUrlsFor(city, offices),
     })
+
     await withDatabase((db) => saveCollectedContacts(db, city.id, collected))
   } catch (error) {
     console.error(
@@ -144,6 +149,7 @@ function toResponse(
       OFFICE_PRIORITY.indexOf(first.officeType) -
       OFFICE_PRIORITY.indexOf(second.officeType),
   )
+
   return {
     status: city.contactsStatus ?? 'not_found',
     primaryOffice: sorted.at(0) ?? null,

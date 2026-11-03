@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import {
   PDFBool,
   PDFCheckBox,
@@ -78,32 +79,30 @@ type NativeField =
       widgets: Array<PdfRect>
     }
 
+// project: the project to fill from. from: the page it was opened from, for
+// the breadcrumb; see Origin. page: the page in view, so a reload or shared
+// link opens there; left out on page 1.
+const editorSearchSchema = z.object({
+  url: z.string().catch(''),
+  project: z.string().optional().catch(undefined),
+  from: z.string().optional().catch(undefined),
+  page: z.coerce.number().int().min(2).optional().catch(undefined),
+})
+
 export const Route = createFileRoute('/editor')({
-  // project: the project to fill from. from: the page it was opened from, for
-  // the breadcrumb; see Origin. page: the page in view, so a reload or shared
-  // link opens there; left out on page 1.
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): { url: string; project?: string; from?: string; page?: number } => {
-    const page = Number(search.page)
-    return {
-      url: typeof search.url === 'string' ? search.url : '',
-      ...(typeof search.project === 'string'
-        ? { project: search.project }
-        : {}),
-      ...(typeof search.from === 'string' ? { from: search.from } : {}),
-      ...(Number.isInteger(page) && page > 1 ? { page } : {}),
-    }
-  },
+  validateSearch: editorSearchSchema,
   loaderDeps: ({ search }) => ({ from: search.from }),
   // The search the editor was opened from, to name it in the breadcrumb. A
   // failed lookup just leaves the breadcrumb generic.
   loader: async ({ deps }) => {
     const origin = parseOrigin(deps.from)
+
     if (origin?.kind !== 'search') return { searchName: undefined }
+
     const summary = await getSearchSummary({
       data: { publicId: origin.id },
     }).catch(() => null)
+
     return { searchName: summary ? searchLabel(summary) : undefined }
   },
   component: EditorRoute,
@@ -114,11 +113,14 @@ export const Route = createFileRoute('/editor')({
 function EditorRoute() {
   const { url, project, from, page } = Route.useSearch()
   const { searchName } = Route.useLoaderData()
+
   // Links from before ?from= name only the project.
   const origin: Origin = parseOrigin(from) ??
     (project ? { kind: 'project', id: project } : { kind: 'drafts' })
+
   const projectId =
     project ?? (origin.kind === 'project' ? origin.id : undefined)
+
   return (
     <PdfEditor
       key={url}
@@ -189,6 +191,7 @@ function PdfEditor({
       project.items.some((item) => item.sourceUrl === url),
     ) ??
     projects?.at(0)
+
   // The text fields still empty, which a project can fill.
   const emptyTextFields = useMemo(
     () =>
@@ -199,6 +202,7 @@ function PdfEditor({
       ),
     [nativeFields],
   )
+
   // How many empty fields each project can fill, by public ID.
   const fillCounts = useMemo(
     () =>
@@ -219,6 +223,7 @@ function PdfEditor({
     }),
     [nativeFields, placedFields],
   )
+
   const {
     status: draftStatus,
     setStatus: setDraftStatus,
@@ -239,6 +244,7 @@ function PdfEditor({
       // No form chosen: the editor shows drafts and a way to find one.
       if (!url) {
         setIsLoading(false)
+
         return
       }
 
@@ -259,6 +265,7 @@ function PdfEditor({
           ]),
           loadNewestDraft(url, signedIn),
         ])
+
         GlobalWorkerOptions.workerSrc = workerModule.default
 
         const [pdfDocument, fields, hash] = await Promise.all([
@@ -266,6 +273,7 @@ function PdfEditor({
           readNativeFields(bytes),
           sha256Hex(bytes),
         ])
+
         loadedPdf = pdfDocument
         const firstPage = await pdfDocument.getPage(1)
         pageWidthRef.current = firstPage.getViewport({ scale: 1 }).width
@@ -275,12 +283,14 @@ function PdfEditor({
           setSourceBytes(bytes)
           setPdf(pdfDocument)
           setSourceHash(hash)
+
           if (saved) {
             setNativeFields(
               applyNativeValues(fields, saved.draft.content.nativeValues),
             )
             setPlacedFields(saved.draft.content.placedFields)
             setDraftStatus(saved.status)
+
             if (saved.draft.sourceHash !== hash) {
               setDraftNotice(
                 'This form has changed since your draft was saved. Check your entries before downloading.',
@@ -300,8 +310,10 @@ function PdfEditor({
     }
 
     void load()
+
     return () => {
       cancelled = true
+
       if (loadedPdf) void loadedPdf.cleanup()
     }
   }, [url])
@@ -309,23 +321,30 @@ function PdfEditor({
   // Tracks the page nearest the top of the view for the page indicator.
   useEffect(() => {
     const container = scrollRef.current
+
     if (!pdf || !container) return
 
     const visible = new Map<number, number>()
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const page = Number((entry.target as HTMLElement).dataset.page)
+          if (!(entry.target instanceof HTMLElement)) continue
+          const page = Number(entry.target.dataset.page)
+
           if (entry.isIntersecting) visible.set(page, entry.intersectionRatio)
           else visible.delete(page)
         }
+
         if (visible.size > 0) setCurrentPage(Math.min(...visible.keys()))
       },
       { root: container, rootMargin: '0px 0px -60% 0px' },
     )
+
     container
       .querySelectorAll('[data-page]')
       .forEach((element) => observer.observe(element))
+
     return () => observer.disconnect()
   }, [pdf])
 
@@ -335,6 +354,7 @@ function PdfEditor({
   const initialPageRef = useRef(initialPage)
   useEffect(() => {
     const page = initialPageRef.current
+
     if (!pdf || !page) return
     scrollRef.current
       ?.querySelector(`[data-page="${Math.min(page, pdf.numPages)}"]`)
@@ -344,6 +364,7 @@ function PdfEditor({
   // Keeps ?page= on the page in view, once scrolling settles.
   useEffect(() => {
     if (!pdf) return
+
     const timer = window.setTimeout(() => {
       void navigate({
         search: (previous) => ({
@@ -354,6 +375,7 @@ function PdfEditor({
         resetScroll: false,
       })
     }, 400)
+
     return () => window.clearTimeout(timer)
   }, [currentPage, pdf, navigate])
 
@@ -376,29 +398,38 @@ function PdfEditor({
   // in reading order, wrapping to the start.
   function focusNextEmptyField() {
     const container = scrollRef.current
+
     if (!container) return
 
     const ordered = nativeFieldsRef.current
       .filter((field) => field.widgets.length > 0)
       .sort((a, b) => {
         const [wa, wb] = [a.widgets[0], b.widgets[0]]
+
         return (
           wa.pageIndex - wb.pageIndex ||
           wb.y + wb.height - (wa.y + wa.height) ||
           wa.x - wb.x
         )
       })
-    const focusedId = (document.activeElement as HTMLElement | null)?.dataset
-      .fieldId
+
+    const focused = document.activeElement
+
+    const focusedId =
+      focused instanceof HTMLElement ? focused.dataset.fieldId : undefined
+
     const start = ordered.findIndex((field) => field.id === focusedId) + 1
+
     const next = [...ordered.slice(start), ...ordered.slice(0, start)].find(
       (field) => !isFilled(field),
     )
+
     const element = next
       ? container.querySelector<HTMLElement>(
           `[data-field-id="${CSS.escape(next.id)}"]`,
         )
       : null
+
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     element?.focus({ preventScroll: true })
   }
@@ -413,21 +444,26 @@ function PdfEditor({
     function handleShortcut(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setActiveTool(undefined)
+
         return
       }
+
       // Leave typing in fields and browser shortcuts alone.
-      const target = event.target as HTMLElement
+      const { target } = event
+
       if (
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        target.closest('input, textarea, select, [contenteditable="true"]')
+        (target instanceof Element &&
+          target.closest('input, textarea, select, [contenteditable="true"]'))
       ) {
         return
       }
 
       const key = event.key.toLowerCase()
       const tool = TOOLS.find((item) => item.key === key)
+
       if (tool) {
         setActiveTool((current) =>
           current === tool.tool ? undefined : tool.tool,
@@ -441,10 +477,12 @@ function PdfEditor({
       } else {
         return
       }
+
       event.preventDefault()
     }
 
     window.addEventListener('keydown', handleShortcut)
+
     return () => window.removeEventListener('keydown', handleShortcut)
   }, [])
 
@@ -455,6 +493,7 @@ function PdfEditor({
       activeTool === 'check'
         ? { width: 18, height: 18 }
         : { width: activeTool === 'signature' ? 190 : 150, height: 24 }
+
     const value =
       activeTool === 'date'
         ? localDateValue()
@@ -497,12 +536,16 @@ function PdfEditor({
   function fillFromProject(project: Project) {
     setFillProjectId(project.publicId)
     const filled = projectFills(emptyTextFields, project)
+
     if (filled.size === 0) {
       toast(`“${project.name}” has nothing to fill in the empty fields.`)
+
       return
     }
+
     const isFilledByProject = (field: NativeField) =>
       field.kind === 'text' && filled.get(field.id) === field.value
+
     setNativeFields((current) =>
       current.map((field) =>
         field.kind === 'text' && !field.value.trim() && filled.has(field.id)
@@ -529,14 +572,17 @@ function PdfEditor({
   // Deletes the saved draft and puts back the PDF's own values.
   async function discardDraft() {
     if (!sourceBytes) return
+
     if (!window.confirm('Discard your saved entries for this form?')) return
 
     try {
       deleteLocalDraft(url)
+
       const [fields] = await Promise.all([
         readNativeFields(sourceBytes),
         signedIn && deleteAccountDraft({ data: { sourceUrl: url } }),
       ])
+
       resetBaseline({
         version: 1,
         nativeValues: nativeValuesOf(fields),
@@ -557,15 +603,18 @@ function PdfEditor({
     if (!sourceBytes) return
 
     setIsSaving(true)
+
     try {
       const bytes = await createEditedPdf(
         sourceBytes,
         nativeFields,
         placedFields,
       )
+
       const objectUrl = URL.createObjectURL(
         new Blob([toArrayBuffer(bytes)], { type: 'application/pdf' }),
       )
+
       const link = document.createElement('a')
       link.href = objectUrl
       link.download = `${pdfFilename(url)}-completed.pdf`
@@ -957,6 +1006,7 @@ function EditorPage({
       const loadedPage = await pdf.getPage(pageIndex + 1)
       const pageViewport = loadedPage.getViewport({ scale })
       const canvas = canvasRef.current
+
       if (!canvas || cancelled) return
 
       const outputScale = window.devicePixelRatio || 1
@@ -965,6 +1015,7 @@ function EditorPage({
       canvas.style.width = `${pageViewport.width}px`
       canvas.style.height = `${pageViewport.height}px`
       const context = canvas.getContext('2d')
+
       if (!context) return
 
       renderTask = loadedPage.render({
@@ -982,6 +1033,7 @@ function EditorPage({
     }
 
     void renderPage()
+
     return () => {
       cancelled = true
       renderTask?.cancel()
@@ -992,16 +1044,19 @@ function EditorPage({
     if (
       !activeTool ||
       !viewport ||
-      (event.target as HTMLElement).closest('[data-editor-control]')
+      (event.target instanceof Element &&
+        event.target.closest('[data-editor-control]'))
     ) {
       return
     }
 
     const bounds = event.currentTarget.getBoundingClientRect()
+
     const [x, y] = viewport.convertToPdfPoint(
       event.clientX - bounds.left,
       event.clientY - bounds.top,
     )
+
     onPlace(pageIndex, x, y)
   }
 
@@ -1079,6 +1134,7 @@ function NativeFieldControl({
       style,
       value: field.value,
     }
+
     return field.multiline ? (
       <textarea {...shared} className={`${shared.className} resize-none`} />
     ) : (
@@ -1367,6 +1423,7 @@ function DraftStatusLabel({
 
 function nativeValuesOf(fields: Array<NativeField>) {
   const values: Record<string, NativeValue> = {}
+
   for (const field of fields) {
     values[field.name] =
       field.kind === 'checkbox'
@@ -1375,6 +1432,7 @@ function nativeValuesOf(fields: Array<NativeField>) {
           ? field.values
           : field.value
   }
+
   return values
 }
 
@@ -1386,9 +1444,13 @@ function applyNativeValues(
 ): Array<NativeField> {
   return fields.map((field) => {
     const value = values[field.name]
+
     if (field.kind === 'checkbox') {
-      return typeof value === 'boolean' ? { ...field, checked: value } : field
+      return value === true || value === false
+        ? { ...field, checked: value }
+        : field
     }
+
     if (field.kind === 'multiple') {
       return Array.isArray(value)
         ? {
@@ -1397,27 +1459,47 @@ function applyNativeValues(
           }
         : field
     }
-    if (typeof value !== 'string') return field
+
+    // Left: text, or nothing saved for the field.
+    if (
+      value === undefined ||
+      value === true ||
+      value === false ||
+      Array.isArray(value)
+    ) {
+      return field
+    }
+
     if (field.kind === 'choice' && value && !field.options.includes(value)) {
       return field
     }
+
     return { ...field, value }
   })
 }
 
+// The PDF proxy's error response.
+const pdfErrorSchema = z.object({ error: z.string() })
+
 async function fetchPdfBytes(url: string) {
   const response = await fetch(pdfProxyUrl(url))
+
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as {
-      error?: string
-    } | null
-    throw new UserError(payload?.error || 'The PDF could not be opened.')
+    const payload = pdfErrorSchema.safeParse(
+      await response.json().catch(() => null),
+    )
+
+    throw new UserError(
+      (payload.success && payload.data.error) || 'The PDF could not be opened.',
+    )
   }
+
   return response.arrayBuffer()
 }
 
 async function sha256Hex(bytes: ArrayBuffer) {
   const digest = await crypto.subtle.digest('SHA-256', bytes)
+
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('')
@@ -1428,6 +1510,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
     ignoreEncryption: true,
     updateMetadata: false,
   })
+
   const pages = document.getPages()
 
   return document
@@ -1440,6 +1523,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
         .getWidgets()
         .map<PdfRect | null>((widget, widgetIndex) => {
           const pageRef = widget.P()
+
           const pageIndex = pages.findIndex(
             (page) =>
               page.ref.tag === pageRef?.tag ||
@@ -1451,9 +1535,11 @@ async function readNativeFields(bytes: ArrayBuffer) {
                     annotation === document.context.getObjectRef(widget.dict),
                 ),
           )
+
           if (pageIndex < 0 || (widget.getFlags() & (2 | 32)) !== 0) return null
 
           const rect = widget.getRectangle()
+
           const pdfRect: PdfRect = {
             pageIndex,
             x: rect.x,
@@ -1461,12 +1547,15 @@ async function readNativeFields(bytes: ArrayBuffer) {
             width: rect.width,
             height: rect.height,
           }
+
           if (field instanceof PDFRadioGroup) {
             pdfRect.option = field.getOptions()[widgetIndex]
           }
+
           return pdfRect
         })
         .filter((widget): widget is PdfRect => widget !== null)
+
       if (widgets.length === 0) return []
 
       const common = {
@@ -1474,6 +1563,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
         name: field.getName(),
         widgets,
       }
+
       if (field instanceof PDFTextField) {
         return [
           {
@@ -1484,9 +1574,11 @@ async function readNativeFields(bytes: ArrayBuffer) {
           },
         ]
       }
+
       if (field instanceof PDFCheckBox) {
         return [{ ...common, kind: 'checkbox', checked: field.isChecked() }]
       }
+
       if (field instanceof PDFDropdown) {
         return [
           {
@@ -1497,6 +1589,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
           },
         ]
       }
+
       if (field instanceof PDFRadioGroup) {
         return [
           {
@@ -1507,6 +1600,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
           },
         ]
       }
+
       if (field instanceof PDFOptionList) {
         return [
           {
@@ -1517,6 +1611,7 @@ async function readNativeFields(bytes: ArrayBuffer) {
           },
         ]
       }
+
       return []
     })
 }
@@ -1530,10 +1625,12 @@ async function createEditedPdf(
     ignoreEncryption: true,
     updateMetadata: false,
   })
+
   const form = document.getForm()
 
   for (const model of nativeFields) {
     const field = form.getField(model.name)
+
     if (model.kind === 'text' && field instanceof PDFTextField) {
       field.setText(model.value)
     } else if (model.kind === 'checkbox' && field instanceof PDFCheckBox) {
@@ -1563,9 +1660,12 @@ async function createEditedPdf(
     document.embedFont(StandardFonts.Helvetica),
     document.embedFont(StandardFonts.HelveticaOblique),
   ])
+
   const pages = document.getPages()
+
   for (const field of placedFields) {
     if (!field.value) continue
+
     if (field.pageIndex < 0 || field.pageIndex >= pages.length) continue
     const page = pages[field.pageIndex]
 
@@ -1584,11 +1684,14 @@ async function createEditedPdf(
 
 function rectStyle(rect: PdfRect, viewport: PageViewport) {
   const [x1, y1] = viewport.convertToViewportPoint(rect.x, rect.y)
+
   const [x2, y2] = viewport.convertToViewportPoint(
     rect.x + rect.width,
     rect.y + rect.height,
   )
+
   const height = Math.abs(y2 - y1)
+
   return {
     left: Math.min(x1, x2),
     top: Math.min(y1, y2),
@@ -1603,12 +1706,15 @@ function rectStyle(rect: PdfRect, viewport: PageViewport) {
 function fitWidthScale(container: HTMLElement | null, pageWidth: number) {
   const available = (container?.clientWidth ?? 900) - 64
   const fitted = Math.round((available / pageWidth) * 20) / 20
+
   return Math.min(Math.max(fitted, ZOOM_STEPS[0]), 1.75)
 }
 
 function isFilled(field: NativeField) {
   if (field.kind === 'checkbox') return field.checked
+
   if (field.kind === 'multiple') return field.values.length > 0
+
   return field.value.trim() !== ''
 }
 
@@ -1628,6 +1734,7 @@ function localDateValue() {
   const date = new Date()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
+
   return `${date.getFullYear()}-${month}-${day}`
 }
 
@@ -1636,15 +1743,14 @@ function pdfFilename(sourceUrl: string) {
     const filename = decodeURIComponent(
       new URL(sourceUrl).pathname.split('/').at(-1) ?? 'permit',
     )
+
     return filename.replace(/\.pdf$/i, '') || 'permit'
   } catch {
     return 'permit'
   }
 }
 
+// Just the view's bytes, copied into a plain ArrayBuffer for the Blob.
 function toArrayBuffer(bytes: Uint8Array) {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer
+  return new Uint8Array(bytes).buffer
 }

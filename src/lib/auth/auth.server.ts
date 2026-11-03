@@ -57,6 +57,7 @@ function createAuth(db: Database) {
 }
 
 export type Auth = ReturnType<typeof createAuth>
+
 export type SessionUser = Auth['$Infer']['Session']['user']
 
 export function withAuth<T>(work: (auth: Auth) => Promise<T>): Promise<T> {
@@ -81,10 +82,12 @@ export async function withUserDatabase<T, TSignedOut = never>(
     if (signedOut) return signedOut()
     throw new UserError('Sign in to continue.')
   }
+
   if (!hasSessionCookie(headers)) return notSignedIn()
 
   return withDatabase(async (db) => {
     const session = await createAuth(db).api.getSession({ headers })
+
     return session ? work(session.user.id, db) : notSignedIn()
   })
 }
@@ -95,5 +98,6 @@ export async function getSessionUser(
 ): Promise<SessionUser | null> {
   if (!hasSessionCookie(headers)) return null
   const session = await withAuth((auth) => auth.api.getSession({ headers }))
+
   return session?.user ?? null
 }

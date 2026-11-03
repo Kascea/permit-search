@@ -8,6 +8,7 @@ import { limitRequest } from '#/lib/rate-limit.server'
 export const rateLimited = createMiddleware({ type: 'function' }).server(
   async ({ next, serverFnMeta }) => {
     await limitRequest(serverFnMeta.name, new Headers(getRequestHeaders()))
+
     return next()
   },
 )

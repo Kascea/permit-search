@@ -18,8 +18,10 @@ export const fetchCityContacts = createServerFn({ method: 'POST' })
 function validateCity(input: CityContactsInput): CityContactsInput {
   const name = input.name.trim()
   const region = input.region.trim()
+
   if (!name || !region || name.length > 100 || region.length > 100) {
     throw new UserError('Enter a valid city.')
   }
+
   return { name, region }
 }

@@ -12,6 +12,7 @@ export function LocalDraftSync() {
   useEffect(() => {
     if (!user) return
     const drafts = listLocalDrafts()
+
     if (drafts.length === 0) return
 
     importAccountDrafts({ data: { drafts: drafts.slice(0, 100) } })
@@ -20,9 +21,9 @@ export function LocalDraftSync() {
           deleteLocalDraft(draft.sourceUrl)
         }
       })
-      .catch((error: unknown) => {
+      .catch((cause: unknown) => {
         // Kept locally; the next page load tries again.
-        console.error('Local drafts could not be synced.', error)
+        console.error('Local drafts could not be synced.', cause)
       })
   }, [user])
 

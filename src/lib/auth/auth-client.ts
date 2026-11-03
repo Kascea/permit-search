@@ -8,10 +8,17 @@ export const authClient = createAuthClient()
 // fails, such as when offline. This returns those as `{ error }` too, so
 // callers handle both in one place.
 export function settled<T>(request: Promise<T>) {
-  return request.catch(() => ({
+  return request.catch((): RequestFailure => ({
     data: null,
-    error: { code: undefined as string | undefined },
+    error: { code: undefined },
   }))
+}
+
+// What settled resolves to when the request itself fails. The code's type
+// matches Better Auth's own errors, so callers can read it either way.
+interface RequestFailure {
+  data: null
+  error: { code: string | undefined }
 }
 
 // Sends the browser to Google, then back to `returnTo` on this site.
@@ -19,5 +26,6 @@ export async function signInWithGoogle(returnTo: string) {
   const { error } = await settled(
     authClient.signIn.social({ provider: 'google', callbackURL: returnTo }),
   )
+
   if (error) toast.error('Google sign-in couldn’t start. Try again.')
 }

@@ -40,6 +40,7 @@ export async function findCityAt(
     layers: LAYERS.join(','),
     format: 'json',
   })
+
   const response = await fetch(`${GEOCODER_URL}?${params}`)
 
   if (!response.ok) {
@@ -62,6 +63,7 @@ export async function findCityAt(
   for (const layer of LAYERS) {
     for (const { GEOID } of geographies[layer] ?? []) {
       const index = GEOID ? placeIndexById.get(GEOID) : undefined
+
       if (index !== undefined) return placeToCity(places[index])
     }
   }

@@ -12,6 +12,7 @@ export const locateCity = createServerFn({ method: 'POST' })
 
 function validateCoordinates(input: Coordinates): Coordinates {
   const { latitude, longitude } = input
+
   if (
     !Number.isFinite(latitude) ||
     !Number.isFinite(longitude) ||
@@ -22,5 +23,6 @@ function validateCoordinates(input: Coordinates): Coordinates {
       'Your location is unavailable. Enter your city instead.',
     )
   }
+
   return { latitude, longitude }
 }

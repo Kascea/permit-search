@@ -30,10 +30,12 @@ export function ResultsPage({
   children,
 }: ResultsPageProps) {
   const [isReportOpen, setIsReportOpen] = useState(false)
+
   const contacts = useCityContacts(
     search?.city.name ?? '',
     search?.city.region ?? '',
   )
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader search={search} />

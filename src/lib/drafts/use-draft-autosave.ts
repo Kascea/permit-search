@@ -18,6 +18,7 @@ export async function loadNewestDraft(
   signedIn: boolean,
 ): Promise<{ draft: Draft; status: DraftStatus } | null> {
   const local = getLocalDraft(sourceUrl)
+
   // Fails rather than opening a blank form, whose first autosave would
   // replace the account's draft.
   const account = signedIn
@@ -31,6 +32,7 @@ export async function loadNewestDraft(
   if (account && (!local || account.updatedAt >= local.updatedAt)) {
     return { draft: account, status: 'saved' }
   }
+
   return local ? { draft: local, status: 'local' } : null
 }
 
@@ -65,14 +67,17 @@ export function useDraftAutosave({
   // Reads only refs, so the copy captured at mount still works at unmount.
   function flush({ leaving = false } = {}) {
     const draft = pendingRef.current
+
     if (!draft) return
     pendingRef.current = null
     baselineRef.current = JSON.stringify(draft.content)
 
     if (!signedInRef.current) {
       setStatus(saveLocalDraft(draft) ? 'local' : 'error')
+
       return
     }
+
     // A request may not finish once the page is going away; the local copy
     // moves to the account on the next visit.
     if (leaving) saveLocalDraft(draft)
@@ -80,8 +85,8 @@ export function useDraftAutosave({
     setStatus('saving')
     saveAccountDraft({ data: draft })
       .then(() => setStatus('saved'))
-      .catch((error: unknown) => {
-        console.error('The draft could not be saved.', error)
+      .catch((cause: unknown) => {
+        console.error('The draft could not be saved.', cause)
         // Kept in this browser so the work isn't lost.
         saveLocalDraft(draft)
         setStatus('error')
@@ -90,23 +95,32 @@ export function useDraftAutosave({
 
   useEffect(() => {
     if (!sourceHash) return
+
     if (baselineRef.current === null) {
       baselineRef.current = json
-      return
-    }
-    if (json === baselineRef.current) {
-      pendingRef.current = null
+
       return
     }
 
-    pendingRef.current = {
+    if (json === baselineRef.current) {
+      pendingRef.current = null
+
+      return
+    }
+
+    const draft: Draft = {
       sourceUrl,
       sourceHash,
+      // SAFETY: json is JSON.stringify(content), and content is DraftContent.
       content: JSON.parse(json) as DraftContent,
       updatedAt: new Date().toISOString(),
-      ...(searchId ? { searchId } : {}),
     }
+
+    if (searchId) draft.searchId = searchId
+
+    pendingRef.current = draft
     const timer = window.setTimeout(() => flush(), SAVE_DELAY_MS)
+
     return () => window.clearTimeout(timer)
   }, [json, sourceHash, sourceUrl, searchId])
 
@@ -114,7 +128,9 @@ export function useDraftAutosave({
     function saveOnHide() {
       if (document.visibilityState === 'hidden') flush({ leaving: true })
     }
+
     document.addEventListener('visibilitychange', saveOnHide)
+
     return () => {
       document.removeEventListener('visibilitychange', saveOnHide)
       flush({ leaving: true })

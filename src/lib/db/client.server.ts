@@ -10,6 +10,9 @@ import * as schema from '#/lib/db/schema'
 export type Database = PgDatabase<NodePgQueryResultHKT, typeof schema>
 
 function databaseBinding() {
+  // SAFETY: only adds an optional property. DATABASE is bound only when
+  // CLOUDFLARE_HYPERDRIVE_ID is set (see cloudflare.config.ts), so the
+  // generated Env may not list it.
   return (env as { DATABASE?: Hyperdrive }).DATABASE
 }
 
@@ -27,12 +30,14 @@ export async function withDatabase<T>(
   work: (db: Database) => Promise<T>,
 ): Promise<T> {
   const binding = databaseBinding()
+
   if (!binding) {
     throw new Error('The DATABASE binding is not configured.')
   }
 
   const client = new Client({ connectionString: binding.connectionString })
   await client.connect()
+
   try {
     return await work(drizzle(client, { schema }))
   } finally {
@@ -45,12 +50,14 @@ export async function withDatabaseClient<T>(
   work: (client: Client) => Promise<T>,
 ): Promise<T> {
   const binding = databaseBinding()
+
   if (!binding) {
     throw new Error('The DATABASE binding is not configured.')
   }
 
   const client = new Client({ connectionString: binding.connectionString })
   await client.connect()
+
   try {
     return await work(client)
   } finally {

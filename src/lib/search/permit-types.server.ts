@@ -15,6 +15,7 @@ export async function identifyPermitTypes(
     const { answers } = await createTypeSafeClient().systemOne(
       buildPermitTypeRequest(input),
     )
+
     const scores = readPermitTypeScores(answers)
     const permitTypes = neededPermitTypes(scores)
 

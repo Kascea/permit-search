@@ -36,13 +36,17 @@ import type { Project } from '#/lib/projects/types'
 export const Route = createFileRoute('/projects/$projectId')({
   loader: async ({ params }) => {
     if (!/^[A-Za-z0-9]{8,16}$/.test(params.projectId)) throw notFound()
+
     const [found, drafts] = await Promise.all([
       getAccountProject({ data: { publicId: params.projectId } }),
       listAccountDrafts(),
     ])
+
     // Signed out: the page asks the visitor to sign in.
     if (!found) return { project: null, drafts: [] }
+
     if (!found.project) throw notFound()
+
     return { project: found.project, drafts: drafts ?? [] }
   },
   head: ({ loaderData }) => ({
@@ -83,6 +87,7 @@ function ProjectPage() {
   const formId = useId()
   const [name, setName] = useState(project?.name ?? '')
   const [savedName, setSavedName] = useState(project?.name)
+
   if (project && project.name !== savedName) {
     setSavedName(project.name)
     setName(project.name)
@@ -109,7 +114,9 @@ function ProjectPage() {
     ) {
       return
     }
+
     setIsDeleting(true)
+
     try {
       await deleteAccountProject({ data: { publicId: current.publicId } })
       toast.success('Project deleted.')
@@ -211,6 +218,7 @@ function ProjectTitle({
   const [isEditing, setIsEditing] = useState(false)
   // A save (such as Enter in the input) ends editing.
   const [lastSavedName, setLastSavedName] = useState(savedName)
+
   if (savedName !== lastSavedName) {
     setLastSavedName(savedName)
     setIsEditing(false)
@@ -332,6 +340,7 @@ function FormsSection({
 
   async function removeItem(sourceUrl: string) {
     setRemovingUrl(sourceUrl)
+
     try {
       await removeFromAccountProject({
         data: { publicId: project.publicId, sourceUrl },
@@ -367,6 +376,7 @@ function FormsSection({
           {project.items.map((item) => {
             const draft = draftsByUrl.get(item.sourceUrl)
             const isRemoving = removingUrl === item.sourceUrl
+
             return (
               <li
                 key={item.sourceUrl}

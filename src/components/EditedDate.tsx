@@ -5,6 +5,7 @@ import { useHydrated } from '@tanstack/react-router'
 // Formatting in the visitor's zone straight away broke hydration near midnight.
 export function EditedDate({ iso }: { iso: string }) {
   const isHydrated = useHydrated()
+
   return (
     <time dateTime={iso}>
       {new Date(iso).toLocaleDateString('en-US', {

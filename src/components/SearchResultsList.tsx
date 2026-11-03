@@ -22,6 +22,7 @@ export function SearchResultsList({
   const { user } = useAuth()
   // For "Saved in" beside the PDFs already in a project.
   const { projects } = useAccountProjects(Boolean(user))
+
   return (
     <>
       {response.isGeneralFallback && (
@@ -155,7 +156,9 @@ export function SearchResultsList({
 // Links to the projects a PDF is already in: the first by name, then a count.
 function SavedIn({ projects }: { projects: Array<Project> }) {
   const [first, ...others] = projects
+
   if (!first) return null
+
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
       <span className="shrink-0">Saved in</span>

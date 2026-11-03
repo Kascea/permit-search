@@ -8,6 +8,7 @@ import {
   createMiddleware,
   createStart,
 } from '@tanstack/react-start'
+import { DrizzleQueryError } from 'drizzle-orm'
 
 import { GENERIC_ERROR, UserError, isUserError } from '#/lib/errors'
 
@@ -43,26 +44,28 @@ const hideInternalErrors = createMiddleware({ type: 'function' }).server(
 // What to log about an error. A failed Drizzle query's message is the whole
 // query plus its params, which can hold people's details, so for those only
 // the query and the database's own error (its cause) are logged.
-function describeError(error: unknown) {
-  if (!(error instanceof Error)) return { error: String(error) }
-  const { cause } = error
-  if ('query' in error && typeof error.query === 'string') {
+function describeError(cause: unknown) {
+  if (!(cause instanceof Error)) return { error: String(cause) }
+
+  if (cause instanceof DrizzleQueryError) {
+    const databaseError = cause.cause
+
     return {
-      error:
-        cause instanceof Error ? cause.message : 'Database query failed.',
+      error: databaseError?.message ?? 'Database query failed.',
       code:
-        cause && typeof cause === 'object' && 'code' in cause
-          ? cause.code
+        databaseError && 'code' in databaseError
+          ? databaseError.code
           : undefined,
-      query: error.query.replace(/\s+/g, ' ').slice(0, 500),
+      query: cause.query.replace(/\s+/g, ' ').slice(0, 500),
       // Just the frames: the stack starts by repeating the message.
-      stack: error.stack?.slice(error.stack.indexOf('\n    at ') + 1),
+      stack: cause.stack?.slice(cause.stack.indexOf('\n    at ') + 1),
     }
   }
+
   return {
-    error: error.message,
-    cause: cause instanceof Error ? cause.message : undefined,
-    stack: error.stack,
+    error: cause.message,
+    cause: cause.cause instanceof Error ? cause.cause.message : undefined,
+    stack: cause.stack,
   }
 }
 
@@ -92,6 +95,7 @@ const SECURITY_HEADERS = {
 const securityHeaders = createMiddleware().server(async ({ next }) => {
   const result = await next()
   let { response } = result
+
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     try {
       response.headers.set(name, value)
@@ -101,6 +105,7 @@ const securityHeaders = createMiddleware().server(async ({ next }) => {
       response.headers.set(name, value)
     }
   }
+
   return { ...result, response }
 })
 

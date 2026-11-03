@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
+import { z } from 'zod'
 
 import { withUserDatabase } from '#/lib/auth/auth.server'
 import type { Database } from '#/lib/db/client.server'
@@ -10,9 +11,9 @@ import {
   loadDraft,
   saveDraft,
 } from '#/lib/drafts/drafts.server'
-import { draftError } from '#/lib/drafts/types'
-import type { Draft } from '#/lib/drafts/types'
-import { UserError } from '#/lib/errors'
+import { draftSchema } from '#/lib/drafts/types'
+import { UserError, parseUserInput } from '#/lib/errors'
+import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
 
 // Drafts belong to the signed-in user; the browser never sends a user ID.
 // The session check and the work share one database connection.
@@ -26,43 +27,39 @@ function withDraftUser<T>(work: (db: Database, userId: string) => Promise<T>) {
   )
 }
 
-function validateDraft(input: Draft): Draft {
-  const error = draftError(input)
-  if (error) throw new UserError(error)
-  return input
-}
+const parseSourceUrl = parseUserInput(
+  z.object({ sourceUrl: projectSourceUrlSchema }),
+)
 
-function validateSourceUrl(input: { sourceUrl: string }) {
-  if (
-    typeof input.sourceUrl !== 'string' ||
-    input.sourceUrl.length > 2_048 ||
-    !/^https?:\/\//.test(input.sourceUrl)
-  ) {
-    throw new UserError('That PDF link is not valid.')
-  }
-  return { sourceUrl: input.sourceUrl }
-}
+const parseDraftPublicId = parseUserInput(
+  z.object({ publicId: publicIdSchema('draft') }),
+)
+
+const tooManyDrafts = 'Too many drafts to import at once.'
 
 export const getAccountDraft = createServerFn({ method: 'GET' })
-  .validator(validateSourceUrl)
+  .validator(parseSourceUrl)
   .handler(({ data }) =>
     withDraftUser((db, userId) => loadDraft(db, userId, data.sourceUrl)),
   )
 
 export const saveAccountDraft = createServerFn({ method: 'POST' })
-  .validator(validateDraft)
+  .validator(parseUserInput(draftSchema))
   .handler(({ data }) =>
     withDraftUser((db, userId) => saveDraft(db, userId, data)),
   )
 
 // Moves drafts saved in the browser before sign-in to the account.
 export const importAccountDrafts = createServerFn({ method: 'POST' })
-  .validator((input: { drafts: Array<Draft> }) => {
-    if (!Array.isArray(input.drafts) || input.drafts.length > 100) {
-      throw new UserError('Too many drafts to import at once.')
-    }
-    return { drafts: input.drafts.map(validateDraft) }
-  })
+  .validator(
+    parseUserInput(
+      z.object({
+        drafts: z
+          .array(draftSchema, { error: tooManyDrafts })
+          .max(100, tooManyDrafts),
+      }),
+    ),
+  )
   .handler(({ data }) =>
     withDraftUser((db, userId) => importDrafts(db, userId, data.drafts)),
   )
@@ -77,15 +74,9 @@ export const listAccountDrafts = createServerFn({ method: 'GET' }).handler(() =>
 )
 
 export const deleteAccountDraft = createServerFn({ method: 'POST' })
-  .validator((input: { publicId: string } | { sourceUrl: string }) => {
-    if ('publicId' in input) {
-      if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
-        throw new UserError('That draft is not valid.')
-      }
-      return { publicId: input.publicId }
-    }
-    return validateSourceUrl(input)
-  })
+  .validator((input: { publicId: string } | { sourceUrl: string }) =>
+    'publicId' in input ? parseDraftPublicId(input) : parseSourceUrl(input),
+  )
   .handler(({ data }) =>
     withDraftUser((db, userId) => deleteDraft(db, userId, data)),
   )

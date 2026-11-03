@@ -67,21 +67,26 @@ function SignInForm({ onClose }: { onClose: () => void }) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if ((isSignUp && !name.trim()) || !email.trim() || !password) {
       setError(
         isSignUp
           ? 'Enter your name, email, and a password.'
           : 'Enter your email and password.',
       )
+
       return
     }
+
     if (isSignUp && password.length < 8) {
       setError('Use a password with at least 8 characters.')
+
       return
     }
 
     setError('')
     setIsBusy(true)
+
     try {
       const result = isSignUp
         ? await authClient.signUp.email({
@@ -93,8 +98,10 @@ function SignInForm({ onClose }: { onClose: () => void }) {
 
       if (result.error) {
         setError(authErrorMessage(result.error, isSignUp))
+
         return
       }
+
       onClose()
       // Reloads the root loader's sign-in state.
       await router.invalidate()

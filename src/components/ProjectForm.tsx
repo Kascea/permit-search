@@ -60,6 +60,7 @@ function fieldsFrom(initial: ProjectInput | undefined): FormFields {
   const city = initial?.city
     ? { ...initial.city, country: 'United States' as const }
     : undefined
+
   return {
     name: initial?.name ?? '',
     cityInput: city ? formatCity(city) : '',
@@ -95,8 +96,10 @@ export function ProjectForm({
   onNameChange,
 }: ProjectFormProps) {
   const [ownFields, setFields] = useState(() => fieldsFrom(initial))
+
   const fields =
     outsideName === undefined ? ownFields : { ...ownFields, name: outsideName }
+
   // The last saved state; the form has changes when it differs.
   const [saved, setSaved] = useState(() => snapshotOf(fieldsFrom(initial)))
   const [isSaving, setIsSaving] = useState(false)
@@ -164,16 +167,22 @@ export function ProjectForm({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if (!name.trim()) {
       setError('Give the project a name.')
+
       return
     }
+
     if (cityInput.trim() && !selectedCity) {
       setError('Choose the project’s city from the list.')
+
       return
     }
+
     const costText = cost.replace(/[$,\s]/g, '')
     const estimatedCost = costText ? Number(costText) : null
+
     if (
       estimatedCost !== null &&
       (!Number.isInteger(estimatedCost) ||
@@ -181,12 +190,14 @@ export function ProjectForm({
         estimatedCost > MAX_ESTIMATED_COST)
     ) {
       setError('Enter the estimated cost in whole dollars.')
+
       return
     }
 
     setError('')
     setIsSaving(true)
     isSubmittingRef.current = true
+
     try {
       await onSubmit({
         name,
@@ -210,6 +221,7 @@ export function ProjectForm({
   const usedLabels = new Set(
     extraFields.map((field) => field.label.trim().toLowerCase()),
   )
+
   const suggestions = SUGGESTED_EXTRA_FIELDS.filter(
     (label) => !usedLabels.has(label.toLowerCase()),
   )
@@ -339,6 +351,7 @@ export function ProjectForm({
                     </th>
                     {PARTIES.map((party) => {
                       const key = row[party]
+
                       if (!key) {
                         return (
                           <td
@@ -347,12 +360,15 @@ export function ProjectForm({
                           />
                         )
                       }
+
                       // The owner's values stand in for the applicant's.
                       const shownKey =
                         party === 'applicant' && applicantIsOwner
                           ? row.owner
                           : key
+
                       const field = fieldFor(key)
+
                       return (
                         <td key={party} className="border-l border-ink/20 p-0">
                           <Copyable
@@ -545,9 +561,12 @@ export function ProjectForm({
 // so Tab moves down the table like a form.
 const cellClass =
   'block w-full min-w-0 bg-transparent px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink/35 hover:bg-ink/[0.03] focus:bg-blueprint/[0.06] focus:ring-1 focus:ring-blueprint focus:ring-inset disabled:text-ink/45 disabled:hover:bg-transparent'
+
 const rowClass = 'border-b border-ink/20 last:border-b-0'
+
 const labelCellClass =
   'w-32 border-r border-ink/20 px-3 py-2 text-left align-top font-normal text-ink/60 sm:w-44'
+
 const columnHeadClass =
   'border-l border-ink/20 px-3 py-2 text-left text-xs font-medium text-ink'
 
@@ -559,7 +578,9 @@ const PROPERTY_KEYS = [
 ] as const
 
 type Party = 'owner' | 'applicant' | 'contractor'
+
 const PARTIES: Array<Party> = ['owner', 'applicant', 'contractor']
+
 const PARTY_LABELS: Record<Party, string> = {
   owner: 'Owner',
   applicant: 'Applicant',
@@ -595,7 +616,9 @@ const PEOPLE_ROWS: Array<
 
 function fieldFor(key: ProjectTextKey) {
   const field = PROJECT_TEXT_FIELDS.find((each) => each.key === key)
+
   if (!field) throw new Error(`Unknown project field: ${key}`)
+
   return field
 }
 
@@ -646,6 +669,7 @@ function Row({
   children: (id: string) => ReactNode
 }) {
   const id = useId()
+
   return (
     <tr className={rowClass}>
       <th scope="row" className={labelCellClass} title={hint}>
@@ -720,6 +744,7 @@ function Copyable({
   children: ReactNode
 }) {
   const canCopy = useContext(CanCopyContext)
+
   if (!canCopy) return children
 
   return (

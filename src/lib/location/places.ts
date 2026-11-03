@@ -1,4 +1,5 @@
-import { STATE_NAMES } from './states'
+import { STATE_NAMES, isStateCode } from './states'
+import type { StateCode } from './states'
 import type { City, CitySuggestion } from './types'
 
 // U.S. cities, towns, and townships from Census data, built by
@@ -8,7 +9,7 @@ import type { City, CitySuggestion } from './types'
 export interface Place {
   index: number
   name: string
-  state: string
+  state: StateCode
   county?: string
   // The name as matched against queries; see normalize.
   key: string
@@ -24,12 +25,13 @@ export function getLoadedPlaces() {
 export function loadPlaces(): Promise<Place[]> {
   loadingPlaces ??= import('./us-places.tsv?raw').then(
     ({ default: text }) => (loadedPlaces = parsePlaces(text)),
-    (error: unknown) => {
+    (cause: unknown) => {
       // Let a later attempt retry, such as after a dropped connection.
       loadingPlaces = undefined
-      throw error
+      throw cause
     },
   )
+
   return loadingPlaces
 }
 
@@ -37,8 +39,12 @@ export function parsePlaces(text: string): Place[] {
   return text
     .trimEnd()
     .split('\n')
-    .map((line, index) => {
+    .flatMap((line, index) => {
       const [name, state, county] = line.split('\t')
+
+      // The build script only writes known states; this keeps Place honest.
+      if (!isStateCode(state)) return []
+
       return {
         index,
         name,
@@ -61,6 +67,7 @@ export function placeToCity(place: Place): City {
 
 export function placeToSuggestion(place: Place): CitySuggestion {
   const region = STATE_NAMES[place.state]
+
   return {
     id: String(place.index),
     name: place.name,
@@ -85,6 +92,7 @@ export function searchPlaces(
 
     for (const place of places) {
       if (states && !states.has(place.state)) continue
+
       if (place.key === name) tiers[0].push(place)
       else if (place.key.startsWith(name)) tiers[1].push(place)
       else if (place.key.includes(` ${name}`)) tiers[2].push(place)
@@ -120,6 +128,7 @@ function interpretQuery(query: string): QueryReading[] {
 
   if (stateParts.length > 0) {
     const statePart = normalize(stateParts.join(' '))
+
     if (!statePart) return [{ name }]
 
     const states = new Set(
@@ -131,6 +140,7 @@ function interpretQuery(query: string): QueryReading[] {
         )
         .map(([abbreviation]) => abbreviation),
     )
+
     return [{ name, states }]
   }
 
@@ -141,6 +151,7 @@ function interpretQuery(query: string): QueryReading[] {
   for (const count of [2, 1]) {
     if (words.length <= count) continue
     const state = STATE_BY_KEY.get(words.slice(-count).join(' '))
+
     if (state) {
       readings.push({
         name: words.slice(0, -count).join(' '),
@@ -150,6 +161,7 @@ function interpretQuery(query: string): QueryReading[] {
   }
 
   readings.push({ name })
+
   return readings
 }
 

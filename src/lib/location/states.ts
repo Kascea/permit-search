@@ -1,5 +1,5 @@
 // Postal abbreviations to the full names stored as a city's region.
-export const STATE_NAMES: Record<string, string> = {
+export const STATE_NAMES = {
   AL: 'Alabama',
   AK: 'Alaska',
   AZ: 'Arizona',
@@ -51,4 +51,10 @@ export const STATE_NAMES: Record<string, string> = {
   WV: 'West Virginia',
   WI: 'Wisconsin',
   WY: 'Wyoming',
+} satisfies Record<string, string>
+
+export type StateCode = keyof typeof STATE_NAMES
+
+export function isStateCode(code: string): code is StateCode {
+  return Object.hasOwn(STATE_NAMES, code)
 }

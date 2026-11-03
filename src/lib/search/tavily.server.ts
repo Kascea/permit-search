@@ -1,4 +1,5 @@
 import { env, waitUntil } from 'cloudflare:workers'
+import { z } from 'zod'
 
 import { saveCityPermitsUrl } from '#/lib/contacts/store.server'
 import { hasDatabase, withDatabase } from '#/lib/db/client.server'
@@ -22,17 +23,23 @@ const MAX_RESULTS = 10
 const MAX_OFFICIAL_PAGES_TO_EXTRACT = 4
 const MAX_GENERAL_FALLBACK_RESULTS = 3
 
-interface TavilySearchResult {
-  title?: unknown
-  url?: unknown
-  content?: unknown
-  score?: unknown
-}
+const tavilySearchResultSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  content: z.string(),
+  score: z.number().catch(0),
+})
 
-interface TavilySearchResponse {
-  query?: unknown
-  results?: unknown
-}
+type TavilySearchResult = z.output<typeof tavilySearchResultSchema>
+
+// Malformed results, and results that aren't web pages, are dropped.
+const tavilySearchResponseSchema = z.object({
+  query: z.string().optional().catch(undefined),
+  results: z
+    .array(tavilySearchResultSchema.transform(normalizeResult).catch(null))
+    .catch([])
+    .transform((results) => results.filter((result) => result !== null)),
+})
 
 export async function searchPermitsWithTavily(
   input: PermitSearchInput,
@@ -71,12 +78,9 @@ export async function searchPermitsWithTavily(
       )
     }
 
-    const payload = await response.json<TavilySearchResponse>()
-    const tavilyResults = Array.isArray(payload.results)
-      ? payload.results
-          .map(normalizeResult)
-          .filter((result): result is PermitSearchResult => result !== null)
-      : []
+    const payload = tavilySearchResponseSchema.parse(await response.json())
+    const tavilyResults = payload.results
+
     const results = tavilyResults.filter((result) => {
       const matches = matchesLocality(
         result.title,
@@ -84,6 +88,7 @@ export async function searchPermitsWithTavily(
         new URL(result.url),
         input,
       )
+
       if (!matches) {
         console.log(
           JSON.stringify({
@@ -93,6 +98,7 @@ export async function searchPermitsWithTavily(
           }),
         )
       }
+
       return matches
     })
 
@@ -104,6 +110,7 @@ export async function searchPermitsWithTavily(
         passedCityFilter: results.length,
       }),
     )
+
     const officialPages = results
       .filter(
         (result) => result.isGovernmentSource && isLikelyHtmlPage(result.url),
@@ -113,12 +120,14 @@ export async function searchPermitsWithTavily(
           rankExtractionPage(second, input) - rankExtractionPage(first, input),
       )
       .slice(0, MAX_OFFICIAL_PAGES_TO_EXTRACT)
+
     const extractedByPage = await Promise.all(
       officialPages.map(async (page) => ({
         page,
         links: await extractRelevantOfficialLinks(page, input, permitTypes),
       })),
     )
+
     const extractedLinks = extractedByPage.flatMap(({ links }) => links)
 
     console.log(
@@ -136,14 +145,17 @@ export async function searchPermitsWithTavily(
       deduplicateResults([...extractedLinks, ...results]),
       permitTypes,
     )
+
     rememberPermitsPage(input, reviewedLinks)
 
     const keptLinks = reviewedLinks.filter(
       ({ rejectionReasons }) => rejectionReasons.length === 0,
     )
+
     // Nothing specific to the project survived: show the city's general
     // permit pages and application portal instead of an empty list.
     const isGeneralFallback = keptLinks.length === 0
+
     const rankedResults = (
       isGeneralFallback
         ? reviewedLinks
@@ -173,7 +185,7 @@ export async function searchPermitsWithTavily(
     }
 
     return {
-      query: typeof payload.query === 'string' ? payload.query : query,
+      query: payload.query ?? query,
       results: rankedResults,
       isGeneralFallback: isGeneralFallback && rankedResults.length > 0,
       permitTypes: permitTypes.map(({ name }) => name),
@@ -202,6 +214,7 @@ function rememberPermitsPage(
         second.review.generalPermitsPage - first.review.generalPermitsPage,
     )
     .at(0)
+
   if (!permitsPage || !city.region || !hasDatabase()) {
     return
   }
@@ -210,12 +223,12 @@ function rememberPermitsPage(
   waitUntil(
     withDatabase((db) =>
       saveCityPermitsUrl(db, { name: city.name, region }, permitsPage.link.url),
-    ).catch((error: unknown) => {
+    ).catch((cause: unknown) => {
       console.error(
         JSON.stringify({
           message: 'saving city permits page failed',
           url: permitsPage.link.url,
-          error: error instanceof Error ? error.message : String(error),
+          error: cause instanceof Error ? cause.message : String(cause),
         }),
       )
     }),
@@ -230,38 +243,30 @@ function buildSearchQuery(
     permitTypes.length > 0
       ? permitTypes.map(({ name }) => name).join(' ')
       : 'permit'
+
   return `official City of "${city.name}" "${city.region}" ${permit} ${permits} application requirements`
     .replace(/\s+/g, ' ')
     .slice(0, 400)
 }
 
-function normalizeResult(value: unknown): PermitSearchResult | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const result = value as TavilySearchResult
-  if (
-    typeof result.title !== 'string' ||
-    typeof result.url !== 'string' ||
-    typeof result.content !== 'string'
-  ) {
-    return null
-  }
-
+function normalizeResult(
+  result: TavilySearchResult,
+): PermitSearchResult | null {
   try {
     const url = new URL(result.url)
+
     if (url.protocol !== 'https:' && url.protocol !== 'http:') {
       return null
     }
 
     const domain = url.hostname.replace(/^www\./, '')
+
     return {
       title: result.title,
       url: url.toString(),
       domain,
       description: result.content,
-      score: typeof result.score === 'number' ? result.score : 0,
+      score: result.score,
       isGovernmentSource: isGovernmentDomain(domain),
     }
   } catch {
@@ -278,9 +283,11 @@ function matchesLocality(
   // Only the city name is required: official pages often never name their
   // state, and Jev's jurisdiction question rejects same-named cities elsewhere.
   const cityName = normalizeText(city.name)
+
   const text = normalizeText(
     `${title} ${content} ${url.hostname} ${url.pathname}`,
   )
+
   const compactUrl = compactText(`${url.hostname}${url.pathname}`)
 
   return (
@@ -295,15 +302,20 @@ function rankResult(result: PermitSearchResult, input: PermitSearchInput) {
   const normalizedTitle = normalizeText(result.title)
   const searchable = normalizeText(`${result.title} ${result.url}`)
   const normalizedPermit = normalizeText(input.permit)
+
   const permitKeywords = normalizedPermit
     .split(' ')
     .filter((keyword) => keyword.length > 2)
+
   const matchingKeywords = permitKeywords.filter((keyword) =>
     includesPhrase(searchable, keyword),
   ).length
+
   const matchesAllKeywords =
     permitKeywords.length > 0 && matchingKeywords === permitKeywords.length
+
   const isPdf = result.url.toLowerCase().endsWith('.pdf')
+
   const cityGovernmentTitle =
     includesPhrase(normalizedTitle, `city of ${normalizeText(city.name)}`) ||
     includesPhrase(normalizedTitle, `${normalizeText(city.name)} city`)
@@ -352,6 +364,7 @@ function rankResult(result: PermitSearchResult, input: PermitSearchInput) {
 function urlLooksLikeOfficialFile(value: string) {
   try {
     const pathname = new URL(value).pathname.toLowerCase()
+
     return (
       pathname.includes('/files/') ||
       pathname.includes('/documents/') ||
@@ -375,15 +388,19 @@ function rankExtractionPage(
   input: PermitSearchInput,
 ) {
   const title = normalizeText(result.title)
+
   const searchable = normalizeText(
     `${result.title} ${result.description} ${result.url}`,
   )
+
   const permitKeywords = normalizeText(input.permit)
     .split(' ')
     .filter((keyword) => keyword.length > 2)
+
   const matchingKeywords = permitKeywords.filter((keyword) =>
     includesPhrase(searchable, keyword),
   ).length
+
   let rank = rankResult(result, input) + matchingKeywords * 100
 
   if (title === 'permits' || title === 'permit') {
@@ -425,11 +442,13 @@ function deduplicateResults(results: Array<PermitSearchResult>) {
 
   return results.filter((result) => {
     const normalizedUrl = result.url.replace(/\/$/, '')
+
     if (urls.has(normalizedUrl)) {
       return false
     }
 
     urls.add(normalizedUrl)
+
     return true
   })
 }

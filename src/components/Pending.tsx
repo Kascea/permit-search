@@ -14,6 +14,7 @@ export function Pending({
   children: ReactNode
 }) {
   if (!isPending) return children
+
   return (
     <>
       <span

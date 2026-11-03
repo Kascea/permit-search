@@ -26,15 +26,19 @@ async function loadDrafts(signedIn: boolean): Promise<Array<SidebarDraft>> {
     title: draftTitle(draft.sourceUrl),
     updatedAt: draft.updatedAt,
   }))
+
   const account = signedIn ? ((await listAccountDrafts()) ?? []) : []
 
   const byUrl = new Map<string, SidebarDraft>()
+
   for (const draft of [...account, ...local]) {
     const existing = byUrl.get(draft.sourceUrl)
+
     if (!existing || existing.updatedAt < draft.updatedAt) {
       byUrl.set(draft.sourceUrl, draft)
     }
   }
+
   return [...byUrl.values()].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   )
@@ -64,6 +68,7 @@ export function DraftSidebar({
     loadDrafts(signedIn)
       .then((loaded) => {
         cachedDrafts = loaded
+
         if (!cancelled) {
           setDrafts(loaded)
           setError(false)
@@ -72,19 +77,23 @@ export function DraftSidebar({
       .catch(() => {
         if (!cancelled) setError(true)
       })
+
     return () => {
       cancelled = true
     }
   }, [signedIn, refreshKey])
 
   const draftsByUrl = new Map(drafts?.map((draft) => [draft.sourceUrl, draft]))
+
   const projectUrls = new Set(
     projects?.flatMap(({ items }) => items.map(({ sourceUrl }) => sourceUrl)),
   )
+
   // PDFs in a project are listed there, so drafts only lists the rest.
   const otherDrafts = drafts?.filter(
     ({ sourceUrl }) => !projectUrls.has(sourceUrl),
   )
+
   const hasProjects = projects !== undefined && projects.length > 0
 
   return (
@@ -121,6 +130,7 @@ export function DraftSidebar({
                   const hasCurrent = project.items.some(
                     ({ sourceUrl }) => sourceUrl === currentUrl,
                   )
+
                   return (
                     <li key={project.publicId}>
                       {/* The project with the open PDF starts expanded, or the
@@ -169,6 +179,7 @@ export function DraftSidebar({
                           <ul className="pb-1">
                             {project.items.map((item) => {
                               const draft = draftsByUrl.get(item.sourceUrl)
+
                               return (
                                 <li key={item.sourceUrl}>
                                   <PdfLink
@@ -328,10 +339,14 @@ function hostname(url: string) {
 // "Just now", "5 min ago", "3 hr ago", or a date.
 function timeAgo(iso: string) {
   const minutes = Math.round((Date.now() - Date.parse(iso)) / 60_000)
+
   if (minutes < 1) return 'Just now'
+
   if (minutes < 60) return `${minutes} min ago`
   const hours = Math.round(minutes / 60)
+
   if (hours < 24) return `${hours} hr ago`
+
   return new Date(iso).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

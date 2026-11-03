@@ -30,16 +30,23 @@ export interface ContactCandidates {
 
 const PHONE_PATTERN = /(?:\+?1[\s.-]?)?\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/g
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
+
 const STREET_PATTERN =
   /\b\d{2,6}\s+(?:[NSEW]\.?\s+)?[A-Za-z0-9.' -]{2,40}?\s(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Way|Parkway|Pkwy|Court|Ct|Place|Pl|Highway|Hwy|Circle|Cir|Trail|Trl|Square|Sq)\b\.?(?:\s+(?:North|South|East|West|Northeast|Northwest|Southeast|Southwest|NE|NW|SE|SW|N|S|E|W)\b\.?)?(?:,?\s*(?:Suite|Ste|Room|Rm|Floor|Fl)\.?\s*[\w-]+)?(?:,?\s*[A-Za-z .'-]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?)?/g
+
 const ZIP_LINE_PATTERN = /^[A-Za-z .'-]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?$/
+
 const DAY_PATTERN =
   /\b(?:Mon(?:day)?|Tue(?:s|sday)?|Wed(?:nesday)?|Thu(?:rs|rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?|weekdays)\b/i
+
 const TIME_PATTERN = /\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)/i
+
 const OFFICE_NAME_PATTERN =
   /\b(?:Department|Division|Inspections?|Building|Planning|Zoning|Development|Permits?|Code Enforcement|Community Services)\b/i
+
 const CONTACT_LINK_PATTERN =
   /\b(?:contact|inspections?|building|planning|zoning|permits?|development services)\b/i
+
 const PORTAL_PATTERN =
   /\be-?permits?\b|apply online|online permit|permit portal|permitting portal|citizen ?access|accela|etrakit|energov|tylerhost|viewpointcloud|cityview|permits online/i
 
@@ -68,26 +75,32 @@ export function extractContactCandidates(
         context,
       })
     }
+
     for (const match of line.matchAll(EMAIL_PATTERN)) {
       addCandidate(emails, match[0].toLowerCase(), {
         value: match[0].toLowerCase(),
         context,
       })
     }
+
     for (const match of line.matchAll(STREET_PATTERN)) {
       let address = match[0].trim()
       const nextLine = lines.at(index + 1) ?? ''
+
       if (!/\d{5}/.test(address) && ZIP_LINE_PATTERN.test(nextLine)) {
         address = `${address}, ${nextLine}`
       }
+
       addCandidate(addresses, address.toLowerCase(), {
         value: address,
         context,
       })
     }
+
     // Days and times are often on separate lines: "Monday — Friday" then
     // "7:45 a.m. — 4:30 p.m.".
     const nextLine = lines.at(index + 1) ?? ''
+
     const hoursLine =
       DAY_PATTERN.test(line) &&
       !TIME_PATTERN.test(line) &&
@@ -95,6 +108,7 @@ export function extractContactCandidates(
       !DAY_PATTERN.test(nextLine)
         ? `${line}, ${nextLine}`
         : line
+
     if (
       hoursLine.length <= 120 &&
       DAY_PATTERN.test(hoursLine) &&
@@ -108,6 +122,7 @@ export function extractContactCandidates(
             : contextFor([...lines.slice(0, index), hoursLine], index),
       })
     }
+
     if (
       line.length <= 80 &&
       OFFICE_NAME_PATTERN.test(line) &&
@@ -120,25 +135,30 @@ export function extractContactCandidates(
   for (const link of links) {
     if (link.url.startsWith('mailto:')) {
       const email = decodeURIComponent(link.url.slice(7).split('?')[0])
+
       if (EMAIL_PATTERN.test(email)) {
         addCandidate(emails, email.toLowerCase(), {
           value: email.toLowerCase(),
           context: link.text || email,
         })
       }
+
       EMAIL_PATTERN.lastIndex = 0
     }
   }
 
   const webLinks = links.filter(({ url }) => url.startsWith('http'))
+
   const portalLinks = uniqueLinks(
     webLinks.filter(
       ({ url, text }) => PORTAL_PATTERN.test(text) || PORTAL_PATTERN.test(url),
     ),
   )
+
   const contactLinks = uniqueLinks(
     webLinks.filter(({ url, text }) => {
       const target = new URL(url)
+
       return (
         target.hostname === page.hostname &&
         target.pathname !== page.pathname &&
@@ -190,20 +210,25 @@ function htmlToLines(html: string) {
 
 function extractLinks(html: string, page: URL): Array<PageLink> {
   const links: Array<PageLink> = []
+
   for (const match of html.matchAll(
     /<a\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
   )) {
     const text = decodeEntities(match[2].replace(/<[^>]+>/g, ' '))
       .replace(/\s+/g, ' ')
       .trim()
+
     const href = decodeEntities(match[1].trim())
+
     if (href.startsWith('mailto:')) {
       links.push({ url: href, text })
       continue
     }
+
     try {
       const url = new URL(href, page)
       url.hash = ''
+
       if (url.protocol === 'https:' || url.protocol === 'http:') {
         links.push({ url: url.toString(), text })
       }
@@ -211,19 +236,23 @@ function extractLinks(html: string, page: URL): Array<PageLink> {
       // Not a usable URL.
     }
   }
+
   return links
 }
 
 function extractTitle(html: string) {
   const match = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)
+
   return match ? decodeEntities(match[1]).replace(/\s+/g, ' ').trim() : ''
 }
 
 // A line alone is often just "952.924.2588", so include the line before it.
 function contextFor(lines: Array<string>, index: number) {
   const line = lines[index]
+
   const context =
     line.length < 40 && index > 0 ? `${lines[index - 1]} — ${line}` : line
+
   return context.slice(0, MAX_CONTEXT_LENGTH)
 }
 
@@ -239,11 +268,14 @@ function addCandidate(
 
 function uniqueLinks(links: Array<PageLink>) {
   const seen = new Set<string>()
+
   return links.filter(({ url }) => {
     if (seen.has(url)) {
       return false
     }
+
     seen.add(url)
+
     return true
   })
 }

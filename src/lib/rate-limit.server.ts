@@ -8,9 +8,11 @@ import { UserError } from '#/lib/errors'
 // client IP, as in local development, nothing is limited.
 export async function limitRequest(action: string, headers: Headers) {
   const ip = headers.get('cf-connecting-ip')
+
   if (!ip) return
 
   const { success } = await env.RATE_LIMITER.limit({ key: `${action}:${ip}` })
+
   if (!success) {
     throw new UserError('Too many requests. Wait a minute, then try again.')
   }

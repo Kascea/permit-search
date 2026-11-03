@@ -23,6 +23,7 @@ export const Route = createFileRoute('/drafts')({
       listAccountDrafts(),
       listAccountProjects(),
     ])
+
     return { drafts, projects }
   },
   component: Drafts,
@@ -37,6 +38,7 @@ function Drafts() {
   const [lastLoaded, setLastLoaded] = useState(loaded)
   // The header owns the search modal; the empty state opens it too.
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+
   if (loaded !== lastLoaded) {
     setLastLoaded(loaded)
     setProjects(loaded.projects)
@@ -101,6 +103,7 @@ function DraftList({
   async function remove(draft: DraftSummary) {
     if (!window.confirm(`Delete your draft of “${draft.title}”?`)) return
     setDeletingId(draft.publicId)
+
     try {
       await deleteAccountDraft({ data: { publicId: draft.publicId } })
       await router.invalidate()
@@ -133,6 +136,7 @@ function DraftList({
           const project = projects.find((each) =>
             each.items.some((item) => item.sourceUrl === draft.sourceUrl),
           )
+
           return (
             <li
               key={draft.publicId}

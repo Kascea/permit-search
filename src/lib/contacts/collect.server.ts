@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers'
+import { z } from 'zod'
 
 import {
   buildContactReviewRequest,
@@ -38,27 +39,33 @@ export async function collectCityContacts(
   const city = `${input.name}, ${input.region}`
   const visited = new Set<string>()
   const offices = new Map<OfficeType, OfficeContact>()
-  // Assigned inside reviewPages, so TypeScript can't narrow it from null.
+  // SAFETY: only widens. It's assigned inside reviewPages, so with a plain
+  // annotation TypeScript would keep it narrowed to null afterwards.
   let portalUrl = null as string | null
   const contactLinks: Array<PageLink> = []
 
   const reviewPages = async (urls: Array<string>) => {
     const pending = urls.filter((url) => !visited.has(url))
     pending.forEach((url) => visited.add(url))
+
     const results = await Promise.all(
       pending.map((url) => reviewPage(city, url)),
     )
+
     for (const result of results) {
       if (!result) {
         continue
       }
+
       contactLinks.push(...result.contactLinks)
       portalUrl ??= result.portalUrl
+
       if (result.office) {
         mergeOffice(offices, result.office)
       }
     }
   }
+
   const hasReachableOffice = () =>
     [...offices.values()].some(({ phone, email }) => phone || email)
 
@@ -73,6 +80,7 @@ export async function collectCityContacts(
   if (!hasReachableOffice()) {
     const searchUrls = await searchContactPages(input)
     await reviewPages(searchUrls)
+
     if (!hasReachableOffice()) {
       await reviewPages(
         contactLinks
@@ -83,6 +91,7 @@ export async function collectCityContacts(
   }
 
   const officeList = [...offices.values()]
+
   const status = officeList.some(
     ({ phone, email, streetAddress }) =>
       (phone || email) && (streetAddress || (phone && email)),
@@ -111,11 +120,13 @@ export async function collectCityContacts(
 
 async function reviewPage(city: string, url: string) {
   const html = await fetchHtml(url)
+
   if (!html) {
     return null
   }
 
   const candidates = extractContactCandidates(html, url)
+
   if (!hasContactCandidates(candidates)) {
     return {
       office: null,
@@ -127,6 +138,7 @@ async function reviewPage(city: string, url: string) {
   const { answers } = await createTypeSafeClient().systemOne(
     buildContactReviewRequest(city, url, candidates),
   )
+
   const review = readContactReview(url, answers)
 
   console.log(
@@ -165,10 +177,13 @@ function mergeOffice(
   office: OfficeContact,
 ) {
   const existing = offices.get(office.officeType)
+
   if (!existing) {
     offices.set(office.officeType, office)
+
     return
   }
+
   offices.set(office.officeType, {
     ...existing,
     name: existing.name ?? office.name,
@@ -182,6 +197,7 @@ function mergeOffice(
 async function fetchHtml(url: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), PAGE_FETCH_TIMEOUT_MS)
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -191,7 +207,9 @@ async function fetchHtml(url: string) {
       redirect: 'follow',
       signal: controller.signal,
     })
+
     const contentType = response.headers.get('content-type') ?? ''
+
     if (!response.ok || !contentType.toLowerCase().includes('text/html')) {
       console.warn(
         JSON.stringify({
@@ -201,8 +219,10 @@ async function fetchHtml(url: string) {
           contentType,
         }),
       )
+
       return null
     }
+
     return await response.text()
   } catch (error) {
     console.warn(
@@ -212,11 +232,19 @@ async function fetchHtml(url: string) {
         error: error instanceof Error ? error.message : String(error),
       }),
     )
+
     return null
   } finally {
     clearTimeout(timeout)
   }
 }
+
+// A result without a URL reads as "", which no filter keeps.
+const contactSearchResponseSchema = z.object({
+  results: z
+    .array(z.object({ url: z.string().catch('') }).catch({ url: '' }))
+    .catch([]),
+})
 
 // Official-looking pages that mention the city, from one Tavily search.
 async function searchContactPages({ name, region }: CollectInput) {
@@ -241,20 +269,22 @@ async function searchContactPages({ name, region }: CollectInput) {
       }),
       signal: controller.signal,
     })
+
     if (!response.ok) {
       throw new Error(`Tavily returned ${response.status}`)
     }
 
-    const payload = await response.json<{
-      results?: Array<{ url?: unknown }>
-    }>()
+    const payload = contactSearchResponseSchema.parse(await response.json())
+
     const compactName = name.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const urls = (payload.results ?? [])
-      .map(({ url }) => (typeof url === 'string' ? url : ''))
+
+    const urls = payload.results
+      .map(({ url }) => url)
       .filter((url) => {
         try {
           const { hostname, pathname } = new URL(url)
           const host = hostname.replace(/^www\./, '')
+
           return (
             (host.endsWith('.gov') ||
               host.endsWith('.us') ||
@@ -270,6 +300,7 @@ async function searchContactPages({ name, region }: CollectInput) {
     console.log(
       JSON.stringify({ message: 'contact search completed', query, urls }),
     )
+
     return urls
   } finally {
     clearTimeout(timeout)

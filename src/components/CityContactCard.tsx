@@ -23,6 +23,7 @@ export function CityContactCard({
   ) {
     return null
   }
+
   const office = contacts.primaryOffice
 
   return (
@@ -132,6 +133,7 @@ export function CityContactCard({
 
 function OfficeDetails({ office }: { office: OfficeContact }) {
   const rows: Array<{ label: string; value: React.ReactNode }> = []
+
   if (office.phone) {
     rows.push({
       label: 'Phone',
@@ -142,6 +144,7 @@ function OfficeDetails({ office }: { office: OfficeContact }) {
       ),
     })
   }
+
   if (office.email) {
     rows.push({
       label: 'Email',
@@ -155,9 +158,11 @@ function OfficeDetails({ office }: { office: OfficeContact }) {
       ),
     })
   }
+
   if (office.streetAddress) {
     rows.push({ label: 'Address', value: office.streetAddress })
   }
+
   if (office.hours) {
     rows.push({ label: 'Hours', value: office.hours })
   }

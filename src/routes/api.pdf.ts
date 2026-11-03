@@ -9,6 +9,7 @@ export const Route = createFileRoute('/api/pdf')({
     handlers: {
       GET: async ({ request }) => {
         const sourceUrl = new URL(request.url).searchParams.get('url')
+
         if (!sourceUrl) {
           return Response.json(
             { error: 'A PDF URL is required.' },
@@ -46,6 +47,7 @@ export const Route = createFileRoute('/api/pdf')({
               }),
             )
           }
+
           return Response.json(
             { error: errorMessage(error, 'The PDF could not be opened.') },
             { status: 502 },

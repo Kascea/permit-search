@@ -67,6 +67,7 @@ function Projects() {
             <ul className="mt-6 divide-y divide-ink/20 border-t border-b border-ink">
               {projects.map((project) => {
                 const address = formatProjectAddress(project)
+
                 return (
                   <li key={project.publicId} className="relative">
                     <Link

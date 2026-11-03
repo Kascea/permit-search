@@ -68,6 +68,7 @@ export async function runSavedSearch(
           .orderBy(desc(searches.createdAt))
           .limit(1)
       ).at(0)
+
       if (!match) {
         return null
       }
@@ -84,6 +85,7 @@ export async function runSavedSearch(
         wasReused: true,
         userId: await userIdRequest,
       })
+
       return match.publicId
     })
   })
@@ -96,6 +98,7 @@ export async function runSavedSearch(
         publicId: reused,
       }),
     )
+
     return { publicId: reused, wasReused: true }
   }
 
@@ -105,6 +108,7 @@ export async function runSavedSearch(
     withDatabase((db) => upsertCity(db, { name: input.city.name, region })),
     userIdRequest,
   ])
+
   const reuseUntil = new Date()
   reuseUntil.setUTCDate(reuseUntil.getUTCDate() + SEARCH_REUSE_DAYS)
 
@@ -125,9 +129,11 @@ export async function runSavedSearch(
           reuseUntil,
         })
         .returning({ id: searches.id, publicId: searches.publicId })
+
       await tx
         .insert(searchRequests)
         .values({ searchId: saved.id, wasReused: false, userId })
+
       return saved.publicId
     }),
   )
@@ -135,6 +141,7 @@ export async function runSavedSearch(
   console.log(
     JSON.stringify({ message: 'saved new search', queryKey, publicId, fresh }),
   )
+
   return { publicId, wasReused: false }
 }
 
@@ -158,6 +165,7 @@ export async function loadSavedSearch(
         .limit(1)
     ).at(0),
   )
+
   if (!row) {
     return null
   }
@@ -191,6 +199,7 @@ export async function loadSearchSummary(
         .limit(1)
     ).at(0),
   )
+
   return row
     ? {
         publicId: row.publicId,

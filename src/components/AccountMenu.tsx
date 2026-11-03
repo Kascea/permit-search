@@ -20,14 +20,20 @@ export function AccountMenu({ withNav = false }: { withNav?: boolean }) {
     if (!isOpen) return
 
     function closeOnOutside(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setIsOpen(false)
+      if (
+        !(event.target instanceof Node && menuRef.current?.contains(event.target))
+      ) {
+        setIsOpen(false)
+      }
     }
+
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') setIsOpen(false)
     }
 
     document.addEventListener('pointerdown', closeOnOutside)
     document.addEventListener('keydown', closeOnEscape)
+
     return () => {
       document.removeEventListener('pointerdown', closeOnOutside)
       document.removeEventListener('keydown', closeOnEscape)
@@ -40,10 +46,13 @@ export function AccountMenu({ withNav = false }: { withNav?: boolean }) {
     setIsBusy(true)
     const { error } = await settled(authClient.signOut())
     setIsBusy(false)
+
     if (error) {
       toast.error('You couldn’t be signed out. Try again.')
+
       return
     }
+
     setIsOpen(false)
     await router.invalidate()
   }

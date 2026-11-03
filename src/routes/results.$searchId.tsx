@@ -18,9 +18,11 @@ export const Route = createFileRoute('/results/$searchId')({
     const saved = /^[A-Za-z0-9]{8,16}$/.test(params.searchId)
       ? await getSavedSearch({ data: { publicId: params.searchId } })
       : null
+
     if (!saved) {
       throw notFound()
     }
+
     return saved
   },
   component: SavedResults,

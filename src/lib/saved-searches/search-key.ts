@@ -13,6 +13,7 @@ export const SEARCH_REUSE_DAYS = 7
 export const SEARCH_REFRESH_HOURS = 24
 
 const PUBLIC_ID_LENGTH = 12
+
 const PUBLIC_ID_ALPHABET =
   'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
@@ -63,9 +64,11 @@ function singularize(word: string) {
   if (word.length > 4 && word.endsWith('ies')) {
     return `${word.slice(0, -3)}y`
   }
+
   if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) {
     return word.slice(0, -1)
   }
+
   return word
 }
 
@@ -77,6 +80,7 @@ export function searchKey(name: string, region: string, permit: string) {
 // Random and URL-safe, without look-alike characters (0/O, 1/l/I).
 export function newPublicId() {
   const bytes = crypto.getRandomValues(new Uint8Array(PUBLIC_ID_LENGTH))
+
   return Array.from(
     bytes,
     (byte) => PUBLIC_ID_ALPHABET[byte % PUBLIC_ID_ALPHABET.length],

@@ -32,6 +32,7 @@ export async function reviewPermitLinks(
 
   const client = createTypeSafeClient()
   const batches: Array<Array<PermitSearchResult>> = []
+
   for (let start = 0; start < links.length; start += LINKS_PER_REQUEST) {
     batches.push(links.slice(start, start + LINKS_PER_REQUEST))
   }
@@ -42,6 +43,7 @@ export async function reviewPermitLinks(
         const { answers } = await client.systemOne(
           buildLinkReviewRequest(input, batch, permitTypes),
         )
+
         return readLinkReviews(batch, answers, permitTypes).map(
           (review, index) => ({
             link: batch[index],
@@ -52,6 +54,7 @@ export async function reviewPermitLinks(
         )
       }),
     )
+
     const results = reviewed.flat()
 
     for (const { link, review, rejectionReasons: reasons } of results) {
@@ -60,11 +63,12 @@ export async function reviewPermitLinks(
           message: reasons.length > 0 ? 'jev dropped link' : 'jev kept link',
           url: link.url,
           title: link.title,
-          ...(reasons.length > 0 ? { reasons } : {}),
+          reasons: reasons.length > 0 ? reasons : undefined,
           scores: review,
         }),
       )
     }
+
     console.log(
       JSON.stringify({
         message: 'jev link review completed',

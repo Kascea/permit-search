@@ -79,6 +79,7 @@ export const PERMIT_TYPES: Array<PermitType> = [
 
 export function buildPermitTypeRequest(input: PermitSearchInput) {
   const questions: Record<string, NoulQuestion> = {}
+
   for (const permitType of PERMIT_TYPES) {
     questions[permitType.id] = noul(
       `Does the project in \`project\` include ${permitType.scope}?`,
@@ -96,13 +97,17 @@ export function readPermitTypeScores(
   answers: Record<string, { noul: number } | undefined>,
 ) {
   const scores: Record<string, number> = {}
+
   for (const permitType of PERMIT_TYPES) {
     const answer = answers[permitType.id]
-    if (typeof answer?.noul !== 'number') {
+
+    if (answer === undefined) {
       throw new Error(`Permit type review is missing answer ${permitType.id}.`)
     }
+
     scores[permitType.id] = answer.noul
   }
+
   return scores
 }
 

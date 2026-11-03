@@ -30,18 +30,23 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
   const messageId = useId()
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
   const [status, setStatus] = useState<'editing' | 'sending' | 'sent'>(
     'editing',
   )
 
   async function submitReport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if (!message.trim()) {
       setError('Tell us what’s wrong with the results.')
+
       return
     }
+
     setError('')
     setStatus('sending')
+
     try {
       await reportResults({ data: { publicId: searchId, message } })
       setStatus('sent')

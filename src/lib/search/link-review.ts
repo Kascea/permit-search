@@ -21,15 +21,18 @@ export type LinkReview = Record<LinkJudgment, number>
 function linkQuestions(
   link: PermitSearchResult,
   askNeededPermit: boolean,
-): Partial<Record<LinkJudgment, NoulQuestion>> {
+): Map<LinkJudgment, NoulQuestion> {
   const subject = {
     title: link.title,
     url: link.url,
     description: link.description,
   }
 
-  return {
-    rightJurisdiction: noul(
+  const questions = new Map<LinkJudgment, NoulQuestion>()
+
+  questions.set(
+    'rightJurisdiction',
+    noul(
       {
         question:
           'Is `link` published by a government that issues permits for the city in `search.city`?',
@@ -41,7 +44,11 @@ function linkQuestions(
           "The link is from another city's government, a permit-service company, a contractor, a news site, or a forum.",
       },
     ),
-    rightPermit: noul(
+  )
+
+  questions.set(
+    'rightPermit',
+    noul(
       {
         question:
           'Is `link` mainly about the permit described in `search.permit`?',
@@ -53,23 +60,29 @@ function linkQuestions(
           'The link covers a different permit, or names this permit only as one row in a longer list such as a fee schedule, city code, or index of permits.',
       },
     ),
-    ...(askNeededPermit
-      ? {
-          neededPermit: noul(
-            {
-              question:
-                'Is `link` mainly about one of the permits in `search.permitsNeeded`?',
-              link: subject,
-            },
-            {
-              true: 'The link is dedicated to one of those permits, such as its application, handout, or requirements page.',
-              false:
-                'The link covers a different kind of permit, or names these permits only as rows in a longer list such as a fee schedule, city code, or index of permits.',
-            },
-          ),
-        }
-      : {}),
-    actionableDocument: noul(
+  )
+
+  if (askNeededPermit) {
+    questions.set(
+      'neededPermit',
+      noul(
+        {
+          question:
+            'Is `link` mainly about one of the permits in `search.permitsNeeded`?',
+          link: subject,
+        },
+        {
+          true: 'The link is dedicated to one of those permits, such as its application, handout, or requirements page.',
+          false:
+            'The link covers a different kind of permit, or names these permits only as rows in a longer list such as a fee schedule, city code, or index of permits.',
+        },
+      ),
+    )
+  }
+
+  questions.set(
+    'actionableDocument',
+    noul(
       {
         question:
           'Is `link` an application form, a checklist, or a list of submittal requirements?',
@@ -81,9 +94,13 @@ function linkQuestions(
           'The link is a general department landing page, a news article, a meeting agenda, or a staff directory.',
       },
     ),
-    // Read only when no specific link survives, to fall back to the city's
-    // general permit pages.
-    generalPermitsPage: noul(
+  )
+
+  // Read only when no specific link survives, to fall back to the city's
+  // general permit pages.
+  questions.set(
+    'generalPermitsPage',
+    noul(
       {
         question:
           'Is `link` a general permits page or an online permit application portal?',
@@ -95,7 +112,17 @@ function linkQuestions(
           'The link is about one specific permit, or about something other than permits, such as police, parking, or events.',
       },
     ),
-  }
+  )
+
+  return questions
+}
+
+// The search as the review questions see it. A type, not an interface, so it
+// fits the SDK's state type.
+type ReviewedSearch = {
+  city: string
+  permit: string
+  permitsNeeded?: Array<string>
 }
 
 export function buildLinkReviewRequest(
@@ -105,26 +132,23 @@ export function buildLinkReviewRequest(
 ) {
   const askNeededPermit = permitTypes.length > 0
   const questions: Record<string, NoulQuestion> = {}
+
   links.forEach((link, index) => {
-    for (const [judgment, question] of Object.entries(
-      linkQuestions(link, askNeededPermit),
-    )) {
-      questions[questionKey(index, judgment as LinkJudgment)] = question
+    for (const [judgment, question] of linkQuestions(link, askNeededPermit)) {
+      questions[questionKey(index, judgment)] = question
     }
   })
 
-  return {
-    state: {
-      search: {
-        city: `${input.city.name}, ${input.city.region}`,
-        permit: input.permit,
-        ...(askNeededPermit
-          ? { permitsNeeded: permitTypes.map(({ name }) => name) }
-          : {}),
-      },
-    },
-    questions,
+  const search: ReviewedSearch = {
+    city: `${input.city.name}, ${input.city.region}`,
+    permit: input.permit,
   }
+
+  if (askNeededPermit) {
+    search.permitsNeeded = permitTypes.map(({ name }) => name)
+  }
+
+  return { state: { search }, questions }
 }
 
 export function readLinkReviews(
@@ -132,19 +156,28 @@ export function readLinkReviews(
   answers: Record<string, { noul: number } | undefined>,
   permitTypes: Array<PermitType>,
 ): Array<LinkReview> {
-  return links.map((_, index) => {
-    const review = { neededPermit: 0 } as LinkReview
-    for (const judgment of Object.keys(
-      linkQuestions(links[index], permitTypes.length > 0),
-    ) as Array<LinkJudgment>) {
+  return links.map((link, index) => {
+    // neededPermit stays 0 when it isn't asked.
+    const review: LinkReview = {
+      rightJurisdiction: 0,
+      rightPermit: 0,
+      neededPermit: 0,
+      actionableDocument: 0,
+      generalPermitsPage: 0,
+    }
+
+    for (const judgment of linkQuestions(link, permitTypes.length > 0).keys()) {
       const answer = answers[questionKey(index, judgment)]
-      if (typeof answer?.noul !== 'number') {
+
+      if (answer === undefined) {
         throw new Error(
           `Link review is missing answer ${questionKey(index, judgment)}.`,
         )
       }
+
       review[judgment] = answer.noul
     }
+
     return review
   })
 }
@@ -158,16 +191,19 @@ function permitMatch(review: LinkReview) {
 // Empty when the link is kept.
 export function rejectionReasons(review: LinkReview) {
   const reasons: Array<string> = []
+
   if (review.rightJurisdiction <= NO_THRESHOLD) {
     reasons.push(
       `not from this city's government (${review.rightJurisdiction.toFixed(2)})`,
     )
   }
+
   if (permitMatch(review) <= NO_THRESHOLD) {
     reasons.push(
       `not about this project or a permit it needs (${permitMatch(review).toFixed(2)})`,
     )
   }
+
   return reasons
 }
 

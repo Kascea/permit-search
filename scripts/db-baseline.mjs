@@ -8,9 +8,11 @@ import { readFileSync } from 'node:fs'
 import pg from 'pg'
 
 process.loadEnvFile()
+
 const client = new pg.Client({
   connectionString: process.env.MIGRATION_DATABASE_URL,
 })
+
 await client.connect()
 
 try {
@@ -24,26 +26,32 @@ try {
     hash text NOT NULL,
     created_at bigint
   )`)
+
   const recorded = await client.query(
     'SELECT hash FROM drizzle.__drizzle_migrations',
   )
+
   const recordedHashes = new Set(recorded.rows.map(({ hash }) => hash))
 
   const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8'))
   const result = { recorded: [], alreadyRecorded: [], notApplied: [] }
+
   for (const { tag, when } of journal.entries) {
     if (!applied.has(tag)) {
       result.notApplied.push(tag)
       continue
     }
+
     // Drizzle identifies a migration by the SHA-256 of its SQL file.
     const hash = createHash('sha256')
       .update(readFileSync(`drizzle/${tag}.sql`, 'utf8'))
       .digest('hex')
+
     if (recordedHashes.has(hash)) {
       result.alreadyRecorded.push(tag)
       continue
     }
+
     await client.query(
       'INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ($1, $2)',
       [hash, when],

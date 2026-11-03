@@ -20,6 +20,7 @@ export async function listHistory(
   userId: string,
 ): Promise<Array<HistoryItem>> {
   const lastSearchedAt = max(searchRequests.requestedAt)
+
   const rows = await db
     .select({
       publicId: searches.publicId,

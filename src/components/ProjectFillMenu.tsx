@@ -36,14 +36,20 @@ export function ProjectFillMenu({
     if (!isOpen) return
 
     function closeOnOutside(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) setIsOpen(false)
+      if (
+        !(event.target instanceof Node && menuRef.current?.contains(event.target))
+      ) {
+        setIsOpen(false)
+      }
     }
+
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') setIsOpen(false)
     }
 
     document.addEventListener('pointerdown', closeOnOutside)
     document.addEventListener('keydown', closeOnEscape)
+
     return () => {
       document.removeEventListener('pointerdown', closeOnOutside)
       document.removeEventListener('keydown', closeOnEscape)
@@ -52,6 +58,7 @@ export function ProjectFillMenu({
 
   async function addToProject(target: Project) {
     setIsAdding(true)
+
     try {
       setAccountProjects(
         await addToAccountProject({
@@ -66,6 +73,7 @@ export function ProjectFillMenu({
   }
 
   const fillCount = project ? (fillCounts.get(project.publicId) ?? 0) : 0
+
   const isInProject =
     project?.items.some(({ sourceUrl }) => sourceUrl === item.sourceUrl) ??
     false
@@ -133,6 +141,7 @@ export function ProjectFillMenu({
               <ul className="min-h-0 flex-1 overflow-y-auto py-1">
                 {projects.map((each) => {
                   const count = fillCounts.get(each.publicId) ?? 0
+
                   return (
                     <li
                       key={each.publicId}

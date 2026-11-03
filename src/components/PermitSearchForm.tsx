@@ -29,9 +29,11 @@ export function PermitSearchForm({
   onSearch,
 }: PermitSearchFormProps) {
   const permitInputId = useId()
+
   const [cityInput, setCityInput] = useState(
     initialCity ? formatCity(initialCity) : '',
   )
+
   const [selectedCity, setSelectedCity] = useState(initialCity)
   const [permitQuery, setPermitQuery] = useState(initialPermit)
   const [formError, setFormError] = useState('')
@@ -60,6 +62,7 @@ export function PermitSearchForm({
           const city = await locateCity({
             data: { latitude: coords.latitude, longitude: coords.longitude },
           })
+
           selectCity(city)
         } catch (error) {
           setLocationError(
@@ -88,10 +91,12 @@ export function PermitSearchForm({
 
     if (!cityValue || !permitValue) {
       setFormError('Enter a city and describe the permit you need.')
+
       return
     }
 
     const manualParts = cityValue.split(',').map((part) => part.trim())
+
     const city =
       selectedCity ??
       ({
@@ -104,6 +109,7 @@ export function PermitSearchForm({
       setFormError(
         'Select a city and state, then describe the permit you need.',
       )
+
       return
     }
 

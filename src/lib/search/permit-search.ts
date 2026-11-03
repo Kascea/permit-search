@@ -28,6 +28,7 @@ export const startSearch = createServerFn({ method: 'POST' })
     const userId = getSessionUser(new Headers(getRequestHeaders())).then(
       (user) => user?.id ?? null,
     )
+
     return runSavedSearch(data, { fresh: data.fresh, userId })
   })
 
@@ -44,6 +45,7 @@ function validatePublicId(input: { publicId: string }) {
   if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
     throw new UserError('That search link is not valid.')
   }
+
   return input
 }
 

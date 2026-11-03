@@ -1,4 +1,5 @@
 import { bindings, defineConfig } from 'cf/config'
+import type { HyperdriveBinding } from 'cf/config'
 
 // The config runs in Node, which doesn't read .env on its own.
 try {
@@ -11,6 +12,27 @@ try {
 const localDatabaseUrl = process.env.DATABASE_URL?.startsWith('postgres')
   ? process.env.DATABASE_URL
   : undefined
+
+interface DatabaseBindings {
+  DATABASE?: HyperdriveBinding
+}
+
+// The database, when a Hyperdrive config is set up. Without one the app runs
+// with its database features turned off; see hasDatabase().
+function databaseBinding(): DatabaseBindings {
+  const id = process.env.CLOUDFLARE_HYPERDRIVE_ID
+
+  if (!id) return {}
+
+  if (!localDatabaseUrl) return { DATABASE: bindings.hyperdrive({ id }) }
+
+  return {
+    DATABASE: bindings.hyperdrive({
+      id,
+      dev: { connectionString: localDatabaseUrl },
+    }),
+  }
+}
 
 export default defineConfig({
   worker: {
@@ -45,16 +67,7 @@ export default defineConfig({
         namespace: '1001',
         simple: { limit: 10, period: 60 },
       }),
-      ...(process.env.CLOUDFLARE_HYPERDRIVE_ID
-        ? {
-            DATABASE: bindings.hyperdrive({
-              id: process.env.CLOUDFLARE_HYPERDRIVE_ID,
-              ...(localDatabaseUrl
-                ? { dev: { connectionString: localDatabaseUrl } }
-                : {}),
-            }),
-          }
-        : {}),
+      ...databaseBinding(),
     },
   },
 })

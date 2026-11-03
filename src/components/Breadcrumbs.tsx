@@ -19,6 +19,7 @@ export function Breadcrumbs({
   className?: string
 }) {
   const links = Children.toArray(children)
+
   return (
     <nav aria-label="Breadcrumb" className={`min-w-0 ${className}`}>
       <ol className="flex min-w-0 items-center gap-1.5 text-sm">
@@ -65,6 +66,7 @@ export function OriginCrumb({
       </Link>
     )
   }
+
   if (origin.kind === 'project') {
     return (
       <Link
@@ -76,6 +78,7 @@ export function OriginCrumb({
       </Link>
     )
   }
+
   return (
     <Link to="/drafts" className={crumbLinkClass}>
       Drafts

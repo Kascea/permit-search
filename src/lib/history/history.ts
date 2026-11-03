@@ -23,6 +23,7 @@ export const removeSearchHistory = createServerFn({ method: 'POST' })
     ) {
       throw new UserError('That search is not valid.')
     }
+
     return { publicId: input.publicId }
   })
   .handler(async ({ data }) => {

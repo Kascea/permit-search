@@ -84,6 +84,7 @@ function ProjectPicker({
         setProjects([])
         setError('Your projects couldn’t be loaded. Try again.')
       })
+
     return () => {
       isCurrent = false
     }
@@ -109,6 +110,7 @@ function ProjectPicker({
             },
       ),
     )
+
     try {
       update(
         isIn
@@ -129,12 +131,16 @@ function ProjectPicker({
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if (!name.trim()) {
       setError('Give the project a name.')
+
       return
     }
+
     setError('')
     setIsCreating(true)
+
     try {
       const created = await createAccountProject({
         data: {
@@ -145,6 +151,7 @@ function ProjectPicker({
           item,
         },
       })
+
       update(created.projects)
       setName('')
     } catch (createError) {
@@ -181,6 +188,7 @@ function ProjectPicker({
               const isIn = project.items.some(
                 (projectItem) => projectItem.sourceUrl === item.sourceUrl,
               )
+
               return (
                 <li
                   key={project.publicId}
@@ -300,6 +308,7 @@ export function AddToProjectButton({
       </span>
     </>
   )
+
   const className =
     'group/project inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
 

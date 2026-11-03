@@ -62,7 +62,9 @@ function HistoryList({ history }: { history: Array<HistoryItem> }) {
     ) {
       return
     }
+
     setBusyId(publicId ?? 'all')
+
     try {
       await removeSearchHistory({ data: { publicId } })
       await router.invalidate()
@@ -144,6 +146,7 @@ function formatSearched(item: HistoryItem) {
         ? undefined
         : 'numeric',
   })
+
   return item.timesSearched > 1
     ? `Searched ${item.timesSearched} times, last ${date}`
     : `Searched ${date}`

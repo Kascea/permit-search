@@ -25,13 +25,17 @@ export async function loadCity(
     .from(cities)
     .leftJoin(cityOffices, eq(cityOffices.cityId, cities.id))
     .where(eq(cities.cityKey, cityKey(name, region)))
+
   const city = rows.at(0)?.city
+
   if (!city) {
     return null
   }
+
   const offices = rows
     .map(({ office }) => office)
     .filter((office): office is CityOffice => office !== null)
+
   return { city, offices }
 }
 
@@ -47,6 +51,7 @@ export async function upsertCity(
       set: { name, region },
     })
     .returning()
+
   return city
 }
 
@@ -70,6 +75,7 @@ export async function saveCollectedContacts(
         sourceUrl: office.sourceUrl,
         isPrimary: office.officeType === primaryType,
       }
+
       await tx
         .insert(cityOffices)
         .values({ cityId, officeType: office.officeType, ...values })
@@ -122,5 +128,6 @@ export function isFresh(city: City) {
 function daysFromToday(days: number) {
   const date = new Date()
   date.setUTCDate(date.getUTCDate() + days)
+
   return date.toISOString().slice(0, 10)
 }

@@ -4,7 +4,7 @@ import type { Database } from '#/lib/db/client.server'
 import { cities, pdfDrafts, searches } from '#/lib/db/schema'
 import { draftTitle } from '#/lib/drafts/types'
 import type { Draft, DraftSummary } from '#/lib/drafts/types'
-import { searchLabel } from '#/lib/navigation/origin'
+import { searchLinkFromColumns } from '#/lib/navigation/origin'
 import { newPublicId } from '#/lib/saved-searches/search-key'
 
 // Each function takes the request's open connection (see withUserDatabase), so
@@ -109,17 +109,7 @@ export async function listDrafts(
     title: row.title,
     sourceUrl: row.sourceUrl,
     updatedAt: row.updatedAt.toISOString(),
-    ...(row.searchId && row.permit && row.cityName && row.region
-      ? {
-          search: {
-            publicId: row.searchId,
-            label: searchLabel({
-              permit: row.permit,
-              city: { name: row.cityName, region: row.region },
-            }),
-          },
-        }
-      : {}),
+    search: searchLinkFromColumns(row),
   }))
 }
 

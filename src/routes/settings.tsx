@@ -26,6 +26,7 @@ type SignInMethod = 'password' | 'google'
 
 const buttonClass =
   'rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint disabled:cursor-wait disabled:opacity-60'
+
 const secondaryButtonClass =
   'rounded-full border border-ink/35 px-4 py-2 text-sm font-medium transition hover:border-ink disabled:opacity-50'
 
@@ -41,8 +42,10 @@ function Settings() {
         toast.error(
           'Your sign-in details couldn’t be loaded. Reload to try again.',
         )
+
         return
       }
+
       setMethod(
         data.some((account) => account.providerId === 'credential')
           ? 'password'
@@ -122,6 +125,7 @@ function ProfileSection({ user }: { user: AccountUser }) {
   const nameId = useId()
   const [name, setName] = useState(user.name)
   const [isSaving, setIsSaving] = useState(false)
+
   const [message, setMessage] = useState<{
     tone: Tone
     text: string
@@ -130,18 +134,24 @@ function ProfileSection({ user }: { user: AccountUser }) {
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmed = name.trim()
+
     if (!trimmed) {
       setMessage({ tone: 'error', text: 'Enter your name.' })
+
       return
     }
+
     setIsSaving(true)
     setMessage(undefined)
     const { error } = await settled(authClient.updateUser({ name: trimmed }))
     setIsSaving(false)
+
     if (error) {
       setMessage({ tone: 'error', text: 'Your name couldn’t be saved.' })
+
       return
     }
+
     setMessage({ tone: 'success', text: 'Saved.' })
     await router.invalidate()
   }
@@ -217,6 +227,7 @@ function PasswordSection() {
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+
   const [message, setMessage] = useState<{
     tone: Tone
     text: string
@@ -224,27 +235,34 @@ function PasswordSection() {
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if (!current || !next) {
       setMessage({
         tone: 'error',
         text: 'Enter your current and new password.',
       })
+
       return
     }
+
     if (next.length < 8) {
       setMessage({
         tone: 'error',
         text: 'Use a new password with at least 8 characters.',
       })
+
       return
     }
+
     if (next !== confirm) {
       setMessage({ tone: 'error', text: 'The new passwords don’t match.' })
+
       return
     }
 
     setIsSaving(true)
     setMessage(undefined)
+
     const { error } = await settled(
       authClient.changePassword({
         currentPassword: current,
@@ -252,7 +270,9 @@ function PasswordSection() {
         revokeOtherSessions: true,
       }),
     )
+
     setIsSaving(false)
+
     if (error) {
       setMessage({
         tone: 'error',
@@ -261,8 +281,10 @@ function PasswordSection() {
             ? 'Your current password is incorrect.'
             : 'Your password couldn’t be changed.',
       })
+
       return
     }
+
     setCurrent('')
     setNext('')
     setConfirm('')
@@ -358,9 +380,11 @@ function DevicesSection() {
   async function signOutOthers() {
     setIsBusy(true)
     setError('')
+
     const { error: revokeError } = await settled(
       authClient.revokeOtherSessions(),
     )
+
     if (revokeError) setError('Other devices couldn’t be signed out.')
     await load()
     setIsBusy(false)
@@ -408,6 +432,7 @@ function DevicesSection() {
 // "Chrome on macOS" from a user agent string.
 function describeDevice(userAgent?: string | null) {
   if (!userAgent) return 'Unknown device'
+
   const browser = /Edg\//.test(userAgent)
     ? 'Edge'
     : /Firefox\//.test(userAgent)
@@ -417,6 +442,7 @@ function describeDevice(userAgent?: string | null) {
         : /Safari\//.test(userAgent)
           ? 'Safari'
           : 'Browser'
+
   const os = /iPhone|iPad/.test(userAgent)
     ? 'iOS'
     : /Android/.test(userAgent)
@@ -428,6 +454,7 @@ function describeDevice(userAgent?: string | null) {
           : /Linux/.test(userAgent)
             ? 'Linux'
             : ''
+
   return os ? `${browser} on ${os}` : browser
 }
 
@@ -479,16 +506,20 @@ function DeleteAccountForm({
 
   async function deleteAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     if (method === 'password' && !password) {
       setError('Enter your password to confirm.')
+
       return
     }
 
     setError('')
     setIsDeleting(true)
+
     const { error: deleteError } = await settled(
       authClient.deleteUser(method === 'password' ? { password } : {}),
     )
+
     setIsDeleting(false)
 
     if (deleteError) {
@@ -501,6 +532,7 @@ function DeleteAccountForm({
             : 'Your account couldn’t be deleted. Try again.',
         )
       }
+
       return
     }
 

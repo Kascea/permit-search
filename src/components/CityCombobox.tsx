@@ -46,13 +46,16 @@ export function CityCombobox({
 
     if (selectedCity || query.length < 2) {
       showResults([])
+
       return
     }
 
     // Once the list has loaded, searching it is instant.
     const loaded = getLoadedPlaces()
+
     if (loaded) {
       showResults(searchPlaces(loaded, query))
+
       return
     }
 
@@ -63,10 +66,10 @@ export function CityCombobox({
       (places) => {
         if (!cancelled) showResults(searchPlaces(places, query))
       },
-      (loadError: unknown) => {
+      (cause: unknown) => {
         if (cancelled) return
         showResults([])
-        setError(errorMessage(loadError, 'City search is unavailable.'))
+        setError(errorMessage(cause, 'City search is unavailable.'))
       },
     )
 

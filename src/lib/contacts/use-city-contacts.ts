@@ -12,14 +12,17 @@ const requests = new Map<string, Promise<CityContactsResponse | null>>()
 function requestCityContacts(name: string, region: string) {
   const key = cityKey(name, region)
   let request = requests.get(key)
+
   if (!request) {
     request = fetchCityContacts({ data: { name, region } }).catch(() => {
       // The card is optional; let a later page try again.
       requests.delete(key)
+
       return null
     })
     requests.set(key, request)
   }
+
   return request
 }
 
@@ -30,6 +33,7 @@ export function useCityContacts(name: string, region: string) {
     if (!name || !region) {
       return
     }
+
     let cancelled = false
     setContacts(undefined)
     void requestCityContacts(name, region).then((response) => {
@@ -37,6 +41,7 @@ export function useCityContacts(name: string, region: string) {
         setContacts(response ?? undefined)
       }
     })
+
     return () => {
       cancelled = true
     }

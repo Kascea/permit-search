@@ -45,6 +45,7 @@ function NewProject() {
                 const { publicId } = await createAccountProject({
                   data: input,
                 })
+
                 toast.success('Project created.')
                 await navigate({
                   to: '/projects/$projectId',

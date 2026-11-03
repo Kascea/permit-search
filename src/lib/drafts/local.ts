@@ -1,4 +1,4 @@
-import { draftError } from '#/lib/drafts/types'
+import { draftSchema } from '#/lib/drafts/types'
 import type { Draft } from '#/lib/drafts/types'
 
 // Drafts kept in this browser for people who aren't signed in. Storage can be
@@ -8,8 +8,9 @@ const PREFIX = 'permit-search:draft:v1:'
 export function getLocalDraft(sourceUrl: string): Draft | null {
   try {
     const raw = localStorage.getItem(PREFIX + sourceUrl)
-    const draft: unknown = raw ? JSON.parse(raw) : null
-    return draft && !draftError(draft) ? (draft as Draft) : null
+    const draft = draftSchema.safeParse(raw ? JSON.parse(raw) : null)
+
+    return draft.success ? draft.data : null
   } catch {
     return null
   }
@@ -19,6 +20,7 @@ export function getLocalDraft(sourceUrl: string): Draft | null {
 export function saveLocalDraft(draft: Draft) {
   try {
     localStorage.setItem(PREFIX + draft.sourceUrl, JSON.stringify(draft))
+
     return true
   } catch {
     return false

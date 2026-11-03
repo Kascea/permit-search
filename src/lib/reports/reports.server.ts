@@ -22,11 +22,13 @@ export async function saveResultReport({
         .where(eq(searches.publicId, publicId))
         .limit(1)
     ).at(0)
+
     if (!search) {
       throw new UserError('That search no longer exists.')
     }
 
     const dayAgo = new Date(Date.now() - 86_400_000)
+
     const [{ recent }] = await db
       .select({ recent: count() })
       .from(resultReports)
@@ -36,6 +38,7 @@ export async function saveResultReport({
           gt(resultReports.createdAt, dayAgo),
         ),
       )
+
     if (recent >= MAX_REPORTS_PER_SEARCH_PER_DAY) {
       throw new UserError(
         'This search has already been reported several times today. Thanks.',

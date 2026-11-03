@@ -19,16 +19,18 @@ export interface AuthState {
 export const getAuthState = createServerFn({ method: 'GET' }).handler(
   async (): Promise<AuthState> => {
     const user = await getSessionUser(new Headers(getRequestHeaders())).catch(
-      (error: unknown) => {
+      (cause: unknown) => {
         console.error(
           JSON.stringify({
             message: 'session check failed',
-            error: error instanceof Error ? error.message : String(error),
+            error: cause instanceof Error ? cause.message : String(cause),
           }),
         )
+
         return null
       },
     )
+
     return {
       user: user && {
         id: user.id,

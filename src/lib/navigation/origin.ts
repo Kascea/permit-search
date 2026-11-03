@@ -7,13 +7,15 @@ export type Origin =
   | { kind: 'search' | 'project'; id: string }
   | { kind: 'drafts' }
 
-// For validateSearch: the param if it names an origin, else nothing.
-export function parseOrigin(value: unknown): Origin | undefined {
+// The ?from= param's origin, if it names one.
+export function parseOrigin(value: string | undefined): Origin | undefined {
   if (value === 'drafts') return { kind: 'drafts' }
-  if (typeof value !== 'string') return undefined
-  const match = /^(search|project):([A-Za-z0-9]{8,16})$/.exec(value)
-  return match
-    ? { kind: match[1] as 'search' | 'project', id: match[2] }
+
+  const match = /^(search|project):([A-Za-z0-9]{8,16})$/.exec(value ?? '')
+  const kind = match?.[1]
+
+  return match && (kind === 'search' || kind === 'project')
+    ? { kind, id: match[2] }
     : undefined
 }
 
@@ -25,6 +27,30 @@ export function originParam(origin: Origin) {
 export interface SearchLink {
   publicId: string
   label: string
+}
+
+// A row's joined search columns, all null when it wasn't opened from a search.
+export interface SearchColumns {
+  searchId: string | null
+  permit: string | null
+  cityName: string | null
+  region: string | null
+}
+
+export function searchLinkFromColumns(
+  row: SearchColumns,
+): SearchLink | undefined {
+  if (!row.searchId || !row.permit || !row.cityName || !row.region) {
+    return undefined
+  }
+
+  return {
+    publicId: row.searchId,
+    label: searchLabel({
+      permit: row.permit,
+      city: { name: row.cityName, region: row.region },
+    }),
+  }
 }
 
 // How a search is named in breadcrumbs and links: "Fence in Austin, Texas".

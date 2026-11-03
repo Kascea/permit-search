@@ -1,8 +1,13 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import type { Database } from '#/lib/db/client.server'
 import { cities, projectItems, projects, searches } from '#/lib/db/schema'
-import { searchLabel } from '#/lib/navigation/origin'
+import { searchLinkFromColumns } from '#/lib/navigation/origin'
+import {
+  EMPTY_PROJECT_DETAILS,
+  PROJECT_TEXT_FIELDS,
+} from '#/lib/projects/types'
 import type {
   Project,
   ProjectDetails,
@@ -37,7 +42,7 @@ const detailColumns = {
   contractorLicense: projects.contractorLicense,
   contractorPhone: projects.contractorPhone,
   contractorEmail: projects.contractorEmail,
-} satisfies Record<keyof ProjectDetails, unknown>
+} satisfies Record<keyof ProjectDetails, AnyPgColumn>
 
 type DetailRow = {
   [Key in keyof ProjectDetails]: ProjectDetails[Key] extends string
@@ -47,19 +52,23 @@ type DetailRow = {
 
 // Null columns read as "", and "" is stored as null.
 function detailsFromRow(row: DetailRow): ProjectDetails {
-  const details = { ...row } as Record<string, unknown>
-  for (const [key, value] of Object.entries(details)) {
-    if (value === null && key !== 'estimatedCost') details[key] = ''
+  const details: ProjectDetails = {
+    ...EMPTY_PROJECT_DETAILS,
+    estimatedCost: row.estimatedCost,
+    applicantIsOwner: row.applicantIsOwner,
   }
-  return details as unknown as ProjectDetails
+
+  for (const { key } of PROJECT_TEXT_FIELDS) details[key] = row[key] ?? ''
+
+  return details
 }
 
 function detailsToRow(details: ProjectDetails): DetailRow {
-  const row = { ...details } as Record<string, unknown>
-  for (const [key, value] of Object.entries(row)) {
-    if (value === '') row[key] = null
-  }
-  return row as DetailRow
+  const row: DetailRow = { ...details }
+
+  for (const { key } of PROJECT_TEXT_FIELDS) row[key] = details[key] || null
+
+  return row
 }
 
 function inputToRow(input: ProjectInput) {
@@ -87,17 +96,7 @@ function itemFromRow(row: ItemRow): ProjectItem {
   return {
     sourceUrl: row.sourceUrl,
     title: row.title,
-    ...(row.searchId && row.permit && row.cityName && row.region
-      ? {
-          search: {
-            publicId: row.searchId,
-            label: searchLabel({
-              permit: row.permit,
-              city: { name: row.cityName, region: row.region },
-            }),
-          },
-        }
-      : {}),
+    search: searchLinkFromColumns(row),
   }
 }
 
@@ -174,12 +173,14 @@ export async function createProject(
   input: ProjectInput & { item?: ProjectItem },
 ) {
   const publicId = newPublicId()
+
   const insert = db
     .insert(projects)
     .values({ publicId, userId, ...inputToRow(input) })
 
   if (!input.item) {
     await insert
+
     return publicId
   }
 
@@ -190,6 +191,7 @@ export async function createProject(
       ${searchRowId(input.item.searchId)}
     from project
   `)
+
   return publicId
 }
 

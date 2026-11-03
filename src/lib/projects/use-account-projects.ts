@@ -13,11 +13,13 @@ const listeners = new Set<() => void>()
 // Also takes the list a project change returns, so every user sees it.
 export function setAccountProjects(projects: Array<Project> | undefined) {
   cachedProjects = projects
+
   for (const listener of listeners) listener()
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
+
   return () => listeners.delete(listener)
 }
 
@@ -28,14 +30,17 @@ export function useAccountProjects(signedIn: boolean) {
     () => cachedProjects,
     () => undefined,
   )
+
   const [error, setError] = useState(false)
 
   useEffect(() => {
     if (!signedIn) {
       // So the next account to sign in doesn't see these.
       setAccountProjects(undefined)
+
       return
     }
+
     let cancelled = false
     // Components mounting together share one request.
     pending ??= listAccountProjects()
@@ -51,6 +56,7 @@ export function useAccountProjects(signedIn: boolean) {
         if (!cancelled) setError(true)
       },
     )
+
     return () => {
       cancelled = true
     }

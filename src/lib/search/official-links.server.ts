@@ -39,6 +39,7 @@ export async function extractRelevantOfficialLinks(
       redirect: 'follow',
       signal: controller.signal,
     })
+
     const contentType = response.headers.get('content-type') ?? ''
 
     if (!response.ok || !contentType.toLowerCase().includes('text/html')) {
@@ -50,12 +51,14 @@ export async function extractRelevantOfficialLinks(
           contentType,
         }),
       )
+
       return []
     }
 
     const links: Array<ExtractedLink> = []
     const headingHandler = new HeadingHandler()
     const linkHandler = new LinkHandler(links, () => headingHandler.heading)
+
     const transformed = new HTMLRewriter()
       .on('h1, h2, h3, h4', headingHandler)
       .on('a[href]', linkHandler)
@@ -64,8 +67,9 @@ export async function extractRelevantOfficialLinks(
     await transformed.body?.pipeTo(new WritableStream())
 
     return links
-      .map((link) => normalizeLink(link, pageUrl, page, input, permitTypes))
-      .filter((link): link is PermitSearchResult => link !== null)
+      .flatMap(
+        (link) => normalizeLink(link, pageUrl, page, input, permitTypes) ?? [],
+      )
       .sort((first, second) => second.score - first.score)
       .slice(0, MAX_LINKS_PER_PAGE)
   } catch (error) {
@@ -76,6 +80,7 @@ export async function extractRelevantOfficialLinks(
         error: error instanceof Error ? error.message : String(error),
       }),
     )
+
     return []
   } finally {
     clearTimeout(timeout)
@@ -109,6 +114,7 @@ class LinkHandler implements HTMLRewriterElementContentHandlers {
 
   element(element: Element) {
     const href = element.getAttribute('href')
+
     if (!href) {
       return
     }
@@ -118,6 +124,7 @@ class LinkHandler implements HTMLRewriterElementContentHandlers {
     element.onEndTag(() => {
       link.text = normalizeWhitespace(link.text)
       this.links.push(link)
+
       if (this.currentLink === link) {
         this.currentLink = undefined
       }
@@ -141,6 +148,7 @@ function normalizeLink(
   try {
     const url = new URL(link.href, pageUrl)
     url.hash = ''
+
     if (
       (url.protocol !== 'https:' && url.protocol !== 'http:') ||
       isSamePage(url, pageUrl) ||
@@ -150,6 +158,7 @@ function normalizeLink(
     }
 
     const domain = url.hostname.replace(/^www\./, '')
+
     return {
       title: cleanLinkTitle(link.text) || titleFromUrl(url),
       url: url.toString(),
@@ -185,10 +194,13 @@ function matchesPermit(
   const searchable = normalizeText(
     `${link.text} ${link.section} ${decodeURIComponent(url.pathname)}`,
   )
+
   const allKeywords = permitKeywords(permit)
+
   const specificKeywords = allKeywords.filter(
     (keyword) => !GENERIC_PERMIT_WORDS.has(keyword),
   )
+
   const requiredKeywords = [
     ...(specificKeywords.length > 0 ? specificKeywords : allKeywords),
     // "building" for a building permit, so a bathroom search keeps a
@@ -205,10 +217,13 @@ function scoreLink(link: ExtractedLink, url: URL, permit: string) {
   const searchable = normalizeText(
     `${link.text} ${link.section} ${decodeURIComponent(url.pathname)}`,
   )
+
   const normalizedPermit = normalizeText(permit)
+
   const matchingKeywords = permitKeywords(permit).filter((keyword) =>
     includesPhrase(searchable, keyword),
   ).length
+
   let score = matchingKeywords * 100
 
   if (searchable.includes(normalizedPermit)) {

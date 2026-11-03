@@ -406,5 +406,7 @@ export const projectItems = pgTable(
 )
 
 export type City = typeof cities.$inferSelect
+
 export type CityOffice = typeof cityOffices.$inferSelect
+
 export type Search = typeof searches.$inferSelect

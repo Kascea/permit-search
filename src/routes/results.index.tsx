@@ -1,18 +1,22 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 
 import { errorMessage } from '#/lib/errors'
 import { ResultsPage } from '#/components/ResultsPage'
 import { startSearch } from '#/lib/search/permit-search'
 import { Notice } from '#/components/Notice'
 
-interface PendingSearch {
-  city: string
-  region: string
-  permit: string
+const pendingSearchSchema = z.object({
+  city: z.string().catch(''),
+  region: z.string().catch(''),
+  permit: z.string().catch(''),
   // Run the search even when a recent matching one is saved.
-  fresh?: boolean
-}
+  fresh: z
+    .union([z.boolean(), z.literal('true').transform(() => true)])
+    .optional()
+    .catch(undefined),
+})
 
 // One request per search per page session, so React running effects twice in
 // development doesn't start the same search twice.
@@ -24,14 +28,7 @@ const pendingSearches = new Map<
 // Starts (or reuses) a search, then replaces this URL with the saved search's
 // /results/<id> so it can be shared and reopened.
 export const Route = createFileRoute('/results/')({
-  validateSearch: (search: Record<string, unknown>): PendingSearch => ({
-    city: typeof search.city === 'string' ? search.city : '',
-    region: typeof search.region === 'string' ? search.region : '',
-    permit: typeof search.permit === 'string' ? search.permit : '',
-    ...(search.fresh === true || search.fresh === 'true'
-      ? { fresh: true }
-      : {}),
-  }),
+  validateSearch: pendingSearchSchema,
   component: PendingResults,
 })
 
@@ -45,9 +42,11 @@ function PendingResults() {
     if (!hasSearch) {
       return
     }
+
     let cancelled = false
     const key = JSON.stringify([city, region, permit, fresh])
     let request = pendingSearches.get(key)
+
     if (!request) {
       request = startSearch({
         data: {
@@ -70,11 +69,11 @@ function PendingResults() {
           })
         }
       })
-      .catch((searchError: unknown) => {
+      .catch((cause: unknown) => {
         if (!cancelled) {
           setError(
             errorMessage(
-              searchError,
+              cause,
               'Permit search is temporarily unavailable.',
             ),
           )
