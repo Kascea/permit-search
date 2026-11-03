@@ -13,10 +13,10 @@ receive permit requirements from official municipal sources.
 - Manual city entry
 - Live permit-source search through Tavily
 - Cloudflare Workers configuration using the new `cf` CLI
-- An optional, non-breaking Hyperdrive path for PlanetScale
+- PlanetScale Postgres through Hyperdrive for saved searches, city contacts,
+  accounts, drafts, and projects
 
-City-site mapping, permit-link classification, and database persistence are
-future work.
+City-site mapping and permit-link classification are future work.
 
 ## Technology
 
@@ -27,7 +27,7 @@ future work.
 - Cloudflare's beta `cf` CLI with `cloudflare.config.ts`
 - U.S. Census Bureau place data and geocoder
 - Tavily Search API
-- PlanetScale MySQL through Hyperdrive when database work begins
+- PlanetScale Postgres through Cloudflare Hyperdrive, with Drizzle ORM
 
 Node.js 22.18 or newer is required by `cloudflare.config.ts`.
 
@@ -87,7 +87,7 @@ copy. Do not add proprietary reference-site fonts.
 - `src/lib/search/types.ts` — normalized permit search contracts
 - `src/styles.css` — global design tokens and shared input styles
 - `src/routes/__root.tsx` — document shell and page metadata
-- `cloudflare.config.ts` — Worker, observability, and optional Hyperdrive binding
+- `cloudflare.config.ts` — Worker, placement, observability, and optional Hyperdrive binding
 - `vite.config.ts` — TanStack, Tailwind, React, and Cloudflare build integration
 
 Keep third-party location logic behind `src/lib/location` so providers can be
@@ -149,31 +149,69 @@ Logs and traces are enabled in the Worker configuration.
 
 ## PlanetScale and Hyperdrive
 
-Database access is intentionally unused today. The Worker enables a `DATABASE`
-Hyperdrive binding only when `CLOUDFLARE_HYPERDRIVE_ID` is present, so frontend
-development does not require a database.
+The database is PlanetScale Postgres (branch `main`, AWS us-east-2). The
+Worker reaches it through a `DATABASE` Hyperdrive binding, which
+`cloudflare.config.ts` adds only when `CLOUDFLARE_HYPERDRIVE_ID` is set; without
+it, database features are skipped and the rest of the site still runs.
 
-For Cloudflare's managed PlanetScale integration:
+How it's set up, and why:
+
+- **Managed integration.** The Hyperdrive config uses Cloudflare's PlanetScale
+  integration with the `postgres` scheme, connecting directly on port 5432.
+  Hyperdrive pools connections itself, so it doesn't go through PlanetScale's
+  PgBouncer port.
+- **Query caching is off.** Nearly every read is a signed-in user's own data
+  (drafts, projects, history, their session), and Hyperdrive's cache would
+  serve the copy from before their last change for up to a minute. If public
+  reads ever need caching, add a second, cached Hyperdrive binding for them.
+- **The Worker runs next to the database.** `placement` pins it to
+  `aws:us-east-2`, since a request makes several database round trips in a
+  row. Static assets still serve from the edge.
+- **One client per request.** `withDatabase` opens a `pg` client and closes it
+  after the response; Hyperdrive keeps the pooled connections warm.
+- **Separate roles.** The `migrator` role owns the schema and is used only by
+  `npm run db:migrate` (`MIGRATION_DATABASE_URL`). The Worker's Hyperdrive role
+  and the local development role can read and write data but not change
+  tables.
+
+To recreate the Hyperdrive config:
 
 1. Link the Cloudflare account to PlanetScale from the Hyperdrive dashboard.
 2. Preview creation:
 
    ```sh
    npx cf hyperdrive create \
-     --name permit-search-db \
+     --name permit-search \
      --integration-provider planetscale \
      --integration-organization-name YOUR_ORG \
      --integration-database-name YOUR_DATABASE \
      --integration-database-branch-name main \
-     --integration-scheme mysql \
+     --integration-scheme postgres \
      --dry-run
    ```
 
 3. Remove `--dry-run` after reviewing the request.
-4. Set `CLOUDFLARE_HYPERDRIVE_ID` to the returned configuration ID.
-5. Set `DATABASE_URL` to the PlanetScale MySQL connection string for direct
-   local development only.
+4. Turn off query caching, which is on by default:
+
+   ```sh
+   npx cf hyperdrive update YOUR_HYPERDRIVE_ID --caching-disabled true
+   ```
+
+5. Set `CLOUDFLARE_HYPERDRIVE_ID` to the returned configuration ID, locally and
+   as a Workers Builds variable.
 6. Run `npm run cf-typegen` after enabling or changing the binding.
+
+For local development, Hyperdrive connects straight to `DATABASE_URL`, with no
+pooling. Use a role with the same access as production's, so permission
+problems show up locally:
+
+```sh
+pscale role create YOUR_DATABASE main local-dev \
+  --inherited-roles pg_read_all_data,pg_write_all_data
+```
+
+Then set `DATABASE_URL` to that role's connection string, ending in
+`?sslmode=verify-full`.
 
 Credentials must never be committed or sent to browser code.
 

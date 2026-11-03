@@ -20,7 +20,9 @@ export function hasDatabase() {
 }
 
 // Hyperdrive pools connections at the edge, so each request opens its own
-// client and closes it once the response is sent.
+// client and closes it once the response is sent. Its query cache is turned
+// off: nearly every read is a user's own data, which must reflect their last
+// change.
 export async function withDatabase<T>(
   work: (db: Database) => Promise<T>,
 ): Promise<T> {

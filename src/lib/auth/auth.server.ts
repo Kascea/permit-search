@@ -63,10 +63,6 @@ function hasSessionCookie(headers: Headers) {
 // Runs work for the signed-in user on one database connection, so checking
 // the session doesn't cost a second connection. Signed out, it returns
 // signedOut() when given, and throws otherwise.
-//
-// The work runs in a transaction because Hyperdrive caches plain reads for
-// up to a minute in production: without one, the list read back after a
-// change (or on the next page) can be the copy from before it.
 export async function withUserDatabase<T, TSignedOut = never>(
   headers: Headers,
   work: (userId: string, db: Database) => Promise<T>,
@@ -80,9 +76,7 @@ export async function withUserDatabase<T, TSignedOut = never>(
 
   return withDatabase(async (db) => {
     const session = await createAuth(db).api.getSession({ headers })
-    return session
-      ? db.transaction((tx) => work(session.user.id, tx))
-      : notSignedIn()
+    return session ? work(session.user.id, db) : notSignedIn()
   })
 }
 

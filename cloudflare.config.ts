@@ -20,6 +20,11 @@ export default defineConfig({
     compatibilityFlags: ['nodejs_compat'],
     entrypoint: '@tanstack/react-start/server-entry',
     domains: ['permitsearch.app', 'www.permitsearch.app'],
+    // Runs next to the PlanetScale database (AWS us-east-2) instead of near
+    // each visitor: a request makes several database round trips in a row,
+    // and each is far shorter from there. Static assets still serve from the
+    // edge.
+    placement: { region: 'aws:us-east-2' },
     observability: {
       enabled: true,
       traces: {

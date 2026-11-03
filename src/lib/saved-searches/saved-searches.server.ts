@@ -52,8 +52,7 @@ export async function runSavedSearch(
   const refreshCutoff = new Date(Date.now() - SEARCH_REFRESH_HOURS * 3_600_000)
 
   const reused = await withDatabase(async (db) => {
-    // Inside a transaction so Hyperdrive's read cache can't hide a search
-    // saved in the last minute.
+    // Counting the reuse and recording the request succeed or fail together.
     return db.transaction(async (tx) => {
       const match = (
         await tx
@@ -80,13 +79,11 @@ export async function runSavedSearch(
           lastServedAt: new Date(),
         })
         .where(eq(searches.id, match.id))
-      await tx
-        .insert(searchRequests)
-        .values({
-          searchId: match.id,
-          wasReused: true,
-          userId: await userIdRequest,
-        })
+      await tx.insert(searchRequests).values({
+        searchId: match.id,
+        wasReused: true,
+        userId: await userIdRequest,
+      })
       return match.publicId
     })
   })
