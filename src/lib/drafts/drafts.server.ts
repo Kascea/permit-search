@@ -35,7 +35,7 @@ export async function loadDraft(
 // Saves each draft unless the stored copy was edited more recently, such as
 // from another tab or device.
 async function upsertDrafts(
-  db: Database | Parameters<Parameters<Database['transaction']>[0]>[0],
+  db: Database,
   userId: string,
   drafts: Array<Draft>,
 ) {

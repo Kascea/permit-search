@@ -1,11 +1,13 @@
 import { env, waitUntil } from 'cloudflare:workers'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres'
+import type { PgDatabase } from 'drizzle-orm/pg-core'
 import { Client } from 'pg'
 
 import * as schema from '#/lib/db/schema'
 
-export type Database = NodePgDatabase<typeof schema>
+// A connection, or a transaction on one.
+export type Database = PgDatabase<NodePgQueryResultHKT, typeof schema>
 
 function databaseBinding() {
   return (env as { DATABASE?: Hyperdrive }).DATABASE
