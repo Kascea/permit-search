@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -80,14 +80,21 @@ type NativeField =
 
 export const Route = createFileRoute('/editor')({
   // project: the project to fill from. from: the page it was opened from, for
-  // the breadcrumb; see Origin.
+  // the breadcrumb; see Origin. page: the page in view, so a reload or shared
+  // link opens there; left out on page 1.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { url: string; project?: string; from?: string } => ({
-    url: typeof search.url === 'string' ? search.url : '',
-    ...(typeof search.project === 'string' ? { project: search.project } : {}),
-    ...(typeof search.from === 'string' ? { from: search.from } : {}),
-  }),
+  ): { url: string; project?: string; from?: string; page?: number } => {
+    const page = Number(search.page)
+    return {
+      url: typeof search.url === 'string' ? search.url : '',
+      ...(typeof search.project === 'string'
+        ? { project: search.project }
+        : {}),
+      ...(typeof search.from === 'string' ? { from: search.from } : {}),
+      ...(Number.isInteger(page) && page > 1 ? { page } : {}),
+    }
+  },
   loaderDeps: ({ search }) => ({ from: search.from }),
   // The search the editor was opened from, to name it in the breadcrumb. A
   // failed lookup just leaves the breadcrumb generic.
@@ -105,7 +112,7 @@ export const Route = createFileRoute('/editor')({
 // Keyed by URL so opening another draft starts with fresh state, and the
 // closing editor saves any pending edit.
 function EditorRoute() {
-  const { url, project, from } = Route.useSearch()
+  const { url, project, from, page } = Route.useSearch()
   const { searchName } = Route.useLoaderData()
   // Links from before ?from= name only the project.
   const origin: Origin = parseOrigin(from) ??
@@ -119,6 +126,7 @@ function EditorRoute() {
       projectId={projectId}
       origin={origin}
       searchName={searchName}
+      initialPage={page}
     />
   )
 }
@@ -130,12 +138,15 @@ function PdfEditor({
   projectId,
   origin,
   searchName,
+  initialPage,
 }: {
   url: string
   projectId?: string
   origin: Origin
   searchName?: string
+  initialPage?: number
 }) {
+  const navigate = useNavigate({ from: '/editor' })
   const [sourceBytes, setSourceBytes] = useState<ArrayBuffer>()
   const [pdf, setPdf] = useState<PDFDocumentProxy>()
   const [nativeFields, setNativeFields] = useState<Array<NativeField>>([])
@@ -317,6 +328,34 @@ function PdfEditor({
       .forEach((element) => observer.observe(element))
     return () => observer.disconnect()
   }, [pdf])
+
+  // Opens on the page in the URL when the PDF loads; later scrolling moves the
+  // URL instead. Earlier pages may still be sizing; the browser's scroll
+  // anchoring keeps this one in view as they do.
+  const initialPageRef = useRef(initialPage)
+  useEffect(() => {
+    const page = initialPageRef.current
+    if (!pdf || !page) return
+    scrollRef.current
+      ?.querySelector(`[data-page="${Math.min(page, pdf.numPages)}"]`)
+      ?.scrollIntoView({ block: 'start' })
+  }, [pdf])
+
+  // Keeps ?page= on the page in view, once scrolling settles.
+  useEffect(() => {
+    if (!pdf) return
+    const timer = window.setTimeout(() => {
+      void navigate({
+        search: (previous) => ({
+          ...previous,
+          page: currentPage > 1 ? currentPage : undefined,
+        }),
+        replace: true,
+        resetScroll: false,
+      })
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [currentPage, pdf, navigate])
 
   function scrollToPage(page: number) {
     scrollRef.current
