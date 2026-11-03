@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { errorMessage } from '#/lib/errors'
 import { CityCombobox } from '#/components/CityCombobox'
 import { formatCity } from '#/lib/location/format'
-import { reverseGeocodeCity } from '#/lib/location/mapbox'
+import { locateCity } from '#/lib/location/locate'
 import type { City } from '#/lib/location/types'
 
 interface PermitSearchFormProps {
@@ -27,7 +27,6 @@ export function PermitSearchForm({
   className = 'border border-ink p-5 sm:p-6',
   onSearch,
 }: PermitSearchFormProps) {
-  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
   const permitInputId = useId()
   const [cityInput, setCityInput] = useState(
     initialCity ? formatCity(initialCity) : '',
@@ -53,23 +52,13 @@ export function PermitSearchForm({
 
   function useCurrentLocation() {
     setLocationError('')
-
-    if (!mapboxToken) {
-      setLocationError(
-        'Add a Mapbox token to use your location, or enter a city.',
-      )
-      return
-    }
-
     setIsLocating(true)
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         try {
-          const city = await reverseGeocodeCity(
-            coords.latitude,
-            coords.longitude,
-            mapboxToken,
-          )
+          const city = await locateCity({
+            data: { latitude: coords.latitude, longitude: coords.longitude },
+          })
           selectCity(city)
         } catch (error) {
           setLocationError(
@@ -151,7 +140,6 @@ export function PermitSearchForm({
 
       <div>
         <CityCombobox
-          accessToken={mapboxToken}
           selectedCity={selectedCity}
           value={cityInput}
           onChange={updateCityInput}

@@ -16,34 +16,28 @@ export async function listProjects(
   db: Database,
   userId: string,
 ): Promise<Array<Project>> {
+  // Each project's items come back as a JSON array in the same query. The
+  // columns are written out because Drizzle leaves table names off columns in
+  // a single-table select, which would make "id" mean the item's own ID here.
   const rows = await db
     .select({
-      id: projects.id,
       publicId: projects.publicId,
       name: projects.name,
       cityName: projects.cityName,
       cityRegion: projects.cityRegion,
+      items: sql<Array<ProjectItem>>`coalesce((
+        select json_agg(
+          json_build_object('sourceUrl', item.source_url, 'title', item.title)
+          order by item.created_at desc
+        )
+        from ${projectItems} as item
+        where item.project_id = ${projects}.id
+      ), '[]'::json)`,
     })
     .from(projects)
     .where(eq(projects.userId, userId))
     .orderBy(desc(projects.updatedAt))
     .limit(MAX_PROJECTS)
-  if (rows.length === 0) return []
-
-  const items = await db
-    .select({
-      projectId: projectItems.projectId,
-      sourceUrl: projectItems.sourceUrl,
-      title: projectItems.title,
-    })
-    .from(projectItems)
-    .where(
-      inArray(
-        projectItems.projectId,
-        rows.map((row) => row.id),
-      ),
-    )
-    .orderBy(desc(projectItems.createdAt))
 
   return rows.map((row) => ({
     publicId: row.publicId,
@@ -52,9 +46,7 @@ export async function listProjects(
       row.cityName && row.cityRegion
         ? { name: row.cityName, region: row.cityRegion }
         : null,
-    items: items
-      .filter((item) => item.projectId === row.id)
-      .map(({ sourceUrl, title }) => ({ sourceUrl, title })),
+    items: row.items,
   }))
 }
 

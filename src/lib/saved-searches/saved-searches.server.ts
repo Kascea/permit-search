@@ -31,14 +31,22 @@ export interface SavedSearch {
 // Reuses a matching search from the last SEARCH_REUSE_DAYS when there is one;
 // otherwise runs the search and saves it. `fresh` runs it again unless it
 // already ran in the last SEARCH_REFRESH_HOURS. `userId` records who ran it, for
-// their history.
+// their history; it may still be resolving, and is awaited only when needed.
 export async function runSavedSearch(
   input: PermitSearchInput,
   {
     fresh = false,
-    userId = null,
-  }: { fresh?: boolean; userId?: string | null } = {},
+    userId: pendingUserId = null,
+  }: {
+    fresh?: boolean
+    userId?: string | null | Promise<string | null>
+  } = {},
 ): Promise<{ publicId: string; wasReused: boolean }> {
+  const userIdRequest = Promise.resolve(pendingUserId)
+  // Observed now so a failure while looking up the search isn't reported as
+  // an unhandled rejection; awaiting it below still throws.
+  userIdRequest.catch(() => {})
+
   const region = input.city.region ?? ''
   const queryKey = searchKey(input.city.name, region, input.permit)
   const refreshCutoff = new Date(Date.now() - SEARCH_REFRESH_HOURS * 3_600_000)
@@ -74,7 +82,11 @@ export async function runSavedSearch(
         .where(eq(searches.id, match.id))
       await tx
         .insert(searchRequests)
-        .values({ searchId: match.id, wasReused: true, userId })
+        .values({
+          searchId: match.id,
+          wasReused: true,
+          userId: await userIdRequest,
+        })
       return match.publicId
     })
   })
@@ -90,13 +102,17 @@ export async function runSavedSearch(
     return { publicId: reused, wasReused: true }
   }
 
-  const response = await searchPermitsWithTavily(input)
+  // The city row doesn't depend on the results, so it's saved during the search.
+  const [response, city, userId] = await Promise.all([
+    searchPermitsWithTavily(input),
+    withDatabase((db) => upsertCity(db, { name: input.city.name, region })),
+    userIdRequest,
+  ])
   const reuseUntil = new Date()
   reuseUntil.setUTCDate(reuseUntil.getUTCDate() + SEARCH_REUSE_DAYS)
 
-  const publicId = await withDatabase(async (db) => {
-    const city = await upsertCity(db, { name: input.city.name, region })
-    return db.transaction(async (tx) => {
+  const publicId = await withDatabase((db) =>
+    db.transaction(async (tx) => {
       const [saved] = await tx
         .insert(searches)
         .values({
@@ -116,8 +132,8 @@ export async function runSavedSearch(
         .insert(searchRequests)
         .values({ searchId: saved.id, wasReused: false, userId })
       return saved.publicId
-    })
-  })
+    }),
+  )
 
   console.log(
     JSON.stringify({ message: 'saved new search', queryKey, publicId, fresh }),

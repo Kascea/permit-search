@@ -6,9 +6,11 @@ receive permit requirements from official municipal sources.
 
 ## Current scope
 
-- U.S. city autocomplete through Mapbox Search Box
-- Browser location lookup with city-level reverse geocoding
-- Manual city entry when Mapbox is unavailable
+- U.S. city autocomplete from a bundled Census place list, searched in the
+  browser
+- Browser location lookup with city-level reverse geocoding through the Census
+  geocoder
+- Manual city entry
 - Live permit-source search through Tavily
 - Cloudflare Workers configuration using the new `cf` CLI
 - An optional, non-breaking Hyperdrive path for PlanetScale
@@ -23,7 +25,7 @@ future work.
 - Tailwind CSS 4
 - Cloudflare Workers and the Cloudflare Vite plugin
 - Cloudflare's beta `cf` CLI with `cloudflare.config.ts`
-- Mapbox Search Box API
+- U.S. Census Bureau place data and geocoder
 - Tavily Search API
 - PlanetScale MySQL through Hyperdrive when database work begins
 
@@ -76,7 +78,8 @@ copy. Do not add proprietary reference-site fonts.
 
 - `src/routes/index.tsx` — search page, geolocation flow, and result shell
 - `src/components/CityCombobox.tsx` — accessible city autocomplete
-- `src/lib/location/mapbox.ts` — Mapbox provider adapter
+- `src/lib/location/places.ts` — in-browser city search over the place list
+- `src/lib/location/census.server.ts` — server-only Census reverse geocoding
 - `src/lib/location/types.ts` — normalized city and coordinate types
 - `src/lib/search/permit-search.ts` — validated TanStack server function
 - `src/lib/search/tavily.server.ts` — server-only Tavily search provider
@@ -87,8 +90,9 @@ copy. Do not add proprietary reference-site fonts.
 - `cloudflare.config.ts` — Worker, observability, and optional Hyperdrive binding
 - `vite.config.ts` — TanStack, Tailwind, React, and Cloudflare build integration
 
-Keep third-party location logic behind `src/lib/location` so Mapbox can be
-replaced without rewriting the form.
+Keep third-party location logic behind `src/lib/location` so providers can be
+replaced without rewriting the form. Rebuild the place list with
+`scripts/build-us-places.mjs`.
 
 ## Local setup
 
@@ -96,16 +100,6 @@ replaced without rewriting the form.
 npm install
 cp .env.example .env
 ```
-
-Add a complete Mapbox public token:
-
-```dotenv
-VITE_MAPBOX_ACCESS_TOKEN=pk.your_complete_public_token
-```
-
-The token is intentionally available to the browser. Restrict custom tokens to
-`http://localhost:3000/*` and the production domain in Mapbox. Never place a
-secret `sk.` token in a `VITE_*` variable.
 
 Start development:
 

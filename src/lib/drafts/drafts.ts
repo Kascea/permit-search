@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 
-import { getSessionUser, requireUserId } from '#/lib/auth/auth.server'
+import { withUserDatabase } from '#/lib/auth/auth.server'
+import type { Database } from '#/lib/db/client.server'
 import {
   deleteDraft,
   importDrafts,
@@ -14,8 +15,15 @@ import type { Draft } from '#/lib/drafts/types'
 import { UserError } from '#/lib/errors'
 
 // Drafts belong to the signed-in user; the browser never sends a user ID.
-function currentUserId() {
-  return requireUserId(new Headers(getRequestHeaders()))
+// The session check and the work share one database connection.
+function withDraftUser<T>(work: (db: Database, userId: string) => Promise<T>) {
+  return withUserDatabase(
+    new Headers(getRequestHeaders()),
+    (userId, db) => work(db, userId),
+    () => {
+      throw new UserError('Sign in to save drafts to your account.')
+    },
+  )
 }
 
 function validateDraft(input: Draft): Draft {
@@ -37,11 +45,15 @@ function validateSourceUrl(input: { sourceUrl: string }) {
 
 export const getAccountDraft = createServerFn({ method: 'GET' })
   .validator(validateSourceUrl)
-  .handler(async ({ data }) => loadDraft(await currentUserId(), data.sourceUrl))
+  .handler(({ data }) =>
+    withDraftUser((db, userId) => loadDraft(db, userId, data.sourceUrl)),
+  )
 
 export const saveAccountDraft = createServerFn({ method: 'POST' })
   .validator(validateDraft)
-  .handler(async ({ data }) => saveDraft(await currentUserId(), data))
+  .handler(({ data }) =>
+    withDraftUser((db, userId) => saveDraft(db, userId, data)),
+  )
 
 // Moves drafts saved in the browser before sign-in to the account.
 export const importAccountDrafts = createServerFn({ method: 'POST' })
@@ -51,14 +63,17 @@ export const importAccountDrafts = createServerFn({ method: 'POST' })
     }
     return { drafts: input.drafts.map(validateDraft) }
   })
-  .handler(async ({ data }) => importDrafts(await currentUserId(), data.drafts))
+  .handler(({ data }) =>
+    withDraftUser((db, userId) => importDrafts(db, userId, data.drafts)),
+  )
 
 // Null when signed out, so the drafts page can ask the visitor to sign in.
-export const listAccountDrafts = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const user = await getSessionUser(new Headers(getRequestHeaders()))
-    return user ? listDrafts(user.id) : null
-  },
+export const listAccountDrafts = createServerFn({ method: 'GET' }).handler(() =>
+  withUserDatabase(
+    new Headers(getRequestHeaders()),
+    (userId, db) => listDrafts(db, userId),
+    () => null,
+  ),
 )
 
 export const deleteAccountDraft = createServerFn({ method: 'POST' })
@@ -71,4 +86,6 @@ export const deleteAccountDraft = createServerFn({ method: 'POST' })
     }
     return validateSourceUrl(input)
   })
-  .handler(async ({ data }) => deleteDraft(await currentUserId(), data))
+  .handler(({ data }) =>
+    withDraftUser((db, userId) => deleteDraft(db, userId, data)),
+  )

@@ -19,19 +19,19 @@ export async function loadCity(
   db: Database,
   { name, region }: CityName,
 ): Promise<{ city: City; offices: Array<CityOffice> } | null> {
-  const city = (
-    await db
-      .select()
-      .from(cities)
-      .where(eq(cities.cityKey, cityKey(name, region)))
-  ).at(0)
+  // One query, joined, rather than a second round trip for the offices.
+  const rows = await db
+    .select({ city: cities, office: cityOffices })
+    .from(cities)
+    .leftJoin(cityOffices, eq(cityOffices.cityId, cities.id))
+    .where(eq(cities.cityKey, cityKey(name, region)))
+  const city = rows.at(0)?.city
   if (!city) {
     return null
   }
-  const offices = await db
-    .select()
-    .from(cityOffices)
-    .where(eq(cityOffices.cityId, city.id))
+  const offices = rows
+    .map(({ office }) => office)
+    .filter((office): office is CityOffice => office !== null)
   return { city, offices }
 }
 

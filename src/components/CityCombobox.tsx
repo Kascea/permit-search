@@ -1,16 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { errorMessage } from '#/lib/errors'
 import {
-  createMapboxSessionToken,
-  retrieveCity,
-  searchUsCities,
-} from '#/lib/location/mapbox'
+  getLoadedPlaces,
+  loadPlaces,
+  searchPlaces,
+} from '#/lib/location/places'
 import type { City, CitySuggestion } from '#/lib/location/types'
 
 interface CityComboboxProps {
-  accessToken?: string
   selectedCity?: City
   value: string
   onChange: (value: string) => void
@@ -19,7 +18,6 @@ interface CityComboboxProps {
 }
 
 export function CityCombobox({
-  accessToken,
   selectedCity,
   value,
   onChange,
@@ -28,7 +26,6 @@ export function CityCombobox({
 }: CityComboboxProps) {
   const inputId = useId()
   const listboxId = useId()
-  const sessionToken = useRef<string | null>(null)
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
   const [isSearching, setIsSearching] = useState(false)
@@ -37,61 +34,47 @@ export function CityCombobox({
   useEffect(() => {
     const query = value.trim()
 
-    if (!accessToken || selectedCity || query.length < 2) {
-      setSuggestions([])
-      setActiveIndex(-1)
+    function showResults(results: CitySuggestion[]) {
+      setSuggestions(results)
+      setActiveIndex(results.length > 0 ? 0 : -1)
       setIsSearching(false)
+    }
+
+    if (selectedCity || query.length < 2) {
+      showResults([])
       return
     }
 
-    const controller = new AbortController()
-    const timeout = window.setTimeout(async () => {
-      setIsSearching(true)
-      setError('')
-
-      try {
-        sessionToken.current ??= createMapboxSessionToken()
-        const results = await searchUsCities(
-          query,
-          accessToken,
-          sessionToken.current,
-          controller.signal,
-        )
-        setSuggestions(results)
-        setActiveIndex(results.length > 0 ? 0 : -1)
-      } catch (searchError) {
-        if (controller.signal.aborted) return
-        setSuggestions([])
-        setError(errorMessage(searchError, 'City search is unavailable.'))
-      } finally {
-        if (!controller.signal.aborted) setIsSearching(false)
-      }
-    }, 250)
-
-    return () => {
-      window.clearTimeout(timeout)
-      controller.abort()
+    // Once the list has loaded, searching it is instant.
+    const loaded = getLoadedPlaces()
+    if (loaded) {
+      showResults(searchPlaces(loaded, query))
+      return
     }
-  }, [accessToken, selectedCity, value])
 
-  async function selectSuggestion(suggestion: CitySuggestion) {
-    if (!accessToken) return
-
+    let cancelled = false
     setIsSearching(true)
     setError('')
+    loadPlaces().then(
+      (places) => {
+        if (!cancelled) showResults(searchPlaces(places, query))
+      },
+      (loadError: unknown) => {
+        if (cancelled) return
+        showResults([])
+        setError(errorMessage(loadError, 'City search is unavailable.'))
+      },
+    )
 
-    try {
-      const activeSession = sessionToken.current ?? createMapboxSessionToken()
-      const city = await retrieveCity(suggestion, accessToken, activeSession)
-      onCitySelected(city)
-      setSuggestions([])
-      setActiveIndex(-1)
-      sessionToken.current = null
-    } catch (selectionError) {
-      setError(errorMessage(selectionError, 'That city could not be selected.'))
-    } finally {
-      setIsSearching(false)
+    return () => {
+      cancelled = true
     }
+  }, [selectedCity, value])
+
+  function selectSuggestion({ id, name, region }: CitySuggestion) {
+    onCitySelected({ id, name, region, country: 'United States' })
+    setSuggestions([])
+    setActiveIndex(-1)
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -107,7 +90,7 @@ export function CityCombobox({
       )
     } else if (event.key === 'Enter' && activeIndex >= 0) {
       event.preventDefault()
-      void selectSuggestion(suggestions[activeIndex])
+      selectSuggestion(suggestions[activeIndex])
     } else if (event.key === 'Escape') {
       setSuggestions([])
       setActiveIndex(-1)
@@ -162,6 +145,8 @@ export function CityCombobox({
             setError('')
           }}
           onKeyDown={handleKeyDown}
+          // Starts downloading the city list before the first keystroke.
+          onFocus={() => void loadPlaces().catch(() => {})}
         />
         {isSearching && (
           <span
@@ -193,7 +178,7 @@ export function CityCombobox({
                 }`}
                 onMouseDown={(event) => event.preventDefault()}
                 onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => void selectSuggestion(suggestion)}
+                onClick={() => selectSuggestion(suggestion)}
               >
                 <span
                   className={`grid size-9 shrink-0 place-items-center rounded-full border ${
@@ -260,11 +245,6 @@ export function CityCombobox({
         </ul>
       )}
 
-      {!accessToken && (
-        <p className="mt-2 text-xs leading-5 text-ink/60">
-          Autocomplete is off. Manual entry still works.
-        </p>
-      )}
       {error && (
         <p className="mt-2 text-sm font-medium text-redline" role="alert">
           {error}

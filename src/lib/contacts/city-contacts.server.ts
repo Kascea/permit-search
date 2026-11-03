@@ -55,11 +55,15 @@ export async function getCityContacts(
       return toResponse(saved.city, saved.offices.map(toOfficeContact))
     }
 
-    const city = await withDatabase((db) => upsertCity(db, input))
-    const collected = await collectCityContacts({
-      ...input,
-      savedUrls: savedUrlsFor(saved?.city ?? city, []),
-    })
+    // A city that wasn't saved has no URLs yet, so collection needn't wait for
+    // its row to be created.
+    const [city, collected] = await Promise.all([
+      saved?.city ?? withDatabase((db) => upsertCity(db, input)),
+      collectCityContacts({
+        ...input,
+        savedUrls: saved ? savedUrlsFor(saved.city, []) : [],
+      }),
+    ])
     await withDatabase((db) => saveCollectedContacts(db, city.id, collected))
 
     return toResponse(

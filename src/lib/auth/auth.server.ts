@@ -88,11 +88,3 @@ export async function getSessionUser(
   const session = await withAuth((auth) => auth.api.getSession({ headers }))
   return session?.user ?? null
 }
-
-export async function requireUserId(headers: Headers): Promise<string> {
-  const user = await getSessionUser(headers)
-  if (!user) {
-    throw new UserError('Sign in to save drafts to your account.')
-  }
-  return user.id
-}

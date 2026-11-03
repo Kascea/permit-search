@@ -8,7 +8,6 @@ export interface City {
   name: string
   region?: string
   country: 'United States'
-  coordinates?: Coordinates
 }
 
 export interface CitySuggestion {

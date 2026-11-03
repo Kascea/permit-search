@@ -186,7 +186,7 @@ function ProjectPicker({
                     type="button"
                     aria-pressed={isIn}
                     disabled={busyId === project.publicId}
-                    className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-wait ${
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-wait ${
                       isIn
                         ? 'bg-success/10 text-success hover:bg-redline/10 hover:text-redline'
                         : 'border border-ink/40 text-ink hover:bg-ink hover:text-paper'
@@ -194,6 +194,13 @@ function ProjectPicker({
                     title={isIn ? 'Remove from this project' : undefined}
                     onClick={() => void toggle(project, isIn)}
                   >
+                    {/* The list shows the change at once; the spinner stays
+                        until the server confirms it. */}
+                    {busyId === project.publicId && (
+                      <span className="spinner size-3.5" role="status">
+                        <span className="sr-only">Saving</span>
+                      </span>
+                    )}
                     {isIn ? 'Added' : 'Add'}
                   </button>
                 </li>
@@ -222,8 +229,11 @@ function ProjectPicker({
           <button
             type="submit"
             disabled={isCreating}
-            className="shrink-0 rounded-full bg-blueprint px-5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-blueprint px-5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint disabled:cursor-wait disabled:opacity-60"
           >
+            {isCreating && (
+              <span className="spinner size-3.5 border-paper/30 border-t-paper" />
+            )}
             {isCreating ? 'Creating…' : 'Create'}
           </button>
         </div>

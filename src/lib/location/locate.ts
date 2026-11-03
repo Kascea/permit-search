@@ -18,7 +18,9 @@ function validateCoordinates(input: Coordinates): Coordinates {
     Math.abs(latitude) > 90 ||
     Math.abs(longitude) > 180
   ) {
-    throw new UserError('Your location is unavailable. Enter your city instead.')
+    throw new UserError(
+      'Your location is unavailable. Enter your city instead.',
+    )
   }
   return { latitude, longitude }
 }

@@ -149,20 +149,22 @@ function PdfEditor({ url }: { url: string }) {
       }
 
       try {
-        const response = await fetch(pdfProxyUrl(url))
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as {
-            error?: string
-          } | null
-          throw new UserError(payload?.error || 'The PDF could not be opened.')
-        }
-
-        const bytes = await response.arrayBuffer()
-        const [{ getDocument, GlobalWorkerOptions }, workerModule] =
-          await Promise.all([
+        // The PDF, pdf.js, and the saved draft download side by side. The
+        // draft is restored before the fields first render, so typing can't
+        // race it. It's read once per PDF: signing out mid-edit keeps the
+        // fields on screen and later saves go to this browser.
+        const [
+          bytes,
+          [{ getDocument, GlobalWorkerOptions }, workerModule],
+          saved,
+        ] = await Promise.all([
+          fetchPdfBytes(url),
+          Promise.all([
             import('pdfjs-dist'),
             import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-          ])
+          ]),
+          loadNewestDraft(url, signedIn),
+        ])
         GlobalWorkerOptions.workerSrc = workerModule.default
 
         const [pdfDocument, fields, hash] = await Promise.all([
@@ -173,11 +175,6 @@ function PdfEditor({ url }: { url: string }) {
         loadedPdf = pdfDocument
         const firstPage = await pdfDocument.getPage(1)
         pageWidthRef.current = firstPage.getViewport({ scale: 1 }).width
-
-        // Restored before the fields first render, so typing can't race it.
-        // Read once per PDF: signing out mid-edit keeps the fields on screen
-        // and later saves go to this browser.
-        const saved = await loadNewestDraft(url, signedIn)
 
         if (!cancelled) {
           setScale(fitWidthScale(scrollRef.current, pageWidthRef.current))
@@ -380,8 +377,10 @@ function PdfEditor({ url }: { url: string }) {
 
     try {
       deleteLocalDraft(url)
-      if (signedIn) await deleteAccountDraft({ data: { sourceUrl: url } })
-      const fields = await readNativeFields(sourceBytes)
+      const [fields] = await Promise.all([
+        readNativeFields(sourceBytes),
+        signedIn && deleteAccountDraft({ data: { sourceUrl: url } }),
+      ])
       resetBaseline({
         version: 1,
         nativeValues: nativeValuesOf(fields),
@@ -627,7 +626,7 @@ function PdfEditor({ url }: { url: string }) {
         {isDraftsOpen && (
           <div className="fixed inset-0 z-[60] lg:hidden">
             <button
-              aria-label="Close drafts"
+              aria-label="Close sidebar"
               className="absolute inset-0 bg-ink/40"
               onClick={() => setIsDraftsOpen(false)}
               type="button"
@@ -1224,6 +1223,17 @@ function applyNativeValues(
   })
 }
 
+async function fetchPdfBytes(url: string) {
+  const response = await fetch(pdfProxyUrl(url))
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string
+    } | null
+    throw new UserError(payload?.error || 'The PDF could not be opened.')
+  }
+  return response.arrayBuffer()
+}
+
 async function sha256Hex(bytes: ArrayBuffer) {
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return Array.from(new Uint8Array(digest), (byte) =>
@@ -1367,8 +1377,10 @@ async function createEditedPdf(
     form.acroForm.dict.set(PDFName.of('NeedAppearances'), PDFBool.True)
   }
 
-  const regularFont = await document.embedFont(StandardFonts.Helvetica)
-  const signatureFont = await document.embedFont(StandardFonts.HelveticaOblique)
+  const [regularFont, signatureFont] = await Promise.all([
+    document.embedFont(StandardFonts.Helvetica),
+    document.embedFont(StandardFonts.HelveticaOblique),
+  ])
   const pages = document.getPages()
   for (const field of placedFields) {
     if (!field.value) continue
