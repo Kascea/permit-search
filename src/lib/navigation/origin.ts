@@ -21,10 +21,16 @@ export function originParam(origin: Origin) {
   return origin.kind === 'drafts' ? 'drafts' : `${origin.kind}:${origin.id}`
 }
 
-// How a search is named in breadcrumbs and links: "Fence · Austin, Texas".
+// A saved search an item came from, as the browser links to it.
+export interface SearchLink {
+  publicId: string
+  label: string
+}
+
+// How a search is named in breadcrumbs and links: "Fence in Austin, Texas".
 export function searchLabel(search: {
   city: { name: string; region: string }
   permit: string
 }) {
-  return `${search.permit} · ${formatCity(search.city)}`
+  return `${search.permit} in ${formatCity(search.city)}`
 }

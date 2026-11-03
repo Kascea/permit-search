@@ -289,6 +289,11 @@ export const pdfDrafts = pgTable(
     sourceHash: char('source_hash', { length: 64 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
     content: jsonb('content').$type<DraftContent>().notNull(),
+    // The saved search the form was first opened from, for linking back.
+    searchId: bigint('search_id', { mode: 'number' }).references(
+      () => searches.id,
+      { onDelete: 'set null' },
+    ),
 
     ...timestamps,
   },
@@ -373,6 +378,11 @@ export const projectItems = pgTable(
     sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
     // The search result's title, such as "Fence Permit Application".
     title: varchar('title', { length: 300 }).notNull(),
+    // The saved search it was added from, for linking back.
+    searchId: bigint('search_id', { mode: 'number' }).references(
+      () => searches.id,
+      { onDelete: 'set null' },
+    ),
 
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

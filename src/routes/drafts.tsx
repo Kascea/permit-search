@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
 import { EditedDate } from '#/components/EditedDate'
+import { SearchLinkText } from '#/components/SearchLinkText'
 import { Pending } from '#/components/Pending'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
@@ -150,6 +151,8 @@ function DraftList({
                     >
                       {project.name}
                     </Link>
+                  ) : draft.search ? (
+                    <SearchLinkText search={draft.search} />
                   ) : (
                     hostname(draft.sourceUrl)
                   )}{' '}
@@ -199,6 +202,7 @@ function DraftList({
         item={{
           sourceUrl: addingDraft?.sourceUrl ?? '',
           title: addingDraft?.title ?? '',
+          searchId: addingDraft?.search?.publicId,
         }}
         city={null}
         onClose={() => setAddingDraft(undefined)}

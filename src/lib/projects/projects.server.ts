@@ -1,7 +1,8 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import type { Database } from '#/lib/db/client.server'
-import { projectItems, projects } from '#/lib/db/schema'
+import { cities, projectItems, projects, searches } from '#/lib/db/schema'
+import { searchLabel } from '#/lib/navigation/origin'
 import type {
   Project,
   ProjectDetails,
@@ -71,6 +72,40 @@ function inputToRow(input: ProjectInput) {
   }
 }
 
+// An item as listProjects' JSON returns it; the search columns are null when
+// it wasn't added from a search.
+interface ItemRow {
+  sourceUrl: string
+  title: string
+  searchId: string | null
+  permit: string | null
+  cityName: string | null
+  region: string | null
+}
+
+function itemFromRow(row: ItemRow): ProjectItem {
+  return {
+    sourceUrl: row.sourceUrl,
+    title: row.title,
+    ...(row.searchId && row.permit && row.cityName && row.region
+      ? {
+          search: {
+            publicId: row.searchId,
+            label: searchLabel({
+              permit: row.permit,
+              city: { name: row.cityName, region: row.region },
+            }),
+          },
+        }
+      : {}),
+  }
+}
+
+// The searches row for a public ID, or null; for inserting an item's search.
+function searchRowId(publicId: string | undefined) {
+  return sql`(select ${searches.id} from ${searches} where ${searches.publicId} = ${publicId ?? null})`
+}
+
 // Most recently changed first. With a public ID, just that project (if it's
 // the user's).
 export async function listProjects(
@@ -90,12 +125,21 @@ export async function listProjects(
       details: detailColumns,
       extraFields: projects.extraFields,
       updatedAt: projects.updatedAt,
-      items: sql<Array<ProjectItem>>`coalesce((
+      items: sql<Array<ItemRow>>`coalesce((
         select json_agg(
-          json_build_object('sourceUrl', item.source_url, 'title', item.title)
+          json_build_object(
+            'sourceUrl', item.source_url,
+            'title', item.title,
+            'searchId', search.public_id,
+            'permit', search.permit_query,
+            'cityName', city.name,
+            'region', city.region
+          )
           order by item.created_at desc
         )
         from ${projectItems} as item
+        left join ${searches} as search on search.id = item.search_id
+        left join ${cities} as city on city.id = search.city_id
         where item.project_id = ${projects}.id
       ), '[]'::json)`,
     })
@@ -113,7 +157,7 @@ export async function listProjects(
         : null,
     details: detailsFromRow(row.details),
     extraFields: row.extraFields,
-    items: row.items,
+    items: row.items.map(itemFromRow),
     updatedAt: row.updatedAt.toISOString(),
   }))
 }
@@ -141,8 +185,10 @@ export async function createProject(
 
   await db.execute(sql`
     with project as (${insert.returning({ id: projects.id })})
-    insert into ${projectItems} (project_id, source_url, title)
-    select id, ${input.item.sourceUrl}, ${input.item.title} from project
+    insert into ${projectItems} (project_id, source_url, title, search_id)
+    select id, ${input.item.sourceUrl}, ${input.item.title},
+      ${searchRowId(input.item.searchId)}
+    from project
   `)
   return publicId
 }
@@ -183,8 +229,9 @@ export async function addProjectItem(
       where ${ownedBy(userId, publicId)}
       returning id
     )
-    insert into ${projectItems} (project_id, source_url, title)
-    select id, ${item.sourceUrl}, ${item.title} from project
+    insert into ${projectItems} (project_id, source_url, title, search_id)
+    select id, ${item.sourceUrl}, ${item.title}, ${searchRowId(item.searchId)}
+    from project
     on conflict do nothing
   `)
 }

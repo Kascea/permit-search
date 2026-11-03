@@ -1,9 +1,10 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
 import type { Database } from '#/lib/db/client.server'
-import { pdfDrafts } from '#/lib/db/schema'
+import { cities, pdfDrafts, searches } from '#/lib/db/schema'
 import { draftTitle } from '#/lib/drafts/types'
 import type { Draft, DraftSummary } from '#/lib/drafts/types'
+import { searchLabel } from '#/lib/navigation/origin'
 import { newPublicId } from '#/lib/saved-searches/search-key'
 
 // Each function takes the request's open connection (see withUserDatabase), so
@@ -50,6 +51,8 @@ async function upsertDrafts(
         sourceHash: draft.sourceHash,
         title: draftTitle(draft.sourceUrl),
         content: draft.content,
+        // Null when no search has that ID.
+        searchId: sql`(select ${searches.id} from ${searches} where ${searches.publicId} = ${draft.searchId ?? null})`,
         createdAt: updatedAt,
         updatedAt,
       })
@@ -58,6 +61,8 @@ async function upsertDrafts(
         set: {
           sourceHash: draft.sourceHash,
           content: draft.content,
+          // Keeps the search it was first opened from.
+          searchId: sql`coalesce(${pdfDrafts.searchId}, excluded.search_id)`,
           updatedAt,
         },
         setWhere: sql`${pdfDrafts.updatedAt} < ${updatedAt}`,
@@ -87,15 +92,34 @@ export async function listDrafts(
       title: pdfDrafts.title,
       sourceUrl: pdfDrafts.sourceUrl,
       updatedAt: pdfDrafts.updatedAt,
+      searchId: searches.publicId,
+      permit: searches.permitQuery,
+      cityName: cities.name,
+      region: cities.region,
     })
     .from(pdfDrafts)
+    .leftJoin(searches, eq(pdfDrafts.searchId, searches.id))
+    .leftJoin(cities, eq(searches.cityId, cities.id))
     .where(eq(pdfDrafts.userId, userId))
     .orderBy(desc(pdfDrafts.updatedAt))
     .limit(200)
 
   return rows.map((row) => ({
-    ...row,
+    publicId: row.publicId,
+    title: row.title,
+    sourceUrl: row.sourceUrl,
     updatedAt: row.updatedAt.toISOString(),
+    ...(row.searchId && row.permit && row.cityName && row.region
+      ? {
+          search: {
+            publicId: row.searchId,
+            label: searchLabel({
+              permit: row.permit,
+              city: { name: row.cityName, region: row.region },
+            }),
+          },
+        }
+      : {}),
   }))
 }
 

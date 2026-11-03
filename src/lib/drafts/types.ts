@@ -1,3 +1,5 @@
+import type { SearchLink } from '#/lib/navigation/origin'
+
 export type EditorTool = 'text' | 'check' | 'date' | 'signature'
 
 // A box on a PDF page, in PDF points from the page's bottom-left corner.
@@ -31,6 +33,9 @@ export interface Draft {
   sourceUrl: string
   sourceHash: string
   content: DraftContent
+  // The public ID of the saved search the editor was opened from. Stored only
+  // when the draft has no search yet.
+  searchId?: string
   // ISO time of the last edit, set by the browser that made it. The newer of
   // two copies wins.
   updatedAt: string
@@ -41,6 +46,7 @@ export interface DraftSummary {
   title: string
   sourceUrl: string
   updatedAt: string
+  search?: SearchLink
 }
 
 const MAX_CONTENT_BYTES = 256_000
@@ -104,6 +110,13 @@ export function draftError(value: unknown): string | null {
     Number.isNaN(Date.parse(draft.updatedAt))
   ) {
     return 'The draft has an invalid date.'
+  }
+  if (
+    draft.searchId !== undefined &&
+    (typeof draft.searchId !== 'string' ||
+      !/^[A-Za-z0-9]{8,16}$/.test(draft.searchId))
+  ) {
+    return 'The draft has an invalid search.'
   }
 
   const content = draft.content as Record<string, unknown> | undefined

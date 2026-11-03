@@ -1,8 +1,11 @@
 import { Link } from '@tanstack/react-router'
 
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
+import { useAuth } from '#/lib/auth/use-auth'
+import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { originParam } from '#/lib/navigation/origin'
 import { isPdfUrl } from '#/lib/pdf/url'
+import type { Project } from '#/lib/projects/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
 export function SearchResultsList({
@@ -16,6 +19,9 @@ export function SearchResultsList({
   // The searched city, given to projects started from a result.
   city: { name: string; region: string }
 }) {
+  const { user } = useAuth()
+  // For "Saved in" beside the PDFs already in a project.
+  const { projects } = useAccountProjects(Boolean(user))
   return (
     <>
       {response.isGeneralFallback && (
@@ -120,7 +126,15 @@ export function SearchResultsList({
                       item={{
                         sourceUrl: searchResult.url,
                         title: searchResult.title,
+                        searchId,
                       }}
+                    />
+                    <SavedIn
+                      projects={(projects ?? []).filter((project) =>
+                        project.items.some(
+                          (item) => item.sourceUrl === searchResult.url,
+                        ),
+                      )}
                     />
                   </div>
                 )}
@@ -135,5 +149,31 @@ export function SearchResultsList({
         </p>
       )}
     </>
+  )
+}
+
+// Links to the projects a PDF is already in: the first by name, then a count.
+function SavedIn({ projects }: { projects: Array<Project> }) {
+  const [first, ...others] = projects
+  if (!first) return null
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-sm text-ink/60">
+      <span className="shrink-0">Saved in</span>
+      <Link
+        to="/projects/$projectId"
+        params={{ projectId: first.publicId }}
+        className="truncate font-medium text-ink underline-offset-2 hover:underline"
+      >
+        {first.name}
+      </Link>
+      {others.length > 0 && (
+        <Link
+          to="/projects"
+          className="shrink-0 underline-offset-2 hover:underline"
+        >
+          +{others.length}
+        </Link>
+      )}
+    </span>
   )
 }

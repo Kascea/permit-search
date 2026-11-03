@@ -14,6 +14,7 @@ import { primaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
 import { Pending } from '#/components/Pending'
 import { ProjectForm } from '#/components/ProjectForm'
+import { SearchLinkText } from '#/components/SearchLinkText'
 import { SignInButton } from '#/components/SignInDialog'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
@@ -376,7 +377,11 @@ function FormsSection({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-ink">{item.title}</p>
                   <p className="truncate text-sm text-ink/60">
-                    {hostname(item.sourceUrl)}
+                    {item.search ? (
+                      <SearchLinkText search={item.search} />
+                    ) : (
+                      hostname(item.sourceUrl)
+                    )}
                     {draft ? (
                       <>
                         {' · '}

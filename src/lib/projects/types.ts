@@ -1,9 +1,14 @@
 import { UserError } from '#/lib/errors'
+import type { SearchLink } from '#/lib/navigation/origin'
 
 // A PDF saved to a project.
 export interface ProjectItem {
   sourceUrl: string
   title: string
+  // Sent when adding: the public ID of the saved search it was found in.
+  searchId?: string
+  // Read back: that search, for linking to it.
+  search?: SearchLink
 }
 
 // The answers nearly every permit application asks for. Each is its own column
@@ -372,6 +377,9 @@ export function validateProjectItem(value: unknown): ProjectItem {
   return {
     sourceUrl: item.sourceUrl,
     title: (title || 'PDF form').slice(0, MAX_TITLE_LENGTH),
+    ...(item.searchId === undefined
+      ? {}
+      : { searchId: validatePublicId(item.searchId, 'search') }),
   }
 }
 

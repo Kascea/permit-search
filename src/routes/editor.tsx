@@ -217,6 +217,7 @@ function PdfEditor({
     sourceHash,
     content: draftContent,
     signedIn,
+    searchId: origin.kind === 'search' ? origin.id : undefined,
   })
 
   useEffect(() => {

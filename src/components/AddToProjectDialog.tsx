@@ -16,6 +16,7 @@ import {
   MAX_PROJECT_NAME_LENGTH,
 } from '#/lib/projects/types'
 import type { Project, ProjectItem } from '#/lib/projects/types'
+import { setAccountProjects } from '#/lib/projects/use-account-projects'
 import { Notice } from '#/components/Notice'
 
 interface AddToProjectDialogProps {
@@ -320,6 +321,8 @@ export function AddToProjectButton({
         item={item}
         city={city}
         onClose={() => setIsOpen(false)}
+        // So the results' "Saved in" links update.
+        onChange={setAccountProjects}
       />
     </>
   )
