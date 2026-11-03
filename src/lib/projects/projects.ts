@@ -9,15 +9,14 @@ import {
   deleteProject,
   listProjects,
   removeProjectItem,
-  renameProject,
+  updateProject,
 } from '#/lib/projects/projects.server'
 import {
-  validateProjectCity,
+  validateProjectInput,
   validateProjectItem,
-  validateProjectName,
   validatePublicId,
 } from '#/lib/projects/types'
-import type { Project, ProjectItem } from '#/lib/projects/types'
+import type { Project, ProjectInput, ProjectItem } from '#/lib/projects/types'
 
 // Projects belong to the signed-in user; the browser never sends a user ID.
 // Each change returns the updated list, so the page needn't ask again.
@@ -43,26 +42,43 @@ export const listAccountProjects = createServerFn({ method: 'GET' }).handler(
     ),
 )
 
-export const createAccountProject = createServerFn({ method: 'POST' })
-  .validator(
-    (input: { name: string; city: Project['city']; item?: ProjectItem }) => ({
-      name: validateProjectName(input.name),
-      city: validateProjectCity(input.city),
-      item: input.item && validateProjectItem(input.item),
-    }),
-  )
+// Null when signed out; the project is null when it isn't the user's.
+export const getAccountProject = createServerFn({ method: 'GET' })
+  .validator((input: { publicId: string }) => ({
+    publicId: validatePublicId(input.publicId),
+  }))
   .handler(({ data }) =>
-    changeProjects((db, userId) => createProject(db, userId, data)),
+    withUserDatabase(
+      new Headers(getRequestHeaders()),
+      async (userId, db) => ({
+        project: (await listProjects(db, userId, data.publicId)).at(0) ?? null,
+      }),
+      () => null,
+    ),
   )
 
-export const renameAccountProject = createServerFn({ method: 'POST' })
-  .validator((input: { publicId: string; name: string }) => ({
+// Returns the new project's ID along with the list.
+export const createAccountProject = createServerFn({ method: 'POST' })
+  .validator((input: ProjectInput & { item?: ProjectItem }) => ({
+    ...validateProjectInput(input),
+    item: input.item && validateProjectItem(input.item),
+  }))
+  .handler(async ({ data }) => {
+    let publicId = ''
+    const projects = await changeProjects(async (db, userId) => {
+      publicId = await createProject(db, userId, data)
+    })
+    return { publicId, projects }
+  })
+
+export const updateAccountProject = createServerFn({ method: 'POST' })
+  .validator((input: ProjectInput & { publicId: string }) => ({
     publicId: validatePublicId(input.publicId),
-    name: validateProjectName(input.name),
+    ...validateProjectInput(input),
   }))
   .handler(({ data }) =>
     changeProjects((db, userId) =>
-      renameProject(db, userId, data.publicId, data.name),
+      updateProject(db, userId, data.publicId, data),
     ),
   )
 

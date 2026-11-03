@@ -16,6 +16,9 @@ import { Route as EditorRouteImport } from './routes/editor'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
+import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
+import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ResultsIndexRouteImport } from './routes/results.index'
 import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
@@ -55,6 +58,21 @@ const ApiPdfRoute = ApiPdfRouteImport.update({
   path: '/api/pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsNewRoute = ProjectsNewRouteImport.update({
+  id: '/projects/new',
+  path: '/projects/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultsIndexRoute = ResultsIndexRouteImport.update({
   id: '/results/',
   path: '/results/',
@@ -79,7 +97,10 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -91,7 +112,10 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/projects': typeof ProjectsIndexRoute
   '/results': typeof ResultsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -104,7 +128,10 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
   '/api/pdf': typeof ApiPdfRoute
+  '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/projects/new': typeof ProjectsNewRoute
   '/results/$searchId': typeof ResultsSearchIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/results/': typeof ResultsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -118,7 +145,10 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/projects/$projectId'
+    | '/projects/new'
     | '/results/$searchId'
+    | '/projects/'
     | '/results/'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -130,7 +160,10 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/projects/$projectId'
+    | '/projects/new'
     | '/results/$searchId'
+    | '/projects'
     | '/results'
     | '/api/auth/$'
   id:
@@ -142,7 +175,10 @@ export interface FileRouteTypes {
     | '/history'
     | '/settings'
     | '/api/pdf'
+    | '/projects/$projectId'
+    | '/projects/new'
     | '/results/$searchId'
+    | '/projects/'
     | '/results/'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -155,7 +191,10 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
   ApiPdfRoute: typeof ApiPdfRoute
+  ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+  ProjectsNewRoute: typeof ProjectsNewRoute
   ResultsSearchIdRoute: typeof ResultsSearchIdRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
   ResultsIndexRoute: typeof ResultsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -211,6 +250,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId': {
+      id: '/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof ProjectsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/new': {
+      id: '/projects/new'
+      path: '/projects/new'
+      fullPath: '/projects/new'
+      preLoaderRoute: typeof ProjectsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/results/': {
       id: '/results/'
       path: '/results'
@@ -243,7 +303,10 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
   ApiPdfRoute: ApiPdfRoute,
+  ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+  ProjectsNewRoute: ProjectsNewRoute,
   ResultsSearchIdRoute: ResultsSearchIdRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
   ResultsIndexRoute: ResultsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

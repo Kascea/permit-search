@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import type { DraftContent } from '#/lib/drafts/types'
+import type { ExtraField } from '#/lib/projects/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
 export const contactsStatus = pgEnum('contacts_status', [
@@ -312,9 +313,41 @@ export const projects = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
 
     name: varchar('name', { length: 120 }).notNull(),
-    // The city of the search the project was started from, if any.
+    // The city of the work, such as the city of the search it was started from.
     cityName: varchar('city_name', { length: 100 }),
     cityRegion: varchar('city_region', { length: 100 }),
+
+    // What nearly every permit application asks for; see ProjectDetails.
+    // Null when not filled in.
+    streetAddress: varchar('street_address', { length: 200 }),
+    unit: varchar('unit', { length: 40 }),
+    zipCode: varchar('zip_code', { length: 10 }),
+    parcelNumber: varchar('parcel_number', { length: 60 }),
+
+    workDescription: varchar('work_description', { length: 2000 }),
+    // Whole dollars.
+    estimatedCost: integer('estimated_cost'),
+
+    ownerName: varchar('owner_name', { length: 120 }),
+    ownerPhone: varchar('owner_phone', { length: 40 }),
+    ownerEmail: varchar('owner_email', { length: 254 }),
+    ownerMailingAddress: varchar('owner_mailing_address', { length: 300 }),
+
+    applicantIsOwner: boolean('applicant_is_owner').notNull().default(false),
+    applicantName: varchar('applicant_name', { length: 120 }),
+    applicantPhone: varchar('applicant_phone', { length: 40 }),
+    applicantEmail: varchar('applicant_email', { length: 254 }),
+
+    contractorCompany: varchar('contractor_company', { length: 200 }),
+    contractorLicense: varchar('contractor_license', { length: 60 }),
+    contractorPhone: varchar('contractor_phone', { length: 40 }),
+    contractorEmail: varchar('contractor_email', { length: 254 }),
+
+    // Fields the user added for answers their city's forms ask for.
+    extraFields: jsonb('extra_fields')
+      .$type<Array<ExtraField>>()
+      .notNull()
+      .default([]),
 
     ...timestamps,
   },

@@ -11,7 +11,10 @@ import {
   listAccountProjects,
   removeFromAccountProject,
 } from '#/lib/projects/projects'
-import { MAX_PROJECT_NAME_LENGTH } from '#/lib/projects/types'
+import {
+  EMPTY_PROJECT_DETAILS,
+  MAX_PROJECT_NAME_LENGTH,
+} from '#/lib/projects/types'
 import type { Project, ProjectItem } from '#/lib/projects/types'
 
 interface AddToProjectDialogProps {
@@ -131,7 +134,16 @@ function ProjectPicker({
     setError('')
     setIsCreating(true)
     try {
-      update(await createAccountProject({ data: { name, city, item } }))
+      const created = await createAccountProject({
+        data: {
+          name,
+          city,
+          details: EMPTY_PROJECT_DETAILS,
+          extraFields: [],
+          item,
+        },
+      })
+      update(created.projects)
       setName('')
     } catch (createError) {
       setError(

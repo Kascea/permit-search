@@ -6,8 +6,7 @@ import { SignInButton } from '#/components/SignInDialog'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { listLocalDrafts } from '#/lib/drafts/local'
 import { draftTitle } from '#/lib/drafts/types'
-import { listAccountProjects } from '#/lib/projects/projects'
-import type { Project } from '#/lib/projects/types'
+import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 interface SidebarDraft {
   sourceUrl: string
@@ -17,7 +16,6 @@ interface SidebarDraft {
 
 // Kept between editor visits so switching forms doesn't flash an empty list.
 let cachedDrafts: Array<SidebarDraft> | undefined
-let cachedProjects: Array<Project> | undefined
 
 // The account's drafts plus any in this browser that haven't synced yet;
 // only this browser's when signed out.
@@ -57,33 +55,8 @@ export function DraftSidebar({
 }: DraftSidebarProps) {
   const [drafts, setDrafts] = useState(cachedDrafts)
   const [error, setError] = useState(false)
-  const [loadedProjects, setProjects] = useState(cachedProjects)
-  const [projectsError, setProjectsError] = useState(false)
-
-  // Projects only change on the drafts page, so they load once per sign-in
-  // rather than on every save; this runs alongside the drafts request.
-  useEffect(() => {
-    if (!signedIn) {
-      // So the next account to sign in doesn't see these.
-      cachedProjects = undefined
-      return
-    }
-    let cancelled = false
-    listAccountProjects()
-      .then((loaded) => {
-        cachedProjects = loaded ?? []
-        if (!cancelled) {
-          setProjects(cachedProjects)
-          setProjectsError(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setProjectsError(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [signedIn])
+  // Loads alongside the drafts request.
+  const { projects, error: projectsError } = useAccountProjects(signedIn)
 
   useEffect(() => {
     let cancelled = false
@@ -103,7 +76,6 @@ export function DraftSidebar({
     }
   }, [signedIn, refreshKey])
 
-  const projects = signedIn ? loadedProjects : []
   const draftsByUrl = new Map(drafts?.map((draft) => [draft.sourceUrl, draft]))
   const projectUrls = new Set(
     projects?.flatMap(({ items }) => items.map(({ sourceUrl }) => sourceUrl)),
@@ -121,7 +93,7 @@ export function DraftSidebar({
           <section>
             <SectionHeading title="Projects">
               <Link
-                to="/drafts"
+                to="/projects"
                 className="text-xs font-medium text-blueprint underline-offset-2 hover:underline"
               >
                 Manage
@@ -133,8 +105,14 @@ export function DraftSidebar({
               </p>
             ) : projects.length === 0 ? (
               <p className="px-4 py-4 text-sm leading-6 text-ink/60">
-                Add PDFs from your search results to a project to keep them
-                together here.
+                Save your property and contact details in a project to fill out
+                forms faster.{' '}
+                <Link
+                  to="/projects/new"
+                  className="font-medium text-blueprint underline-offset-2 hover:underline"
+                >
+                  Start a project
+                </Link>
               </p>
             ) : (
               <ul className="py-1">

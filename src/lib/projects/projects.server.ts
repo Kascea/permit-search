@@ -2,7 +2,12 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import type { Database } from '#/lib/db/client.server'
 import { projectItems, projects } from '#/lib/db/schema'
-import type { Project, ProjectItem } from '#/lib/projects/types'
+import type {
+  Project,
+  ProjectDetails,
+  ProjectInput,
+  ProjectItem,
+} from '#/lib/projects/types'
 import { newPublicId } from '#/lib/saved-searches/search-key'
 
 // Each function takes the request's open connection (see withUserDatabase),
@@ -11,10 +16,67 @@ import { newPublicId } from '#/lib/saved-searches/search-key'
 
 const MAX_PROJECTS = 200
 
-// Most recently changed first.
+// The columns behind ProjectDetails, under the same names.
+const detailColumns = {
+  streetAddress: projects.streetAddress,
+  unit: projects.unit,
+  zipCode: projects.zipCode,
+  parcelNumber: projects.parcelNumber,
+  workDescription: projects.workDescription,
+  estimatedCost: projects.estimatedCost,
+  ownerName: projects.ownerName,
+  ownerPhone: projects.ownerPhone,
+  ownerEmail: projects.ownerEmail,
+  ownerMailingAddress: projects.ownerMailingAddress,
+  applicantIsOwner: projects.applicantIsOwner,
+  applicantName: projects.applicantName,
+  applicantPhone: projects.applicantPhone,
+  applicantEmail: projects.applicantEmail,
+  contractorCompany: projects.contractorCompany,
+  contractorLicense: projects.contractorLicense,
+  contractorPhone: projects.contractorPhone,
+  contractorEmail: projects.contractorEmail,
+} satisfies Record<keyof ProjectDetails, unknown>
+
+type DetailRow = {
+  [Key in keyof ProjectDetails]: ProjectDetails[Key] extends string
+    ? string | null
+    : ProjectDetails[Key]
+}
+
+// Null columns read as "", and "" is stored as null.
+function detailsFromRow(row: DetailRow): ProjectDetails {
+  const details = { ...row } as Record<string, unknown>
+  for (const [key, value] of Object.entries(details)) {
+    if (value === null && key !== 'estimatedCost') details[key] = ''
+  }
+  return details as unknown as ProjectDetails
+}
+
+function detailsToRow(details: ProjectDetails): DetailRow {
+  const row = { ...details } as Record<string, unknown>
+  for (const [key, value] of Object.entries(row)) {
+    if (value === '') row[key] = null
+  }
+  return row as DetailRow
+}
+
+function inputToRow(input: ProjectInput) {
+  return {
+    name: input.name,
+    cityName: input.city?.name ?? null,
+    cityRegion: input.city?.region ?? null,
+    ...detailsToRow(input.details),
+    extraFields: input.extraFields,
+  }
+}
+
+// Most recently changed first. With a public ID, just that project (if it's
+// the user's).
 export async function listProjects(
   db: Database,
   userId: string,
+  publicId?: string,
 ): Promise<Array<Project>> {
   // Each project's items come back as a JSON array in the same query. The
   // columns are written out because Drizzle leaves table names off columns in
@@ -25,6 +87,9 @@ export async function listProjects(
       name: projects.name,
       cityName: projects.cityName,
       cityRegion: projects.cityRegion,
+      details: detailColumns,
+      extraFields: projects.extraFields,
+      updatedAt: projects.updatedAt,
       items: sql<Array<ProjectItem>>`coalesce((
         select json_agg(
           json_build_object('sourceUrl', item.source_url, 'title', item.title)
@@ -35,7 +100,7 @@ export async function listProjects(
       ), '[]'::json)`,
     })
     .from(projects)
-    .where(eq(projects.userId, userId))
+    .where(publicId ? ownedBy(userId, publicId) : eq(projects.userId, userId))
     .orderBy(desc(projects.updatedAt))
     .limit(MAX_PROJECTS)
 
@@ -46,7 +111,10 @@ export async function listProjects(
       row.cityName && row.cityRegion
         ? { name: row.cityName, region: row.cityRegion }
         : null,
+    details: detailsFromRow(row.details),
+    extraFields: row.extraFields,
     items: row.items,
+    updatedAt: row.updatedAt.toISOString(),
   }))
 }
 
@@ -54,43 +122,42 @@ function ownedBy(userId: string, publicId: string) {
   return and(eq(projects.userId, userId), eq(projects.publicId, publicId))
 }
 
-// Creates a project, and adds a first PDF to it when one is given.
+// Creates a project, and adds a first PDF to it when one is given. Returns
+// the new project's public ID.
 export async function createProject(
   db: Database,
   userId: string,
-  input: { name: string; city: Project['city']; item?: ProjectItem },
+  input: ProjectInput & { item?: ProjectItem },
 ) {
-  const values = {
-    publicId: newPublicId(),
-    userId,
-    name: input.name,
-    cityName: input.city?.name ?? null,
-    cityRegion: input.city?.region ?? null,
-  }
+  const publicId = newPublicId()
+  const insert = db
+    .insert(projects)
+    .values({ publicId, userId, ...inputToRow(input) })
+
   if (!input.item) {
-    await db.insert(projects).values(values)
-    return
+    await insert
+    return publicId
   }
 
   await db.execute(sql`
-    with project as (
-      insert into ${projects} (public_id, user_id, name, city_name, city_region)
-      values (${values.publicId}, ${userId}, ${values.name},
-              ${values.cityName}, ${values.cityRegion})
-      returning id
-    )
+    with project as (${insert.returning({ id: projects.id })})
     insert into ${projectItems} (project_id, source_url, title)
     select id, ${input.item.sourceUrl}, ${input.item.title} from project
   `)
+  return publicId
 }
 
-export async function renameProject(
+// Replaces the project's name, city, details and extra fields.
+export async function updateProject(
   db: Database,
   userId: string,
   publicId: string,
-  name: string,
+  input: ProjectInput,
 ) {
-  await db.update(projects).set({ name }).where(ownedBy(userId, publicId))
+  await db
+    .update(projects)
+    .set(inputToRow(input))
+    .where(ownedBy(userId, publicId))
 }
 
 // Its items go with it.

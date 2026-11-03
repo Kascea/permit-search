@@ -19,6 +19,7 @@ import { UserError, errorMessage } from '#/lib/errors'
 import { AccountMenu } from '#/components/AccountMenu'
 import { DraftSidebar } from '#/components/DraftSidebar'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+import { ProjectFillMenu } from '#/components/ProjectFillMenu'
 import { SignInButton } from '#/components/SignInDialog'
 import { useAuth } from '#/lib/auth/use-auth'
 import { deleteAccountDraft } from '#/lib/drafts/drafts'
@@ -36,6 +37,8 @@ import {
   useDraftAutosave,
 } from '#/lib/drafts/use-draft-autosave'
 import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
+import { projectFills } from '#/lib/projects/autofill'
+import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 type NativeField =
   | {
@@ -71,8 +74,12 @@ type NativeField =
     }
 
 export const Route = createFileRoute('/editor')({
-  validateSearch: (search: Record<string, unknown>) => ({
+  // project: the project to fill from, when opened from one.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { url: string; project?: string } => ({
     url: typeof search.url === 'string' ? search.url : '',
+    ...(typeof search.project === 'string' ? { project: search.project } : {}),
   }),
   component: EditorRoute,
 })
@@ -80,13 +87,13 @@ export const Route = createFileRoute('/editor')({
 // Keyed by URL so opening another draft starts with fresh state, and the
 // closing editor saves any pending edit.
 function EditorRoute() {
-  const { url } = Route.useSearch()
-  return <PdfEditor key={url} url={url} />
+  const { url, project } = Route.useSearch()
+  return <PdfEditor key={url} url={url} projectId={project} />
 }
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]
 
-function PdfEditor({ url }: { url: string }) {
+function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
   const [sourceBytes, setSourceBytes] = useState<ArrayBuffer>()
   const [pdf, setPdf] = useState<PDFDocumentProxy>()
   const [nativeFields, setNativeFields] = useState<Array<NativeField>>([])
@@ -106,6 +113,9 @@ function PdfEditor({ url }: { url: string }) {
   const [currentPage, setCurrentPage] = useState(1)
   // The drafts drawer on small screens; the sidebar is always shown on large.
   const [isDraftsOpen, setIsDraftsOpen] = useState(false)
+  const { projects } = useAccountProjects(signedIn)
+  // The project chosen in the fill menu, or the one the editor was opened from.
+  const [fillProjectId, setFillProjectId] = useState(projectId)
   const scrollRef = useRef<HTMLElement>(null)
   // Page 1's width at scale 1, for fitting the page to the window.
   const pageWidthRef = useRef(612)
@@ -116,6 +126,35 @@ function PdfEditor({ url }: { url: string }) {
       filled: nativeFields.filter(isFilled).length,
     }),
     [nativeFields],
+  )
+
+  // The project to fill from: the chosen one, else the first holding this PDF,
+  // else the most recent.
+  const fillProject =
+    projects?.find((project) => project.publicId === fillProjectId) ??
+    projects?.find((project) =>
+      project.items.some((item) => item.sourceUrl === url),
+    ) ??
+    projects?.at(0)
+  const fills = useMemo(
+    () =>
+      fillProject
+        ? projectFills(
+            nativeFields.flatMap((field) =>
+              field.kind === 'text' && !field.value.trim()
+                ? [
+                    {
+                      id: field.id,
+                      name: field.name,
+                      width: field.widgets[0].width,
+                    },
+                  ]
+                : [],
+            ),
+            fillProject,
+          )
+        : new Map<string, string>(),
+    [fillProject, nativeFields],
   )
 
   const draftContent = useMemo<DraftContent>(
@@ -370,6 +409,36 @@ function PdfEditor({ url }: { url: string }) {
     )
   }
 
+  // Fills the empty fields the project matches. Undo clears only the fields
+  // still holding the filled value, so later typing is kept.
+  function fillFromProject() {
+    if (!fillProject || fills.size === 0) return
+    const filled = fills
+    const isFilledByProject = (field: NativeField) =>
+      field.kind === 'text' && filled.get(field.id) === field.value
+    setNativeFields((current) =>
+      current.map((field) =>
+        field.kind === 'text' && !field.value.trim() && filled.has(field.id)
+          ? { ...field, value: filled.get(field.id) ?? '' }
+          : field,
+      ),
+    )
+    toast.success(
+      `Filled ${filled.size} ${filled.size === 1 ? 'field' : 'fields'} from “${fillProject.name}”.`,
+      {
+        action: {
+          label: 'Undo',
+          onClick: () =>
+            setNativeFields((current) =>
+              current.map((field) =>
+                isFilledByProject(field) ? { ...field, value: '' } : field,
+              ),
+            ),
+        },
+      },
+    )
+  }
+
   // Deletes the saved draft and puts back the PDF's own values.
   async function discardDraft() {
     if (!sourceBytes) return
@@ -587,6 +656,16 @@ function PdfEditor({ url }: { url: string }) {
           <div className="flex h-12 shrink-0 items-center gap-2">
             {pdf && (
               <>
+                {signedIn && (
+                  <ProjectFillMenu
+                    projects={projects}
+                    project={fillProject}
+                    onSelect={setFillProjectId}
+                    fillCount={fills.size}
+                    onFill={fillFromProject}
+                    item={{ sourceUrl: url, title: draftTitle(url) }}
+                  />
+                )}
                 <div className="hidden sm:block">
                   <DraftStatusLabel
                     onDiscard={() => void discardDraft()}

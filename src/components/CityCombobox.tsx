@@ -15,6 +15,9 @@ interface CityComboboxProps {
   onChange: (value: string) => void
   onCitySelected: (city: City) => void
   labelAction?: ReactNode
+  // Fits a table cell: the label is for screen readers only, and the input
+  // takes this class instead of the pin icon and field border.
+  compactInputClass?: string
 }
 
 export function CityCombobox({
@@ -23,6 +26,7 @@ export function CityCombobox({
   onChange,
   onCitySelected,
   labelAction,
+  compactInputClass,
 }: CityComboboxProps) {
   const inputId = useId()
   const listboxId = useId()
@@ -101,32 +105,40 @@ export function CityCombobox({
 
   return (
     <div className="relative">
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div
+        className={
+          compactInputClass
+            ? 'sr-only'
+            : 'mb-2 flex items-center justify-between gap-3'
+        }
+      >
         <label className="block text-sm font-medium text-ink" htmlFor={inputId}>
           City
         </label>
         {labelAction}
       </div>
       <div className="relative">
-        <svg
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-ink/40"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-          />
-        </svg>
+        {!compactInputClass && (
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-ink/40"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+            />
+          </svg>
+        )}
         <input
           id={inputId}
           role="combobox"
@@ -137,7 +149,7 @@ export function CityCombobox({
             activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined
           }
           autoComplete="off"
-          className="field-input pr-12 pl-12"
+          className={compactInputClass ?? 'field-input pr-12 pl-12'}
           placeholder="Start typing a U.S. city"
           value={value}
           onChange={(event) => {
