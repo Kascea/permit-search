@@ -6,6 +6,7 @@ import { SignInButton } from '#/components/SignInDialog'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { listLocalDrafts } from '#/lib/drafts/local'
 import { draftTitle } from '#/lib/drafts/types'
+import { originParam } from '#/lib/navigation/origin'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 interface SidebarDraft {
@@ -179,6 +180,10 @@ export function DraftSidebar({
                                         : hostname(item.sourceUrl)
                                     }
                                     isCurrent={item.sourceUrl === currentUrl}
+                                    from={originParam({
+                                      kind: 'project',
+                                      id: project.publicId,
+                                    })}
                                     indented
                                     onNavigate={onNavigate}
                                   />
@@ -226,6 +231,7 @@ export function DraftSidebar({
                     title={draft.title}
                     detail={`${hostname(draft.sourceUrl)} · ${timeAgo(draft.updatedAt)}`}
                     isCurrent={draft.sourceUrl === currentUrl}
+                    from="drafts"
                     onNavigate={onNavigate}
                   />
                 </li>
@@ -269,6 +275,7 @@ function PdfLink({
   title,
   detail,
   isCurrent,
+  from,
   indented = false,
   onNavigate,
 }: {
@@ -276,6 +283,8 @@ function PdfLink({
   title: string
   detail: string
   isCurrent: boolean
+  // The editor's breadcrumb origin; see Origin.
+  from: string
   // Lines items up under their project's name.
   indented?: boolean
   onNavigate?: () => void
@@ -283,7 +292,7 @@ function PdfLink({
   return (
     <Link
       to="/editor"
-      search={{ url: sourceUrl }}
+      search={{ url: sourceUrl, from }}
       aria-current={isCurrent ? 'page' : undefined}
       onClick={onNavigate}
       className={`block border-l-2 py-2.5 pr-4 transition ${

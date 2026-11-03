@@ -9,6 +9,7 @@ import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
+import { Breadcrumbs, crumbLinkClass } from '#/components/Breadcrumbs'
 import { primaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
 import { Pending } from '#/components/Pending'
@@ -17,6 +18,7 @@ import { SignInButton } from '#/components/SignInDialog'
 import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
+import { originParam } from '#/lib/navigation/origin'
 import type { DraftSummary } from '#/lib/drafts/types'
 import {
   deleteAccountProject,
@@ -121,6 +123,7 @@ function ProjectPage() {
 
   return (
     <Page
+      projectName={project.name}
       // The search modal starts in the project's city.
       search={project.city ? { city: project.city, permit: '' } : undefined}
       isSearchOpen={isSearchOpen}
@@ -275,21 +278,34 @@ function ProjectTitle({
 
 function Page({
   children,
+  projectName,
   ...header
 }: {
   children: ReactNode
+  // Ends the breadcrumb once the project has loaded.
+  projectName?: string
 } & React.ComponentProps<typeof SiteHeader>) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader {...header} />
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pt-8 sm:px-6">
         <section className="mx-auto max-w-[780px] py-8">
-          <Link
-            to="/projects"
-            className="mb-5 inline-flex items-center gap-1 text-sm text-ink/60 transition hover:text-ink"
+          <Breadcrumbs
+            className="mb-5"
+            current={
+              projectName === undefined ? undefined : (
+                <span className="text-ink">{projectName}</span>
+              )
+            }
           >
-            <span aria-hidden="true">←</span> All projects
-          </Link>
+            <Link
+              to="/projects"
+              activeOptions={{ exact: true }}
+              className={crumbLinkClass}
+            >
+              Projects
+            </Link>
+          </Breadcrumbs>
           {children}
         </section>
       </main>
@@ -375,7 +391,13 @@ function FormsSection({
                 </div>
                 <Link
                   to="/editor"
-                  search={{ url: item.sourceUrl, project: project.publicId }}
+                  search={{
+                    url: item.sourceUrl,
+                    from: originParam({
+                      kind: 'project',
+                      id: project.publicId,
+                    }),
+                  }}
                   className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
                 >
                   {draft ? 'Continue' : 'Fill out'}

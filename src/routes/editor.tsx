@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -17,6 +17,7 @@ import type { PDFDocumentProxy, PDFPageProxy, PageViewport } from 'pdfjs-dist'
 
 import { UserError, errorMessage } from '#/lib/errors'
 import { AccountMenu } from '#/components/AccountMenu'
+import { Breadcrumbs, OriginCrumb } from '#/components/Breadcrumbs'
 import { DraftSidebar } from '#/components/DraftSidebar'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { ProjectFillMenu } from '#/components/ProjectFillMenu'
@@ -40,6 +41,9 @@ import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
 import { projectFills } from '#/lib/projects/autofill'
 import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
+import { parseOrigin, searchLabel } from '#/lib/navigation/origin'
+import type { Origin } from '#/lib/navigation/origin'
+import { getSearchSummary } from '#/lib/search/permit-search'
 
 type NativeField =
   | {
@@ -75,26 +79,63 @@ type NativeField =
     }
 
 export const Route = createFileRoute('/editor')({
-  // project: the project to fill from, when opened from one.
+  // project: the project to fill from. from: the page it was opened from, for
+  // the breadcrumb; see Origin.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { url: string; project?: string } => ({
+  ): { url: string; project?: string; from?: string } => ({
     url: typeof search.url === 'string' ? search.url : '',
     ...(typeof search.project === 'string' ? { project: search.project } : {}),
+    ...(typeof search.from === 'string' ? { from: search.from } : {}),
   }),
+  loaderDeps: ({ search }) => ({ from: search.from }),
+  // The search the editor was opened from, to name it in the breadcrumb. A
+  // failed lookup just leaves the breadcrumb generic.
+  loader: async ({ deps }) => {
+    const origin = parseOrigin(deps.from)
+    if (origin?.kind !== 'search') return { searchName: undefined }
+    const summary = await getSearchSummary({
+      data: { publicId: origin.id },
+    }).catch(() => null)
+    return { searchName: summary ? searchLabel(summary) : undefined }
+  },
   component: EditorRoute,
 })
 
 // Keyed by URL so opening another draft starts with fresh state, and the
 // closing editor saves any pending edit.
 function EditorRoute() {
-  const { url, project } = Route.useSearch()
-  return <PdfEditor key={url} url={url} projectId={project} />
+  const { url, project, from } = Route.useSearch()
+  const { searchName } = Route.useLoaderData()
+  // Links from before ?from= name only the project.
+  const origin: Origin = parseOrigin(from) ??
+    (project ? { kind: 'project', id: project } : { kind: 'drafts' })
+  const projectId =
+    project ?? (origin.kind === 'project' ? origin.id : undefined)
+  return (
+    <PdfEditor
+      key={url}
+      url={url}
+      projectId={projectId}
+      origin={origin}
+      searchName={searchName}
+    />
+  )
 }
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5]
 
-function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
+function PdfEditor({
+  url,
+  projectId,
+  origin,
+  searchName,
+}: {
+  url: string
+  projectId?: string
+  origin: Origin
+  searchName?: string
+}) {
   const [sourceBytes, setSourceBytes] = useState<ArrayBuffer>()
   const [pdf, setPdf] = useState<PDFDocumentProxy>()
   const [nativeFields, setNativeFields] = useState<Array<NativeField>>([])
@@ -513,13 +554,13 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
       <header className="z-50 shrink-0 border-b border-ink bg-paper">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0 px-3 sm:px-4">
           <div className="flex h-12 min-w-0 flex-1 items-center gap-2">
-            <a
+            <Link
               aria-label="Permit Search home"
               className="shrink-0 text-ink"
-              href="/"
+              to="/"
             >
               <PermitSearchLogo className="size-7" />
-            </a>
+            </Link>
             <button
               aria-expanded={isDraftsOpen}
               aria-label="Show drafts"
@@ -530,10 +571,27 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
             <span aria-hidden="true" className="h-5 w-px shrink-0 bg-ink/20" />
-            <div className="min-w-0">
-              <h1 className="truncate text-sm leading-tight font-medium text-ink">
-                {url ? draftTitle(url) : 'PDF editor'}
-              </h1>
+            <div className="min-w-0 flex-1">
+              <Breadcrumbs
+                current={
+                  <h1 className="truncate text-sm leading-tight font-medium text-ink">
+                    {url ? draftTitle(url) : 'PDF editor'}
+                  </h1>
+                }
+              >
+                <OriginCrumb
+                  origin={origin}
+                  label={
+                    origin.kind === 'search'
+                      ? searchName
+                      : origin.kind === 'project'
+                        ? projects?.find(
+                            (project) => project.publicId === origin.id,
+                          )?.name
+                        : undefined
+                  }
+                />
+              </Breadcrumbs>
               {url && (
                 <p className="truncate text-xs leading-tight text-ink/60">
                   {hostname(url)}

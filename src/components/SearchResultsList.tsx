@@ -1,14 +1,18 @@
 import { Link } from '@tanstack/react-router'
 
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
+import { originParam } from '#/lib/navigation/origin'
 import { isPdfUrl } from '#/lib/pdf/url'
 import type { PermitSearchResponse } from '#/lib/search/types'
 
 export function SearchResultsList({
   response,
   city,
+  searchId,
 }: {
   response: PermitSearchResponse
+  // The saved search's public ID, so the editor can link back to it.
+  searchId: string
   // The searched city, given to projects started from a result.
   city: { name: string; region: string }
 }) {
@@ -85,7 +89,10 @@ export function SearchResultsList({
                   <div className="relative z-10 mt-3 flex w-fit flex-wrap items-center gap-x-6 gap-y-2">
                     <Link
                       className="group/edit inline-flex items-center gap-2 rounded-full text-sm font-medium text-blueprint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
-                      search={{ url: searchResult.url }}
+                      search={{
+                        url: searchResult.url,
+                        from: originParam({ kind: 'search', id: searchId }),
+                      }}
                       to="/editor"
                     >
                       <span className="grid size-8 place-items-center rounded-full border border-blueprint/40 bg-blueprint/10 transition group-hover/edit:border-blueprint group-hover/edit:bg-blueprint group-hover/edit:text-paper">

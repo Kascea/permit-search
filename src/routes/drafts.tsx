@@ -158,7 +158,11 @@ function DraftList({
               </div>
               <Link
                 to="/editor"
-                search={{ url: draft.sourceUrl, project: project?.publicId }}
+                search={{
+                  url: draft.sourceUrl,
+                  project: project?.publicId,
+                  from: 'drafts',
+                }}
                 className="rounded-full bg-blueprint px-4 py-2 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
               >
                 Open

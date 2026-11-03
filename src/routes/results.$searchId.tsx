@@ -43,7 +43,11 @@ function SavedResults() {
       meta={<SearchStatus saved={saved} />}
       searchId={saved.publicId}
     >
-      <SearchResultsList response={saved.response} city={saved.city} />
+      <SearchResultsList
+        response={saved.response}
+        city={saved.city}
+        searchId={saved.publicId}
+      />
     </ResultsPage>
   )
 }

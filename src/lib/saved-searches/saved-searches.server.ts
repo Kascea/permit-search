@@ -171,3 +171,31 @@ export async function loadSavedSearch(
     ageMinutes: Math.floor((Date.now() - row.createdAt.getTime()) / 60_000),
   }
 }
+
+// Just what a breadcrumb or link names a search by, without its results.
+export async function loadSearchSummary(
+  publicId: string,
+): Promise<Pick<SavedSearch, 'publicId' | 'city' | 'permit'> | null> {
+  const row = await withDatabase(async (db) =>
+    (
+      await db
+        .select({
+          publicId: searches.publicId,
+          permit: searches.permitQuery,
+          cityName: cities.name,
+          region: cities.region,
+        })
+        .from(searches)
+        .innerJoin(cities, eq(searches.cityId, cities.id))
+        .where(eq(searches.publicId, publicId))
+        .limit(1)
+    ).at(0),
+  )
+  return row
+    ? {
+        publicId: row.publicId,
+        city: { name: row.cityName, region: row.region },
+        permit: row.permit,
+      }
+    : null
+}
