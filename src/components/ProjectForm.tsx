@@ -1,11 +1,12 @@
 import { useBlocker } from '@tanstack/react-router'
-import { useId, useRef, useState } from 'react'
+import { createContext, useContext, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { errorMessage } from '#/lib/errors'
 import { primaryButtonClass, textButtonClass } from '#/components/buttons'
 import { CityCombobox } from '#/components/CityCombobox'
 import { Pending } from '#/components/Pending'
+import { copyWithToast } from '#/lib/clipboard'
 import { formatCity } from '#/lib/location/format'
 import type { City } from '#/lib/location/types'
 import {
@@ -218,236 +219,261 @@ export function ProjectForm({
 
   return (
     <form id={formId} noValidate onSubmit={submit}>
-      <Table
-        title="Property and work"
-        description="Where the work happens and what it is."
-      >
-        {variant === 'create' && (
-          <Row label="Project name">
+      <CanCopyContext value={variant === 'edit'}>
+        <Table
+          title="Property and work"
+          description="Where the work happens and what it is."
+        >
+          {variant === 'create' && (
+            <Row label="Project name">
+              {(id) => (
+                <input
+                  id={id}
+                  className={cellClass}
+                  maxLength={MAX_PROJECT_NAME_LENGTH}
+                  placeholder="e.g. Backyard fence"
+                  value={name}
+                  onChange={(event) => update({ name: event.target.value })}
+                />
+              )}
+            </Row>
+          )}
+          <tr className={rowClass}>
+            <th scope="row" className={labelCellClass}>
+              City
+            </th>
+            <td className="p-0">
+              <Copyable
+                label="City"
+                value={selectedCity ? formatCity(selectedCity) : ''}
+              >
+                <CityCombobox
+                  compactInputClass={
+                    variant === 'edit' ? `${cellClass} pr-10` : cellClass
+                  }
+                  selectedCity={selectedCity}
+                  value={cityInput}
+                  onChange={(value) =>
+                    update({ cityInput: value, selectedCity: undefined })
+                  }
+                  onCitySelected={(city) =>
+                    update({ cityInput: formatCity(city), selectedCity: city })
+                  }
+                />
+              </Copyable>
+            </td>
+          </tr>
+          {PROPERTY_KEYS.map((key) => (
+            <DetailRow
+              key={key}
+              field={fieldFor(key)}
+              value={details[key]}
+              onChange={(value) => setDetail(key, value)}
+            />
+          ))}
+          <Row label="Estimated cost">
             {(id) => (
-              <input
-                id={id}
-                className={cellClass}
-                maxLength={MAX_PROJECT_NAME_LENGTH}
-                placeholder="e.g. Backyard fence"
-                value={name}
-                onChange={(event) => update({ name: event.target.value })}
-              />
+              <Copyable label="Estimated cost" value={cost}>
+                <div className="flex items-center">
+                  <span aria-hidden="true" className="pl-3 text-ink/60">
+                    $
+                  </span>
+                  <input
+                    id={id}
+                    className={`${cellClass} pl-1`}
+                    inputMode="numeric"
+                    placeholder="Labor and materials"
+                    value={cost}
+                    onChange={(event) => update({ cost: event.target.value })}
+                  />
+                </div>
+              </Copyable>
             )}
           </Row>
-        )}
-        <tr className={rowClass}>
-          <th scope="row" className={labelCellClass}>
-            City
-          </th>
-          <td className="p-0">
-            <CityCombobox
-              compactInputClass={cellClass}
-              selectedCity={selectedCity}
-              value={cityInput}
-              onChange={(value) =>
-                update({ cityInput: value, selectedCity: undefined })
-              }
-              onCitySelected={(city) =>
-                update({ cityInput: formatCity(city), selectedCity: city })
-              }
-            />
-          </td>
-        </tr>
-        {PROPERTY_KEYS.map((key) => (
           <DetailRow
-            key={key}
-            field={fieldFor(key)}
-            value={details[key]}
-            onChange={(value) => setDetail(key, value)}
+            field={fieldFor('workDescription')}
+            value={details.workDescription}
+            onChange={(value) => setDetail('workDescription', value)}
           />
-        ))}
-        <Row label="Estimated cost">
-          {(id) => (
-            <div className="flex items-center">
-              <span aria-hidden="true" className="pl-3 text-ink/60">
-                $
-              </span>
-              <input
-                id={id}
-                className={`${cellClass} pl-1`}
-                inputMode="numeric"
-                placeholder="Labor and materials"
-                value={cost}
-                onChange={(event) => update({ cost: event.target.value })}
-              />
-            </div>
-          )}
-        </Row>
-        <DetailRow
-          field={fieldFor('workDescription')}
-          value={details.workDescription}
-          onChange={(value) => setDetail('workDescription', value)}
-        />
-      </Table>
+        </Table>
 
-      <section className="mt-8">
-        <TableHeading
-          title="People"
-          description="Who owns the property, who’s filing, and who’s doing the work."
-        />
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] border-collapse border-y border-ink text-sm">
-            <thead>
-              <tr className={rowClass}>
-                <td className={labelCellClass} />
-                <th scope="col" className={columnHeadClass}>
-                  Owner
-                </th>
-                <th scope="col" className={columnHeadClass}>
-                  <span className="flex items-center justify-between gap-2">
-                    Applicant
-                    <label className="flex items-center gap-1.5 font-normal text-ink/70">
+        <section className="mt-8">
+          <TableHeading
+            title="People"
+            description="Who owns the property, who’s filing, and who’s doing the work."
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[600px] border-collapse border-y border-ink text-sm">
+              <thead>
+                <tr className={rowClass}>
+                  <td className={labelCellClass} />
+                  <th scope="col" className={columnHeadClass}>
+                    Owner
+                  </th>
+                  <th scope="col" className={columnHeadClass}>
+                    <span className="flex items-center justify-between gap-2">
+                      Applicant
+                      <label className="flex items-center gap-1.5 font-normal text-ink/70">
+                        <input
+                          type="checkbox"
+                          className="size-3.5 accent-blueprint"
+                          checked={applicantIsOwner}
+                          onChange={(event) =>
+                            setDetail('applicantIsOwner', event.target.checked)
+                          }
+                        />
+                        Same as owner
+                      </label>
+                    </span>
+                  </th>
+                  <th scope="col" className={columnHeadClass}>
+                    Contractor
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {PEOPLE_ROWS.map((row) => (
+                  <tr key={row.label} className={rowClass}>
+                    <th scope="row" className={labelCellClass}>
+                      {row.label}
+                    </th>
+                    {PARTIES.map((party) => {
+                      const key = row[party]
+                      if (!key) {
+                        return (
+                          <td
+                            key={party}
+                            className="border-l border-ink/20 bg-ink/[0.03]"
+                          />
+                        )
+                      }
+                      // The owner's values stand in for the applicant's.
+                      const shownKey =
+                        party === 'applicant' && applicantIsOwner
+                          ? row.owner
+                          : key
+                      const field = fieldFor(key)
+                      return (
+                        <td key={party} className="border-l border-ink/20 p-0">
+                          <Copyable
+                            label={`${PARTY_LABELS[party]} ${field.label.toLowerCase()}`}
+                            value={shownKey ? details[shownKey] : ''}
+                          >
+                            <input
+                              aria-label={`${PARTY_LABELS[party]} ${field.label.toLowerCase()}`}
+                              className={cellClass}
+                              disabled={
+                                party === 'applicant' && applicantIsOwner
+                              }
+                              type={field.type ?? 'text'}
+                              maxLength={field.maxLength}
+                              placeholder={
+                                party === 'contractor' && row.label === 'Name'
+                                  ? 'Company'
+                                  : field.placeholder
+                              }
+                              value={shownKey ? details[shownKey] : ''}
+                              onChange={(event) =>
+                                setDetail(key, event.target.value)
+                              }
+                            />
+                          </Copyable>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <TableHeading
+            title="Other details"
+            description="Anything else your city’s forms ask for."
+          />
+          <table className="w-full border-collapse border-y border-ink text-sm">
+            <tbody>
+              {extraFields.map((field, index) => (
+                <tr key={index} className={`${rowClass} group/extra`}>
+                  <td className={`${labelCellClass} p-0`}>
+                    <input
+                      aria-label="Field name"
+                      className={`${cellClass} text-ink/70`}
+                      maxLength={MAX_EXTRA_LABEL_LENGTH}
+                      placeholder="Label"
+                      value={field.label}
+                      onChange={(event) =>
+                        updateExtraField(index, { label: event.target.value })
+                      }
+                    />
+                  </td>
+                  <td className="p-0">
+                    <Copyable
+                      label={field.label || 'Value'}
+                      value={field.value}
+                    >
                       <input
-                        type="checkbox"
-                        className="size-3.5 accent-blueprint"
-                        checked={applicantIsOwner}
+                        aria-label={
+                          field.label ? `${field.label} value` : 'Value'
+                        }
+                        autoFocus={field.label !== '' && field.value === ''}
+                        className={cellClass}
+                        maxLength={MAX_EXTRA_VALUE_LENGTH}
+                        placeholder="Value"
+                        value={field.value}
                         onChange={(event) =>
-                          setDetail('applicantIsOwner', event.target.checked)
+                          updateExtraField(index, { value: event.target.value })
                         }
                       />
-                      Same as owner
-                    </label>
-                  </span>
-                </th>
-                <th scope="col" className={columnHeadClass}>
-                  Contractor
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {PEOPLE_ROWS.map((row) => (
-                <tr key={row.label} className={rowClass}>
-                  <th scope="row" className={labelCellClass}>
-                    {row.label}
-                  </th>
-                  {PARTIES.map((party) => {
-                    const key = row[party]
-                    if (!key) {
-                      return (
-                        <td
-                          key={party}
-                          className="border-l border-ink/20 bg-ink/[0.03]"
-                        />
-                      )
-                    }
-                    // The owner's values stand in for the applicant's.
-                    const shownKey =
-                      party === 'applicant' && applicantIsOwner
-                        ? row.owner
-                        : key
-                    const field = fieldFor(key)
-                    return (
-                      <td key={party} className="border-l border-ink/20 p-0">
-                        <input
-                          aria-label={`${PARTY_LABELS[party]} ${field.label.toLowerCase()}`}
-                          className={cellClass}
-                          disabled={party === 'applicant' && applicantIsOwner}
-                          type={field.type ?? 'text'}
-                          maxLength={field.maxLength}
-                          placeholder={
-                            party === 'contractor' && row.label === 'Name'
-                              ? 'Company'
-                              : field.placeholder
-                          }
-                          value={shownKey ? details[shownKey] : ''}
-                          onChange={(event) =>
-                            setDetail(key, event.target.value)
-                          }
-                        />
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <TableHeading
-          title="Other details"
-          description="Anything else your city’s forms ask for."
-        />
-        <table className="w-full border-collapse border-y border-ink text-sm">
-          <tbody>
-            {extraFields.map((field, index) => (
-              <tr key={index} className={`${rowClass} group/extra`}>
-                <td className={`${labelCellClass} p-0`}>
-                  <input
-                    aria-label="Field name"
-                    className={`${cellClass} text-ink/70`}
-                    maxLength={MAX_EXTRA_LABEL_LENGTH}
-                    placeholder="Label"
-                    value={field.label}
-                    onChange={(event) =>
-                      updateExtraField(index, { label: event.target.value })
-                    }
-                  />
-                </td>
-                <td className="p-0">
-                  <input
-                    aria-label={field.label ? `${field.label} value` : 'Value'}
-                    autoFocus={field.label !== '' && field.value === ''}
-                    className={cellClass}
-                    maxLength={MAX_EXTRA_VALUE_LENGTH}
-                    placeholder="Value"
-                    value={field.value}
-                    onChange={(event) =>
-                      updateExtraField(index, { value: event.target.value })
-                    }
-                  />
-                </td>
-                <td className="w-9 p-0 text-center">
-                  <button
-                    type="button"
-                    aria-label={`Remove ${field.label || 'field'}`}
-                    className="size-8 rounded-full text-ink/40 transition hover:bg-redline/10 hover:text-redline focus-visible:text-redline"
-                    onClick={() =>
-                      setExtraFields((current) =>
-                        current.filter((_, each) => each !== index),
-                      )
-                    }
-                  >
-                    ×
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {extraFields.length < MAX_EXTRA_FIELDS && (
-              <tr>
-                <td colSpan={3} className="px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                    </Copyable>
+                  </td>
+                  <td className="w-9 p-0 text-center">
                     <button
                       type="button"
-                      className={chipClass}
-                      onClick={() => addExtraField()}
+                      aria-label={`Remove ${field.label || 'field'}`}
+                      className="size-8 rounded-full text-ink/40 transition hover:bg-redline/10 hover:text-redline focus-visible:text-redline"
+                      onClick={() =>
+                        setExtraFields((current) =>
+                          current.filter((_, each) => each !== index),
+                        )
+                      }
                     >
-                      + Add a field
+                      ×
                     </button>
-                    {suggestions.map((label) => (
+                  </td>
+                </tr>
+              ))}
+              {extraFields.length < MAX_EXTRA_FIELDS && (
+                <tr>
+                  <td colSpan={3} className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
-                        key={label}
                         type="button"
-                        className={`${chipClass} border-dashed text-ink/70`}
-                        onClick={() => addExtraField(label)}
+                        className={chipClass}
+                        onClick={() => addExtraField()}
                       >
-                        {label}
+                        + Add a field
                       </button>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+                      {suggestions.map((label) => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`${chipClass} border-dashed text-ink/70`}
+                          onClick={() => addExtraField(label)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+      </CanCopyContext>
 
       {variant === 'create' ? (
         <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-ink pt-5">
@@ -641,32 +667,34 @@ function DetailRow({
 }) {
   return (
     <Row label={field.label} hint={field.hint}>
-      {(id) =>
-        field.multiline ? (
-          <textarea
-            id={id}
-            rows={2}
-            className={`${cellClass} resize-y [field-sizing:content]`}
-            maxLength={field.maxLength}
-            placeholder={field.placeholder}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-          />
-        ) : (
-          <input
-            id={id}
-            className={cellClass}
-            type={field.type ?? 'text'}
-            autoComplete={field.autoComplete ?? 'off'}
-            maxLength={field.maxLength}
-            placeholder={
-              field.hint ? fieldHintPlaceholder(field.key) : field.placeholder
-            }
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-          />
-        )
-      }
+      {(id) => (
+        <Copyable label={field.label} value={value}>
+          {field.multiline ? (
+            <textarea
+              id={id}
+              rows={2}
+              className={`${cellClass} resize-y [field-sizing:content]`}
+              maxLength={field.maxLength}
+              placeholder={field.placeholder}
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+            />
+          ) : (
+            <input
+              id={id}
+              className={cellClass}
+              type={field.type ?? 'text'}
+              autoComplete={field.autoComplete ?? 'off'}
+              maxLength={field.maxLength}
+              placeholder={
+                field.hint ? fieldHintPlaceholder(field.key) : field.placeholder
+              }
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+            />
+          )}
+        </Copyable>
+      )}
     </Row>
   )
 }
@@ -674,4 +702,51 @@ function DetailRow({
 // Short hints fit in the empty cell.
 function fieldHintPlaceholder(key: ProjectTextKey) {
   return key === 'parcelNumber' ? 'PIN, APN or tax ID' : undefined
+}
+
+// Whether cells show a copy button: on a saved project's page, where its
+// values are copied into forms the editor couldn't fill.
+const CanCopyContext = createContext(false)
+
+// A cell's input with a button that copies its value, shown on hover or
+// focus, or always on touch screens.
+function Copyable({
+  label,
+  value,
+  children,
+}: {
+  label: string
+  value: string
+  children: ReactNode
+}) {
+  const canCopy = useContext(CanCopyContext)
+  if (!canCopy) return children
+
+  return (
+    <div className="group/copy relative [&_input]:pr-10 [&_textarea]:pr-10">
+      {children}
+      {value.trim() && (
+        <button
+          type="button"
+          aria-label={`Copy ${label.toLowerCase()}`}
+          title="Copy"
+          className="absolute top-1 right-1 grid size-7 place-items-center rounded-full text-ink/45 opacity-0 transition group-focus-within/copy:opacity-100 group-hover/copy:opacity-100 hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+          onClick={() => void copyWithToast(label, value)}
+        >
+          <svg
+            aria-hidden="true"
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+          >
+            <path d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+          </svg>
+        </button>
+      )}
+    </div>
+  )
 }

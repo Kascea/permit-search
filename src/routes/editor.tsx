@@ -38,6 +38,7 @@ import {
 } from '#/lib/drafts/use-draft-autosave'
 import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
 import { projectFills } from '#/lib/projects/autofill'
+import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 type NativeField =
@@ -136,25 +137,26 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
       project.items.some((item) => item.sourceUrl === url),
     ) ??
     projects?.at(0)
-  const fills = useMemo(
+  // The text fields still empty, which a project can fill.
+  const emptyTextFields = useMemo(
     () =>
-      fillProject
-        ? projectFills(
-            nativeFields.flatMap((field) =>
-              field.kind === 'text' && !field.value.trim()
-                ? [
-                    {
-                      id: field.id,
-                      name: field.name,
-                      width: field.widgets[0].width,
-                    },
-                  ]
-                : [],
-            ),
-            fillProject,
-          )
-        : new Map<string, string>(),
-    [fillProject, nativeFields],
+      nativeFields.flatMap((field) =>
+        field.kind === 'text' && !field.value.trim()
+          ? [{ id: field.id, name: field.name, width: field.widgets[0].width }]
+          : [],
+      ),
+    [nativeFields],
+  )
+  // How many empty fields each project can fill, by public ID.
+  const fillCounts = useMemo(
+    () =>
+      new Map(
+        (projects ?? []).map((project) => [
+          project.publicId,
+          projectFills(emptyTextFields, project).size,
+        ]),
+      ),
+    [projects, emptyTextFields],
   )
 
   const draftContent = useMemo<DraftContent>(
@@ -411,9 +413,13 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
 
   // Fills the empty fields the project matches. Undo clears only the fields
   // still holding the filled value, so later typing is kept.
-  function fillFromProject() {
-    if (!fillProject || fills.size === 0) return
-    const filled = fills
+  function fillFromProject(project: Project) {
+    setFillProjectId(project.publicId)
+    const filled = projectFills(emptyTextFields, project)
+    if (filled.size === 0) {
+      toast(`“${project.name}” has nothing to fill in the empty fields.`)
+      return
+    }
     const isFilledByProject = (field: NativeField) =>
       field.kind === 'text' && filled.get(field.id) === field.value
     setNativeFields((current) =>
@@ -424,7 +430,7 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
       ),
     )
     toast.success(
-      `Filled ${filled.size} ${filled.size === 1 ? 'field' : 'fields'} from “${fillProject.name}”.`,
+      `Filled ${filled.size} ${filled.size === 1 ? 'field' : 'fields'} from “${project.name}”.`,
       {
         action: {
           label: 'Undo',
@@ -660,8 +666,7 @@ function PdfEditor({ url, projectId }: { url: string; projectId?: string }) {
                   <ProjectFillMenu
                     projects={projects}
                     project={fillProject}
-                    onSelect={setFillProjectId}
-                    fillCount={fills.size}
+                    fillCounts={fillCounts}
                     onFill={fillFromProject}
                     item={{ sourceUrl: url, title: draftTitle(url) }}
                   />
