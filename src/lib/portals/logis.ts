@@ -25,9 +25,9 @@ const LOGIS_CITIES: Array<[code: string, name: string]> = [
 
 export const LOGIS_PORTAL_URL = 'https://epermits.logis.org'
 
-// Sent with every request, so LOGIS can see who's asking and reach us.
-export const LOGIS_USER_AGENT =
-  'PermitSearch/1.0 (+https://permitsearch.app; permit status for the permit holder)'
+// Sent with every request. Workers also add a CF-Worker header naming our
+// domain, so the requests are identifiable either way.
+export const LOGIS_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 
 function prefix(jurisdiction: Jurisdiction) {
   return jurisdiction.code.toUpperCase()
