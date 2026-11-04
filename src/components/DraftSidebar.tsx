@@ -20,6 +20,11 @@ interface SidebarDraft {
 // Kept between editor visits so switching forms doesn't flash an empty list.
 let cachedDrafts: Array<SidebarDraft> | undefined
 
+// Folders the user opened or closed, by key, so opening another PDF never
+// undoes it. Shared by the desktop and phone sidebars, and kept when the
+// sidebar remounts.
+const folderChoices = new Map<string, boolean>()
+
 // The account's drafts plus any in this browser that haven't synced yet;
 // only this browser's when signed out.
 async function loadDrafts(signedIn: boolean): Promise<Array<SidebarDraft>> {
@@ -91,8 +96,15 @@ export function DraftSidebar({
 
   const draftsByUrl = new Map(drafts?.map((draft) => [draft.sourceUrl, draft]))
 
+  // The editor fills PDFs, so online applications in a project aren't
+  // listed here; they're on the project page.
+  const pdfProjects = projects?.map((project) => ({
+    ...project,
+    items: project.items.filter(({ kind }) => kind !== 'online'),
+  }))
+
   const projectUrls = new Set(
-    projects?.flatMap(({ items }) => items.map(({ sourceUrl }) => sourceUrl)),
+    pdfProjects?.flatMap(({ items }) => items.map(({ sourceUrl }) => sourceUrl)),
   )
 
   // PDFs in a project are listed there, so drafts only lists the rest.
@@ -129,14 +141,15 @@ export function DraftSidebar({
 
         {/* Projects are folders of PDFs; forms outside a project are in
             Drafts. The folder with the open PDF starts open, or the most
-            recent project when the PDF isn't in one. */}
+            recent project when the PDF isn't in one. After that, folders
+            stay as the user left them. */}
         <ul role="tree" aria-label="Files">
           {signedIn &&
-            (projects === undefined ? (
+            (pdfProjects === undefined ? (
               <li className={noteClass}>
                 {projectsError ? 'Projects couldn’t be loaded.' : 'Loading…'}
               </li>
-            ) : projects.length === 0 ? (
+            ) : pdfProjects.length === 0 ? (
               <li className={noteClass}>
                 Save your property and contact details in a project to fill out
                 forms faster.{' '}
@@ -148,9 +161,10 @@ export function DraftSidebar({
                 </Link>
               </li>
             ) : (
-              projects.map((project, index) => (
+              pdfProjects.map((project, index) => (
                 <Folder
                   key={project.publicId}
+                  folderKey={`project:${project.publicId}`}
                   name={project.name}
                   detail={
                     project.city
@@ -158,12 +172,10 @@ export function DraftSidebar({
                       : undefined
                   }
                   count={project.items.length}
-                  isOpen={
-                    project.items.some(
-                      ({ sourceUrl }) => sourceUrl === currentUrl,
-                    ) ||
-                    (index === 0 && !projectUrls.has(currentUrl))
-                  }
+                  holdsCurrent={project.items.some(
+                    ({ sourceUrl }) => sourceUrl === currentUrl,
+                  )}
+                  startsOpen={index === 0 && !projectUrls.has(currentUrl)}
                 >
                   {project.items.map((item) => (
                     <FileLink
@@ -186,10 +198,12 @@ export function DraftSidebar({
             ))}
 
           <Folder
+            folderKey="drafts"
             name={hasProjects ? 'Drafts' : 'Your drafts'}
             detail="Forms not in a project"
             count={otherDrafts?.length}
-            isOpen
+            holdsCurrent={false}
+            startsOpen
           >
             {otherDrafts === undefined ? (
               <li className={`${noteClass} pl-12`}>
@@ -242,23 +256,60 @@ const FILE_ICON =
 // A folder that opens and closes like a file browser's: caret, folder icon
 // (open or closed), name, and how many files it holds. Its files are indented
 // one level, with a faint guide under the folder icon.
+//
+// It opens when the open PDF moves into it, but never closes by itself: the
+// user's own open or close (folderChoices) wins until they change it.
 function Folder({
+  folderKey,
   name,
   detail,
   count,
-  isOpen,
+  holdsCurrent,
+  startsOpen,
   children,
 }: {
+  // Names the folder in folderChoices, such as "project:abc123".
+  folderKey: string
   name: string
   // In the tooltip, such as the project's city.
   detail?: string
   count?: number
-  isOpen: boolean
+  // Whether the open PDF is in this folder.
+  holdsCurrent: boolean
+  // Open the first time it's shown even without the open PDF.
+  startsOpen: boolean
   children: ReactNode
 }) {
+  const [isOpen, setIsOpen] = useState(
+    () => folderChoices.get(folderKey) ?? (holdsCurrent || startsOpen),
+  )
+
+  const [heldCurrent, setHeldCurrent] = useState(holdsCurrent)
+
+  // The open PDF just moved into this folder: show it.
+  if (holdsCurrent !== heldCurrent) {
+    setHeldCurrent(holdsCurrent)
+
+    if (holdsCurrent && !isOpen) {
+      folderChoices.delete(folderKey)
+      setIsOpen(true)
+    }
+  }
+
   return (
     <li role="treeitem" aria-expanded={isOpen} aria-selected={false}>
-      <details className="group/folder" open={isOpen}>
+      <details
+        className="group/folder"
+        open={isOpen}
+        onToggle={(event) => {
+          const { open } = event.currentTarget
+
+          if (open === isOpen) return
+
+          folderChoices.set(folderKey, open)
+          setIsOpen(open)
+        }}
+      >
         <summary
           className="flex h-7 cursor-pointer list-none items-center gap-1.5 pr-4 pl-2 text-sm text-ink transition hover:bg-ink/5 [&::-webkit-details-marker]:hidden"
           title={detail ? `${name} · ${detail}` : name}
