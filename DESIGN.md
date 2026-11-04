@@ -148,6 +148,19 @@ reads over whatever is under it.
   "Project saved." or "Draft deleted.". Keep it to one short sentence ending
   in a period. Offer Undo as the toast's action when the change can be put
   back.
+- **Every action the user starts ends in visible feedback, even when
+  nothing changed.** A click that only updates a date, or does nothing at
+  all, reads as broken. Say what happened: "No change: permit SL306008 is
+  still Finaled.", "Stopped tracking permit SL306008.", or the error.
+  - Have the server return what the action did (changed, unchanged, reused
+    a recent result, failed), not just the new data, so the toast can say
+    so. See `PermitCheckResult` and `checkToast()` in `src/lib/tracking/`.
+  - A failure the page also shows inline, such as a permit's check error,
+    still gets an error toast when the user caused it, so they see it
+    without searching.
+  - Background work the user didn't start, such as autosave, needs no
+    toast. Show its state quietly where it lives, like the draft status
+    label.
 - A single field's problem, such as "Choose a city from the list", stays as
   small `text-redline` text under the field.
 - Primary and quiet buttons come from `components/buttons.ts`, so the same

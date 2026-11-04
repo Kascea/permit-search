@@ -764,6 +764,27 @@ function PdfEditor({
       link.click()
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
 
+      // The download is the app's last step, so say what comes next: the
+      // user files with the city; adding the permit number only tracks it.
+      const holdingProject = projects?.find((project) =>
+        project.items.some((item) => item.sourceUrl === url),
+      )
+
+      toast('Next, submit this form to the city yourself.', {
+        description: holdingProject
+          ? 'File it on the city’s permit portal, by email or in person. Then add the permit number the city gives you to the project to track its status.'
+          : 'File it on the city’s permit portal, by email or in person. To track the permit’s status, add this form to a project, then add the permit number the city gives you.',
+        duration: 12_000,
+        action: holdingProject && {
+          label: 'Open project',
+          onClick: () =>
+            void navigate({
+              to: '/projects/$projectId',
+              params: { projectId: holdingProject.publicId },
+            }),
+        },
+      })
+
       // A nudge, not a gate: the download has already started.
       if (formCheck?.status !== 'done' || checkedContent !== contentKey) {
         toast('Check this form for mistakes before you submit it?', {

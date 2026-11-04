@@ -18,6 +18,7 @@ import type { DraftContent } from '#/lib/drafts/types'
 import type { FormSchema } from '#/lib/forms/types'
 import type { ExtraField } from '#/lib/projects/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
+import type { PermitStatus } from '#/lib/tracking/types'
 
 export const contactsStatus = pgEnum('contacts_status', [
   'found',
@@ -406,6 +407,42 @@ export const projectItems = pgTable(
       table.projectId,
       table.sourceUrl,
     ),
+  ],
+)
+
+// The city permit filed for a form in a project, and its last known status.
+// Hangs off project_items, so only forms in a project can be tracked, and it
+// goes when the form leaves the project. One per form.
+export const trackedPermits = pgTable(
+  'tracked_permits',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    projectItemId: bigint('project_item_id', { mode: 'number' })
+      .notNull()
+      .references(() => projectItems.id, { onDelete: 'cascade' }),
+
+    // A key of PERMIT_PROVIDERS, such as "logis-epermits". Text, so adding a
+    // provider needs no migration.
+    provider: varchar('provider', { length: 40 }).notNull(),
+    // The provider's code for the city, such as "sl".
+    jurisdiction: varchar('jurisdiction', { length: 40 }).notNull(),
+    // Normalized by the provider's schema, such as "SL306008".
+    permitNumber: varchar('permit_number', { length: 40 }).notNull(),
+
+    // Null until the first successful check.
+    status: jsonb('status').$type<PermitStatus>(),
+    checkedAt: timestamp('checked_at', { withTimezone: true }),
+    // When status last differed from the check before it.
+    statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+    // The last check's failure, written for the user; cleared on success.
+    checkError: varchar('check_error', { length: 300 }),
+
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('tracked_permits_project_item').on(table.projectItemId),
   ],
 )
 

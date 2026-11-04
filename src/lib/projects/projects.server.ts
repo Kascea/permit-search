@@ -2,7 +2,13 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import type { Database } from '#/lib/db/client.server'
-import { cities, projectItems, projects, searches } from '#/lib/db/schema'
+import {
+  cities,
+  projectItems,
+  projects,
+  searches,
+  trackedPermits,
+} from '#/lib/db/schema'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
 import {
   EMPTY_PROJECT_DETAILS,
@@ -15,6 +21,12 @@ import type {
   ProjectItem,
 } from '#/lib/projects/types'
 import { newPublicId } from '#/lib/saved-searches/search-key'
+import {
+  PERMIT_PROVIDERS,
+  findJurisdiction,
+  isPermitProviderId,
+} from '#/lib/tracking/providers'
+import type { PermitStatus, TrackedPermit } from '#/lib/tracking/types'
 
 // Each function takes the request's open connection (see withUserDatabase),
 // and each change is a single statement: from a laptop, every extra
@@ -82,7 +94,8 @@ function inputToRow(input: ProjectInput) {
 }
 
 // An item as listProjects' JSON returns it; the search columns are null when
-// it wasn't added from a search.
+// it wasn't added from a search, and the tracked* ones when no permit number
+// was added.
 interface ItemRow {
   sourceUrl: string
   title: string
@@ -90,6 +103,12 @@ interface ItemRow {
   permit: string | null
   cityName: string | null
   region: string | null
+  trackedProvider: string | null
+  trackedJurisdiction: string | null
+  trackedNumber: string | null
+  trackedStatus: PermitStatus | null
+  trackedCheckedAt: string | null
+  trackedCheckError: string | null
 }
 
 function itemFromRow(row: ItemRow): ProjectItem {
@@ -97,6 +116,39 @@ function itemFromRow(row: ItemRow): ProjectItem {
     sourceUrl: row.sourceUrl,
     title: row.title,
     search: searchLinkFromColumns(row),
+    permit: trackedPermitFromRow(row),
+  }
+}
+
+// Undefined when there's no permit, or its provider or city is no longer
+// supported.
+function trackedPermitFromRow(row: ItemRow): TrackedPermit | undefined {
+  const { trackedProvider: provider, trackedJurisdiction: code } = row
+
+  if (
+    !provider ||
+    !code ||
+    !row.trackedNumber ||
+    !isPermitProviderId(provider)
+  ) {
+    return undefined
+  }
+
+  const jurisdiction = findJurisdiction(provider, code)
+
+  if (!jurisdiction) return undefined
+
+  return {
+    provider,
+    jurisdiction: code,
+    permitNumber: row.trackedNumber,
+    status: row.trackedStatus,
+    checkedAt: row.trackedCheckedAt,
+    checkError: row.trackedCheckError,
+    permitUrl: PERMIT_PROVIDERS[provider].permitUrl(
+      jurisdiction,
+      row.trackedNumber,
+    ),
   }
 }
 
@@ -132,13 +184,21 @@ export async function listProjects(
             'searchId', search.public_id,
             'permit', search.permit_query,
             'cityName', city.name,
-            'region', city.region
+            'region', city.region,
+            'trackedProvider', tracked.provider,
+            'trackedJurisdiction', tracked.jurisdiction,
+            'trackedNumber', tracked.permit_number,
+            'trackedStatus', tracked.status,
+            'trackedCheckedAt', tracked.checked_at,
+            'trackedCheckError', tracked.check_error
           )
           order by item.created_at desc
         )
         from ${projectItems} as item
         left join ${searches} as search on search.id = item.search_id
         left join ${cities} as city on city.id = search.city_id
+        left join ${trackedPermits} as tracked
+          on tracked.project_item_id = item.id
         where item.project_id = ${projects}.id
       ), '[]'::json)`,
     })

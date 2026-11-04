@@ -11,10 +11,12 @@ import { toast } from 'sonner'
 
 import { AppPage } from '#/components/AppPage'
 import { Breadcrumbs, crumbLinkClass } from '#/components/Breadcrumbs'
-import { primaryButtonClass } from '#/components/buttons'
+import { primaryButtonClass, quietActionClass } from '#/components/buttons'
 import { DraftName } from '#/components/DraftName'
 import { EditedDate } from '#/components/EditedDate'
+import { Notice } from '#/components/Notice'
 import { Pending } from '#/components/Pending'
+import { PermitNumberDialog } from '#/components/PermitNumberDialog'
 import { ProjectForm } from '#/components/ProjectForm'
 import { SearchLinkText } from '#/components/SearchLinkText'
 import { SignInButton } from '#/components/SignInDialog'
@@ -31,8 +33,19 @@ import {
   MAX_PROJECT_NAME_LENGTH,
   formatProjectAddress,
 } from '#/lib/projects/types'
-import type { Project } from '#/lib/projects/types'
+import type { Project, ProjectItem } from '#/lib/projects/types'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
+import {
+  checkProjectFormPermit,
+  removeProjectFormPermit,
+} from '#/lib/tracking/tracking'
+import { checkToast } from '#/lib/tracking/messages'
+import type {
+  PermitPhase,
+  PermitStatus,
+  TrackedPermit,
+} from '#/lib/tracking/types'
+import { errorMessage } from '#/lib/errors'
 import { confirm } from '#/components/ConfirmDialog'
 
 export const Route = createFileRoute('/projects/$projectId')({
@@ -348,6 +361,9 @@ function FormsSection({
 }) {
   const router = useRouter()
   const [removingUrl, setRemovingUrl] = useState<string>()
+  // The form whose permit number dialog is open.
+  const [permitItem, setPermitItem] = useState<ProjectItem>()
+  const [checkingUrl, setCheckingUrl] = useState<string>()
   const draftsByUrl = new Map(drafts.map((draft) => [draft.sourceUrl, draft]))
 
   async function removeItem(sourceUrl: string) {
@@ -358,10 +374,63 @@ function FormsSection({
         data: { publicId: project.publicId, sourceUrl },
       })
       await router.invalidate()
+      toast.success('Form removed from the project.')
     } catch {
       toast.error('That form couldn’t be removed. Try again.')
     } finally {
       setRemovingUrl(undefined)
+    }
+  }
+
+  async function checkPermit(item: ProjectItem) {
+    setCheckingUrl(item.sourceUrl)
+
+    try {
+      const { projects, check } = await checkProjectFormPermit({
+        data: { publicId: project.publicId, sourceUrl: item.sourceUrl },
+      })
+
+      setAccountProjects(projects)
+      await router.invalidate()
+
+      const { tone, message } = checkToast(
+        item.permit?.permitNumber ?? '',
+        check,
+      )
+
+      if (tone === 'error') toast.error(message)
+      else toast.success(message)
+    } catch (cause) {
+      toast.error(
+        errorMessage(cause, 'The permit’s status couldn’t be checked.'),
+      )
+    } finally {
+      setCheckingUrl(undefined)
+    }
+  }
+
+  async function removePermit(item: ProjectItem) {
+    if (
+      !(await confirm({
+        title: `Stop tracking permit ${item.permit?.permitNumber ?? ''}?`,
+        message: 'The form stays in this project.',
+        confirmLabel: 'Remove permit number',
+        isDestructive: true,
+      }))
+    ) {
+      return
+    }
+
+    try {
+      setAccountProjects(
+        await removeProjectFormPermit({
+          data: { publicId: project.publicId, sourceUrl: item.sourceUrl },
+        }),
+      )
+      await router.invalidate()
+      toast.success(`Stopped tracking permit ${item.permit?.permitNumber}.`)
+    } catch {
+      toast.error('The permit number couldn’t be removed. Try again.')
     }
   }
 
@@ -392,71 +461,245 @@ function FormsSection({
             return (
               <li
                 key={item.sourceUrl}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-2 py-3 transition-opacity ${
+                className={`py-3 transition-opacity ${
                   isRemoving ? 'opacity-50' : ''
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  {draft ? (
-                    <DraftName
-                      publicId={draft.publicId}
-                      name={draft.name}
-                      formTitle={item.title}
-                      className="text-ink"
-                    />
-                  ) : (
-                    <p className="truncate text-ink">{item.title}</p>
-                  )}
-                  <p className="truncate text-sm text-ink/60">
-                    {/* Renamed drafts keep the form they're for in view. */}
-                    {draft?.name && `${item.title} · `}
-                    {item.search ? (
-                      <SearchLinkText search={item.search} />
-                    ) : (
-                      hostname(item.sourceUrl)
-                    )}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <div className="min-w-0 flex-1">
                     {draft ? (
-                      <>
-                        {' · '}
-                        <span className="text-success">
-                          Draft edited <EditedDate iso={draft.updatedAt} />
-                        </span>
-                      </>
+                      <DraftName
+                        publicId={draft.publicId}
+                        name={draft.name}
+                        formTitle={item.title}
+                        className="text-ink"
+                      />
                     ) : (
-                      ' · Not started'
+                      <p className="truncate text-ink">{item.title}</p>
                     )}
-                  </p>
+                    <p className="truncate text-sm text-ink/60">
+                      {/* Renamed drafts keep the form they're for in view. */}
+                      {draft?.name && `${item.title} · `}
+                      {item.search ? (
+                        <SearchLinkText search={item.search} />
+                      ) : (
+                        hostname(item.sourceUrl)
+                      )}
+                      {draft ? (
+                        <>
+                          {' · '}
+                          <span className="text-success">
+                            Draft edited <EditedDate iso={draft.updatedAt} />
+                          </span>
+                        </>
+                      ) : (
+                        ' · Not started'
+                      )}
+                    </p>
+                  </div>
+                  <Link
+                    to="/editor"
+                    search={{
+                      url: item.sourceUrl,
+                      from: originParam({
+                        kind: 'project',
+                        id: project.publicId,
+                      }),
+                    }}
+                    className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
+                  >
+                    {draft ? 'Continue' : 'Fill out'}
+                  </Link>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.title} from ${project.name}`}
+                    disabled={removingUrl !== undefined}
+                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-ink/35 px-4 py-1.5 text-sm font-medium text-ink transition hover:border-redline hover:text-redline disabled:cursor-wait"
+                    onClick={() => void removeItem(item.sourceUrl)}
+                  >
+                    <Pending isPending={isRemoving} label="Removing…">
+                      Remove
+                    </Pending>
+                  </button>
                 </div>
-                <Link
-                  to="/editor"
-                  search={{
-                    url: item.sourceUrl,
-                    from: originParam({
-                      kind: 'project',
-                      id: project.publicId,
-                    }),
-                  }}
-                  className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
-                >
-                  {draft ? 'Continue' : 'Fill out'}
-                </Link>
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.title} from ${project.name}`}
-                  disabled={removingUrl !== undefined}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-full border border-ink/35 px-4 py-1.5 text-sm font-medium text-ink transition hover:border-redline hover:text-redline disabled:cursor-wait"
-                  onClick={() => void removeItem(item.sourceUrl)}
-                >
-                  <Pending isPending={isRemoving} label="Removing…">
-                    Remove
-                  </Pending>
-                </button>
+                <PermitSection
+                  permit={item.permit}
+                  isChecking={checkingUrl === item.sourceUrl}
+                  onAdd={() => setPermitItem(item)}
+                  onCheck={() => void checkPermit(item)}
+                  onEdit={() => setPermitItem(item)}
+                  onRemove={() => void removePermit(item)}
+                />
               </li>
             )
           })}
         </ul>
       )}
+      <PermitNumberDialog
+        item={permitItem}
+        project={project}
+        onClose={() => setPermitItem(undefined)}
+      />
     </section>
+  )
+}
+
+// Badge tints by phase: done reads green, stopped reads red, the rest are
+// still moving.
+const phaseBadgeClass: Record<PermitPhase, string> = {
+  applied: 'bg-blueprint/10 text-blueprint',
+  approved: 'bg-blueprint/10 text-blueprint',
+  issued: 'bg-success/10 text-success',
+  finaled: 'bg-success/10 text-success',
+  cancelled: 'bg-redline/10 text-redline',
+  expired: 'bg-redline/10 text-redline',
+  unknown: 'bg-ink/10 text-ink/70',
+}
+
+const permitActionClass = `${quietActionClass} px-2 py-0.5`
+
+// The same shape, but redline on hover: it removes the tracking.
+const permitRemoveClass =
+  'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-sm font-medium text-ink/75 transition hover:bg-redline/10 hover:text-redline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
+
+const badgeClass =
+  'rounded-full px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] uppercase'
+
+// "2021-03-17" → "Mar 17, 2021". Permit dates have no time, so they're read
+// in UTC; the visitor's zone would show the day before in the Americas.
+function formatPermitDate(isoDate: string) {
+  return new Date(isoDate).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+const PERMIT_DATE_LABELS = [
+  ['applied', 'Applied'],
+  ['approved', 'Approved'],
+  ['issued', 'Issued'],
+  ['finaled', 'Final'],
+  ['cancelled', 'Cancelled'],
+  ['expires', 'Expires'],
+] as const satisfies ReadonlyArray<
+  readonly [keyof PermitStatus['dates'], string]
+>
+
+// The city permit filed for a form, as an indented line under it so a long
+// list of forms stays short. Collapsed it shows the number and status, and a
+// failed check in red; opened, the permit's dates and actions. Before a
+// number is added, just the way to add one.
+function PermitSection({
+  permit,
+  isChecking,
+  onAdd,
+  onCheck,
+  onEdit,
+  onRemove,
+}: {
+  permit: TrackedPermit | undefined
+  isChecking: boolean
+  onAdd: () => void
+  onCheck: () => void
+  onEdit: () => void
+  onRemove: () => void
+}) {
+  const indentClass = 'mt-2 ml-1 border-l border-ink/20 pl-3'
+
+  if (!permit) {
+    return (
+      <div className={indentClass}>
+        <button
+          type="button"
+          className="text-sm font-medium text-blueprint underline-offset-2 hover:underline"
+          onClick={onAdd}
+        >
+          + Add permit number
+        </button>
+      </div>
+    )
+  }
+
+  const dates = permit.status
+    ? PERMIT_DATE_LABELS.flatMap(([key, label]) => {
+        const date = permit.status?.dates[key]
+
+        return date ? [`${label} ${formatPermitDate(date)}`] : []
+      })
+    : []
+
+  return (
+    <details className={`group ${indentClass}`}>
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 text-sm [&::-webkit-details-marker]:hidden">
+        <svg
+          aria-hidden="true"
+          className="size-3 shrink-0 text-ink/50 transition-transform group-open:rotate-90"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+        </svg>
+        <span className="text-ink/60">Permit</span>
+        <span className="font-mono text-ink">{permit.permitNumber}</span>
+        {permit.status ? (
+          <span
+            className={`${badgeClass} ${phaseBadgeClass[permit.status.phase]}`}
+          >
+            {permit.status.label}
+          </span>
+        ) : (
+          <span className="text-ink/60">Not checked yet</span>
+        )}
+        {permit.checkError ? (
+          <span className="text-redline">Check failed</span>
+        ) : (
+          permit.checkedAt && (
+            <span className="text-ink/60">
+              · Checked <EditedDate iso={permit.checkedAt} />
+            </span>
+          )
+        )}
+      </summary>
+
+      <div className="mt-2 mb-1 space-y-2 pl-5">
+        {dates.length > 0 && (
+          <p className="text-sm text-ink/70">{dates.join(' · ')}</p>
+        )}
+        {permit.checkError && (
+          <Notice tone="error">{permit.checkError}</Notice>
+        )}
+        <div className="-ml-2 flex flex-wrap items-center">
+          <button
+            type="button"
+            disabled={isChecking}
+            className={permitActionClass}
+            onClick={onCheck}
+          >
+            <Pending isPending={isChecking} label="Checking…">
+              Check now
+            </Pending>
+          </button>
+          <a
+            href={permit.permitUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={permitActionClass}
+          >
+            View permit <span aria-hidden="true">↗</span>
+          </a>
+          <button type="button" className={permitActionClass} onClick={onEdit}>
+            Edit
+          </button>
+          <button type="button" className={permitRemoveClass} onClick={onRemove}>
+            Stop tracking
+          </button>
+        </div>
+      </div>
+    </details>
   )
 }
 

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
+import type { TrackedPermit } from '#/lib/tracking/types'
 
 // A PDF saved to a project.
 export interface ProjectItem {
@@ -10,6 +11,8 @@ export interface ProjectItem {
   searchId?: string
   // Read back: that search, for linking to it.
   search?: SearchLink
+  // Read back: the city permit filed for it, once its number is added.
+  permit?: TrackedPermit
 }
 
 // The answers nearly every permit application asks for. Each is its own column
