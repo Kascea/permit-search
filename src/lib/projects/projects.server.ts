@@ -4,11 +4,13 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import type { Database } from '#/lib/db/client.server'
 import {
   cities,
+  portalPermitTypes,
   projectItems,
   projects,
   searches,
   trackedPermits,
 } from '#/lib/db/schema'
+import { UserError } from '#/lib/errors'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
 import {
   EMPTY_PROJECT_DETAILS,
@@ -25,8 +27,14 @@ import {
   PERMIT_PROVIDERS,
   findJurisdiction,
   isPermitProviderId,
-} from '#/lib/tracking/providers'
-import type { PermitStatus, TrackedPermit } from '#/lib/tracking/types'
+} from '#/lib/portals/providers'
+import { findPortalPermitType } from '#/lib/portals/catalog.server'
+import type {
+  PermitRequirements,
+  PermitStatus,
+  PortalPermitType,
+  TrackedPermit,
+} from '#/lib/portals/types'
 
 // Each function takes the request's open connection (see withUserDatabase),
 // and each change is a single statement: from a laptop, every extra
@@ -94,11 +102,21 @@ function inputToRow(input: ProjectInput) {
 }
 
 // An item as listProjects' JSON returns it; the search columns are null when
-// it wasn't added from a search, and the tracked* ones when no permit number
-// was added.
+// it wasn't added from a search, the type* ones for PDFs, and the tracked*
+// ones when no permit number was added.
 interface ItemRow {
+  kind: 'pdf' | 'online'
   sourceUrl: string
   title: string
+  typeId: number | null
+  typeProvider: string | null
+  typeJurisdiction: string | null
+  typeName: string | null
+  typeCategory: string | null
+  typePlansRequired: boolean | null
+  typePageUrl: string | null
+  typeApplyUrl: string | null
+  typeRequirements: PermitRequirements | null
   searchId: string | null
   permit: string | null
   cityName: string | null
@@ -113,10 +131,77 @@ interface ItemRow {
 
 function itemFromRow(row: ItemRow): ProjectItem {
   return {
+    kind: row.kind,
     sourceUrl: row.sourceUrl,
     title: row.title,
     search: searchLinkFromColumns(row),
     permit: trackedPermitFromRow(row),
+    online: portalTypeFromRow(row),
+  }
+}
+
+// An online application's permit type; undefined for PDFs, or when its
+// provider or city is no longer supported.
+function portalTypeFromRow(row: ItemRow): PortalPermitType | undefined {
+  const { typeId, typeProvider: provider, typeJurisdiction: code } = row
+
+  if (
+    row.kind !== 'online' ||
+    typeId === null ||
+    !provider ||
+    !code ||
+    !isPermitProviderId(provider)
+  ) {
+    return undefined
+  }
+
+  const jurisdiction = findJurisdiction(provider, code)
+
+  if (!jurisdiction) return undefined
+
+  return {
+    id: typeId,
+    provider,
+    providerName: PERMIT_PROVIDERS[provider].name,
+    jurisdiction: code,
+    city: jurisdiction.city,
+    name: row.typeName ?? row.title,
+    category: row.typeCategory,
+    plansRequired: row.typePlansRequired,
+    pageUrl: row.typePageUrl ?? row.sourceUrl,
+    applyUrl: row.typeApplyUrl,
+    requirements: row.typeRequirements,
+  }
+}
+
+// What's inserted for an item. An online application's URL and title come
+// from the catalog, never from the browser.
+interface ItemToInsert {
+  kind: 'pdf' | 'online'
+  sourceUrl: string
+  title: string
+  searchId?: string
+  portalPermitTypeId: number | null
+}
+
+export async function resolveProjectItem(
+  db: Database,
+  item: ProjectItem,
+): Promise<ItemToInsert> {
+  if (item.portalPermitTypeId === undefined) {
+    return { ...item, kind: 'pdf', portalPermitTypeId: null }
+  }
+
+  const type = await findPortalPermitType(db, item.portalPermitTypeId)
+
+  if (!type) throw new UserError('That online permit isn’t available.')
+
+  return {
+    kind: 'online',
+    sourceUrl: type.pageUrl,
+    title: type.name,
+    searchId: item.searchId,
+    portalPermitTypeId: type.id,
   }
 }
 
@@ -179,6 +264,7 @@ export async function listProjects(
       items: sql<Array<ItemRow>>`coalesce((
         select json_agg(
           json_build_object(
+            'kind', item.kind,
             'sourceUrl', item.source_url,
             'title', item.title,
             'searchId', search.public_id,
@@ -190,7 +276,16 @@ export async function listProjects(
             'trackedNumber', tracked.permit_number,
             'trackedStatus', tracked.status,
             'trackedCheckedAt', tracked.checked_at,
-            'trackedCheckError', tracked.check_error
+            'trackedCheckError', tracked.check_error,
+            'typeId', type.id,
+            'typeProvider', type.provider,
+            'typeJurisdiction', type.jurisdiction,
+            'typeName', type.name,
+            'typeCategory', type.category,
+            'typePlansRequired', type.plans_required,
+            'typePageUrl', type.page_url,
+            'typeApplyUrl', type.apply_url,
+            'typeRequirements', type.requirements
           )
           order by item.created_at desc
         )
@@ -199,6 +294,8 @@ export async function listProjects(
         left join ${cities} as city on city.id = search.city_id
         left join ${trackedPermits} as tracked
           on tracked.project_item_id = item.id
+        left join ${portalPermitTypes} as type
+          on type.id = item.portal_permit_type_id
         where item.project_id = ${projects}.id
       ), '[]'::json)`,
     })
@@ -230,7 +327,7 @@ function ownedBy(userId: string, publicId: string) {
 export async function createProject(
   db: Database,
   userId: string,
-  input: ProjectInput & { item?: ProjectItem },
+  input: ProjectInput & { item?: ItemToInsert },
 ) {
   const publicId = newPublicId()
 
@@ -246,9 +343,10 @@ export async function createProject(
 
   await db.execute(sql`
     with project as (${insert.returning({ id: projects.id })})
-    insert into ${projectItems} (project_id, source_url, title, search_id)
-    select id, ${input.item.sourceUrl}, ${input.item.title},
-      ${searchRowId(input.item.searchId)}
+    insert into ${projectItems}
+      (project_id, kind, source_url, title, search_id, portal_permit_type_id)
+    select id, ${input.item.kind}, ${input.item.sourceUrl}, ${input.item.title},
+      ${searchRowId(input.item.searchId)}, ${input.item.portalPermitTypeId}
     from project
   `)
 
@@ -277,13 +375,13 @@ export async function deleteProject(
   await db.delete(projects).where(ownedBy(userId, publicId))
 }
 
-// Moves the project to the top of the list and adds the PDF, unless it's
+// Moves the project to the top of the list and adds the item, unless it's
 // already there. Does nothing when the project isn't the user's.
 export async function addProjectItem(
   db: Database,
   userId: string,
   publicId: string,
-  item: ProjectItem,
+  item: ItemToInsert,
 ) {
   await db.execute(sql`
     with project as (
@@ -291,8 +389,10 @@ export async function addProjectItem(
       where ${ownedBy(userId, publicId)}
       returning id
     )
-    insert into ${projectItems} (project_id, source_url, title, search_id)
-    select id, ${item.sourceUrl}, ${item.title}, ${searchRowId(item.searchId)}
+    insert into ${projectItems}
+      (project_id, kind, source_url, title, search_id, portal_permit_type_id)
+    select id, ${item.kind}, ${item.sourceUrl}, ${item.title},
+      ${searchRowId(item.searchId)}, ${item.portalPermitTypeId}
     from project
     on conflict do nothing
   `)

@@ -113,6 +113,13 @@
       "when": 1793761917366,
       "tag": "0015_tracked_permits",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793765699150,
+      "tag": "0016_portal_catalog",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 
 import { AppPage } from '#/components/AppPage'
+import { PERMIT_PROVIDERS } from '#/lib/portals/providers'
+import type { ProviderCapabilities } from '#/lib/portals/providers'
 import { CONTACT_EMAIL } from '#/lib/site'
 
 export const Route = createFileRoute('/about')({
@@ -17,11 +19,11 @@ const STEPS = [
   },
   {
     title: 'We find the official sources',
-    body: 'We search for the pages and forms that cover your project, and mark the ones from government sites. If nothing covers it directly, we show the city’s general permit pages.',
+    body: 'In cities on a supported permit portal, we start with the city’s own online permits that fit your project. Everywhere, we search for the pages and forms that cover it, and mark the ones from government sites.',
   },
   {
-    title: 'Open, call, or fill out',
-    body: 'Go straight to each source, reach the city permit office from its contact card, or fill out PDF forms in the editor.',
+    title: 'Apply, fill out, and track',
+    body: 'Apply on the city’s portal or fill out PDF forms in the editor, then add the permit number to your project to follow its status.',
   },
 ]
 
@@ -63,6 +65,8 @@ function About() {
           ))}
         </ol>
 
+        <SupportedPortals />
+
         <h2 className="mt-8 border-t border-ink pt-5 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
           Good to know
         </h2>
@@ -96,5 +100,62 @@ function About() {
         </Link>
       </article>
     </AppPage>
+  )
+}
+
+// What each provider's capabilities mean for a visitor, in display order.
+const CAPABILITY_LABELS: Array<[keyof ProviderCapabilities, string]> = [
+  ['catalog', 'Finds the city’s online permits'],
+  ['statusLookup', 'Tracks permit status'],
+  ['submission', 'Submits applications'],
+]
+
+// The permit portals Permit Search works with, and their cities, from the
+// provider registry: adding a provider lists it here.
+function SupportedPortals() {
+  const providers = Object.values(PERMIT_PROVIDERS)
+
+  return (
+    <>
+      <h2 className="mt-8 border-t border-ink pt-5 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
+        Supported permit portals
+      </h2>
+      <p className="mt-2 text-base leading-6 text-ink/70">
+        In these cities, Permit Search reads the city’s permit portal directly.
+        Everywhere else, it searches the city’s website.
+      </p>
+      <ul className="mt-2 divide-y divide-ink/20">
+        {providers.map((provider) => (
+          <li key={provider.name} className="py-4">
+            <p className="font-medium text-ink">{provider.name}</p>
+            <p className="mt-1 text-base leading-6 text-ink/70">
+              {provider.description}
+            </p>
+            <p className="mt-2 flex flex-wrap gap-1.5">
+              {CAPABILITY_LABELS.flatMap(([key, label]) =>
+                provider.capabilities[key]
+                  ? [
+                      <span
+                        key={key}
+                        className="rounded-full bg-blueprint/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-blueprint uppercase"
+                      >
+                        {label}
+                      </span>,
+                    ]
+                  : [],
+              )}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-ink/70">
+              {provider.jurisdictions
+                .map((jurisdiction) => jurisdiction.city.name)
+                .sort((a, b) => a.localeCompare(b))
+                .join(', ')}
+              {', '}
+              {provider.jurisdictions[0]?.city.region}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }

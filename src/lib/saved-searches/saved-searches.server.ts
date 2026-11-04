@@ -11,6 +11,9 @@ import {
   normalizeQuery,
   searchKey,
 } from '#/lib/saved-searches/search-key'
+import { PERMIT_PROVIDERS, providerForCity } from '#/lib/portals/providers'
+import type { OnlineApplicationMatch } from '#/lib/portals/types'
+import { matchOnlineApplications } from '#/lib/search/online-applications.server'
 import { searchPermitsWithTavily } from '#/lib/search/tavily.server'
 import type {
   PermitSearchInput,
@@ -105,12 +108,17 @@ export async function runSavedSearch(
     return { publicId: reused, wasReused: true }
   }
 
-  // The city row doesn't depend on the results, so it's saved during the search.
-  const [response, city, userId] = await Promise.all([
+  // The city row doesn't depend on the results, so it's saved during the
+  // search. In a city on a supported portal, its online permit types are
+  // matched alongside the web search, so they add no wait.
+  const [webResponse, onlineApplications, city, userId] = await Promise.all([
     searchPermitsWithTavily(input),
+    matchOnlineApplications(input),
     withDatabase((db) => upsertCity(db, { name: input.city.name, region })),
     userIdRequest,
   ])
+
+  const response = withPortal(webResponse, input, onlineApplications)
 
   const reuseUntil = new Date()
   reuseUntil.setUTCDate(reuseUntil.getUTCDate() + SEARCH_REUSE_DAYS)
@@ -128,7 +136,9 @@ export async function runSavedSearch(
           pipelineVersion: SEARCH_PIPELINE_VERSION,
           permitTypes: response.permitTypes,
           response,
-          resultCount: response.results.length,
+          resultCount:
+            response.results.length +
+            (response.onlineApplications?.length ?? 0),
           reuseUntil,
         })
         .returning({ id: searches.id, publicId: searches.publicId })
@@ -146,6 +156,32 @@ export async function runSavedSearch(
   )
 
   return { publicId, wasReused: false }
+}
+
+// Adds the city's portal and its matched permit types, when it has a portal.
+function withPortal(
+  response: PermitSearchResponse,
+  input: PermitSearchInput,
+  onlineApplications: Array<OnlineApplicationMatch>,
+): PermitSearchResponse {
+  const covering = providerForCity({
+    name: input.city.name,
+    region: input.city.region ?? '',
+  })
+
+  if (!covering) return response
+
+  const provider = PERMIT_PROVIDERS[covering.provider]
+
+  return {
+    ...response,
+    onlineApplications,
+    portal: {
+      provider: covering.provider,
+      providerName: provider.name,
+      applyUrl: provider.applyUrl(covering.jurisdiction),
+    },
+  }
 }
 
 export async function loadSavedSearch(

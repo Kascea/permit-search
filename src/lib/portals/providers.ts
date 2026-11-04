@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { logisEpermits } from '#/lib/tracking/logis'
+import { logisEpermits } from '#/lib/portals/logis'
 
 // A city as a provider knows it.
 export interface Jurisdiction {
@@ -10,10 +10,26 @@ export interface Jurisdiction {
   city: { name: string; region: string }
 }
 
-// A city permit portal whose permits can be tracked. Shared by the browser and
-// the server; fetching status is server-only and lives elsewhere.
+// What a provider can do. The app reads these, never a provider's ID, so a
+// new provider turns features on by declaring them.
+export interface ProviderCapabilities {
+  // Lists a jurisdiction's online permit types and their requirements, for
+  // search and online applications.
+  catalog: boolean
+  // Reads a permit's status by its number.
+  statusLookup: boolean
+  // Submits applications for the user. False for every provider for now;
+  // see "Where this is going" in docs/ux-redesign-plan.md.
+  submission: boolean
+}
+
+// A city permit portal. Shared by the browser and the server; reading the
+// portal is server-only and lives in the *.server.ts adapters.
 export interface PermitProvider {
   name: string
+  // One sentence for the providers list on the About page.
+  description: string
+  capabilities: ProviderCapabilities
   jurisdictions: Array<Jurisdiction>
   // Normalizes a permit number for one city, with messages for people.
   permitNumberSchema: (jurisdiction: Jurisdiction) => z.ZodType<string>

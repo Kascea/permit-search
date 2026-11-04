@@ -10,9 +10,15 @@ others can be added later without changing the database or the UI.
 Background research is in
 [twin-cities-permit-portals.md](twin-cities-permit-portals.md).
 
+Next: [online-applications-plan.md](online-applications-plan.md) lets a
+permit number hang off an online application, not only a PDF form. It also
+grew `src/lib/tracking/` into `src/lib/portals/`, with provider adapters, each
+declaring what it can do (list permit types, read requirements, look up
+status, and later submit).
+
 ## Status
 
-Phases 1 and 2 are built, for LOGIS only. The code is in `src/lib/tracking/`,
+Phases 1 and 2 are built, for LOGIS only. The code is in `src/lib/portals/`,
 [PermitNumberDialog.tsx](../src/components/PermitNumberDialog.tsx) and the
 project page. Where the build differs from the plan below:
 
@@ -167,7 +173,7 @@ The registry is split in two, so scraping code never reaches the browser
 bundle.
 
 ```ts
-// src/lib/tracking/providers.ts: shared by the browser and the server.
+// src/lib/portals/providers.ts: shared by the browser and the server.
 export interface Jurisdiction {
   code: string // the provider's code, such as "sl"
   city: { name: string; region: string } // matched to the project's city
@@ -197,7 +203,7 @@ export function providerForCity(city: Project['city']) { /* … */ }
 ```
 
 ```ts
-// src/lib/tracking/providers.server.ts: only the server fetches status.
+// src/lib/portals/providers.server.ts: only the server fetches status.
 export interface PermitStatusFetcher {
   fetchStatus(jurisdiction: Jurisdiction, permitNumber: string): Promise<PermitStatus>
 }
@@ -211,7 +217,7 @@ export const STATUS_FETCHERS: Record<PermitProviderId, PermitStatusFetcher> = {
 The status is stored in a shape every provider maps into:
 
 ```ts
-// src/lib/tracking/types.ts
+// src/lib/portals/types.ts
 export type PermitPhase =
   | 'applied' | 'approved' | 'issued' | 'finaled'
   | 'cancelled' | 'expired' | 'unknown'
@@ -261,7 +267,7 @@ export const trackedPermitInputSchema = z
 
 ## Server functions
 
-These go in `src/lib/tracking/tracking.ts`. They follow `projects.ts`:
+These go in `src/lib/portals/tracking.ts`. They follow `projects.ts`:
 `withUserDatabase`, `parseUserInput`, and each change returns the updated
 project list. Items are identified by project `publicId` plus `sourceUrl`,
 the same way `removeFromAccountProject` does it.
@@ -280,7 +286,7 @@ Each permit has a public page, with no sign-in, cookies or form posts:
 https://epermits.logis.org/permits/permitdetails.aspx?city=sl&permitnbr=SL306008
 ```
 
-`src/lib/tracking/logis.server.ts` fetches it with Workers `fetch` and reads
+`src/lib/portals/logis.server.ts` fetches it with Workers `fetch` and reads
 it with `HTMLRewriter`. It needs no new dependencies.
 
 ### What the page shows
@@ -411,16 +417,16 @@ rule that only forms in projects can be tracked is easy to see.
 
 - `src/lib/db/schema.ts`: `trackedPermits`.
 - `drizzle/0015_tracked_permits.sql`.
-- `src/lib/tracking/types.ts`: `PermitStatus`, `PermitPhase`,
+- `src/lib/portals/types.ts`: `PermitStatus`, `PermitPhase`,
   `TrackedPermit`.
-- `src/lib/tracking/providers.ts`: `PERMIT_PROVIDERS`, `providerForCity`,
+- `src/lib/portals/providers.ts`: `PERMIT_PROVIDERS`, `providerForCity`,
   `trackedPermitInputSchema`.
-- `src/lib/tracking/logis.ts`: LOGIS jurisdictions, number schema and
+- `src/lib/portals/logis.ts`: LOGIS jurisdictions, number schema and
   `applyUrl` and `permitUrl`. Shared by the browser and the server.
-- `src/lib/tracking/logis.server.ts`: the LOGIS status fetcher.
-- `src/lib/tracking/providers.server.ts`: `STATUS_FETCHERS`.
-- `src/lib/tracking/tracking.server.ts`: database reads and writes.
-- `src/lib/tracking/tracking.ts`: server functions.
+- `src/lib/portals/logis.server.ts`: the LOGIS status fetcher.
+- `src/lib/portals/providers.server.ts`: `STATUS_FETCHERS`.
+- `src/lib/portals/tracking.server.ts`: database reads and writes.
+- `src/lib/portals/tracking.ts`: server functions.
 - `src/lib/projects/projects.server.ts`: join the permit into
   `listProjects`.
 - `src/components/PermitNumberDialog.tsx` and

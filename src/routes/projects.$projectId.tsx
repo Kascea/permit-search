@@ -38,13 +38,14 @@ import { setAccountProjects } from '#/lib/projects/use-account-projects'
 import {
   checkProjectFormPermit,
   removeProjectFormPermit,
-} from '#/lib/tracking/tracking'
-import { checkToast } from '#/lib/tracking/messages'
+} from '#/lib/portals/tracking'
+import { checkToast } from '#/lib/portals/messages'
 import type {
   PermitPhase,
   PermitStatus,
+  PortalPermitType,
   TrackedPermit,
-} from '#/lib/tracking/types'
+} from '#/lib/portals/types'
 import { errorMessage } from '#/lib/errors'
 import { confirm } from '#/components/ConfirmDialog'
 
@@ -455,7 +456,12 @@ function FormsSection({
       ) : (
         <ul className="divide-y divide-ink/20 border-b border-ink">
           {project.items.map((item) => {
-            const draft = draftsByUrl.get(item.sourceUrl)
+            // Online applications are filed on the city's portal, so they
+            // have no draft.
+            const draft = item.online
+              ? undefined
+              : draftsByUrl.get(item.sourceUrl)
+
             const isRemoving = removingUrl === item.sourceUrl
 
             return (
@@ -477,6 +483,9 @@ function FormsSection({
                     ) : (
                       <p className="truncate text-ink">{item.title}</p>
                     )}
+                    {item.online ? (
+                      <OnlineApplicationMeta type={item.online} />
+                    ) : (
                     <p className="truncate text-sm text-ink/60">
                       {/* Renamed drafts keep the form they're for in view. */}
                       {draft?.name && `${item.title} · `}
@@ -496,7 +505,18 @@ function FormsSection({
                         ' · Not started'
                       )}
                     </p>
+                    )}
                   </div>
+                  {item.online ? (
+                    <a
+                      href={item.online.applyUrl ?? item.online.pageUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
+                    >
+                      Apply online <span aria-hidden="true">↗</span>
+                    </a>
+                  ) : (
                   <Link
                     to="/editor"
                     search={{
@@ -510,6 +530,7 @@ function FormsSection({
                   >
                     {draft ? 'Continue' : 'Fill out'}
                   </Link>
+                  )}
                   <button
                     type="button"
                     aria-label={`Remove ${item.title} from ${project.name}`}
@@ -541,6 +562,35 @@ function FormsSection({
         onClose={() => setPermitItem(undefined)}
       />
     </section>
+  )
+}
+
+// An online application's line under its title: the portal, whether plans
+// are needed, and the city's requirements page when applying starts
+// elsewhere.
+function OnlineApplicationMeta({ type }: { type: PortalPermitType }) {
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink/60">
+      <span className={`${badgeClass} bg-blueprint/10 text-blueprint`}>
+        Online application
+      </span>
+      <span>{type.providerName}</span>
+      {type.plansRequired && <span>· Plans required</span>}
+      {/* Only when applying starts somewhere else. */}
+      {type.applyUrl !== type.pageUrl && (
+        <>
+          <span>·</span>
+          <a
+            href={type.pageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-blueprint underline-offset-2 hover:underline"
+          >
+            Requirements <span aria-hidden="true">↗</span>
+          </a>
+        </>
+      )}
+    </p>
   )
 }
 

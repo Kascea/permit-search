@@ -8,23 +8,33 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
+import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import type { DraftContent } from '#/lib/drafts/types'
 import type { FormSchema } from '#/lib/forms/types'
 import type { ExtraField } from '#/lib/projects/types'
 import type { PermitSearchResponse } from '#/lib/search/types'
-import type { PermitStatus } from '#/lib/tracking/types'
+import type {
+  PermitRequirements,
+  PermitStatus,
+  PortalTypeDetails,
+} from '#/lib/portals/types'
 
 export const contactsStatus = pgEnum('contacts_status', [
   'found',
   'partial',
   'not_found',
 ])
+
+// A PDF form, or an application filed on a city's permit portal; see
+// docs/online-applications-plan.md.
+export const projectItemKind = pgEnum('project_item_kind', ['pdf', 'online'])
 
 export const officeType = pgEnum('office_type', [
   'building',
@@ -388,14 +398,30 @@ export const projectItems = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
 
-    // The PDF's original URL, as passed to /editor?url=.
+    kind: projectItemKind('kind').notNull().default('pdf'),
+    // A PDF's original URL, as passed to /editor?url=. For an online
+    // application, its permit type's page_url, so every item is named by a
+    // URL either way.
     sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
-    // The search result's title, such as "Fence Permit Application".
+    // The search result's title, such as "Fence Permit Application", or the
+    // permit type's name.
     title: varchar('title', { length: 300 }).notNull(),
     // The saved search it was added from, for linking back.
     searchId: bigint('search_id', { mode: 'number' }).references(
       () => searches.id,
       { onDelete: 'set null' },
+    ),
+    // The permit type an online application applies for. Kept null-safe: a
+    // type the catalog drops stays, but if its row were deleted the item
+    // keeps its title and URL.
+    portalPermitTypeId: bigint('portal_permit_type_id', {
+      mode: 'number',
+    }).references(() => portalPermitTypes.id, { onDelete: 'set null' }),
+    // A supplemental PDF's online application, such as a form the city wants
+    // uploaded with it.
+    parentItemId: bigint('parent_item_id', { mode: 'number' }).references(
+      (): AnyPgColumn => projectItems.id,
+      { onDelete: 'cascade' },
     ),
 
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -407,6 +433,86 @@ export const projectItems = pgTable(
       table.projectId,
       table.sourceUrl,
     ),
+  ],
+)
+
+// A jurisdiction's permit-type catalog on a provider, such as St. Louis Park
+// on LOGIS ePermits: when its list was last read, and when to read it again.
+// See docs/search-flow-plan.md.
+export const portalCatalogs = pgTable(
+  'portal_catalogs',
+  {
+    // A key of PERMIT_PROVIDERS, such as "logis-epermits".
+    provider: varchar('provider', { length: 40 }).notNull(),
+    // The provider's code for the jurisdiction, such as "sl".
+    jurisdiction: varchar('jurisdiction', { length: 80 }).notNull(),
+    // Null until a read succeeds.
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }),
+    // The next search after this reads the list again.
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    typeCount: integer('type_count').notNull().default(0),
+    // The last failed read's message, for logs; cleared on success.
+    lastError: varchar('last_error', { length: 500 }),
+    ...timestamps,
+  },
+  (table) => [primaryKey({ columns: [table.provider, table.jurisdiction] })],
+)
+
+// One kind of application a jurisdiction accepts on its permit portal, such
+// as "Residential - Deck" in St. Louis Park. Shared by every user and written
+// only by provider adapters. Nothing here is specific to one provider; extras
+// go in details.
+export const portalPermitTypes = pgTable(
+  'portal_permit_types',
+  {
+    id: bigint('id', { mode: 'number' })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    provider: varchar('provider', { length: 40 }).notNull(),
+    jurisdiction: varchar('jurisdiction', { length: 80 }).notNull(),
+    // The provider's own ID for the type, whatever its shape: "42" on LOGIS,
+    // a GUID pair on EnerGov, "Building/Residential/Deck/NA" on Accela.
+    externalId: varchar('external_id', { length: 200 }).notNull(),
+
+    name: varchar('name', { length: 300 }).notNull(),
+    // As the portal groups it, such as "Building -Residential (Plans
+    // Required)". Null when the portal doesn't group types.
+    category: varchar('category', { length: 300 }),
+    // Null when the portal doesn't say.
+    plansRequired: boolean('plans_required'),
+
+    // A public page about this type. Required and unique per type, since it
+    // names the type's project items; a provider without one uses its portal
+    // page with the type's ID in the fragment.
+    pageUrl: varchar('page_url', { length: 2048 }).notNull(),
+    applyUrl: varchar('apply_url', { length: 2048 }),
+    feeEstimatorUrl: varchar('fee_estimator_url', { length: 2048 }),
+
+    // Null until read; refreshed when used after a day.
+    requirements: jsonb('requirements').$type<PermitRequirements>(),
+    requirementsFetchedAt: timestamp('requirements_fetched_at', {
+      withTimezone: true,
+    }),
+    // Provider-specific extras that nothing generic reads.
+    details: jsonb('details')
+      .$type<PortalTypeDetails>()
+      .notNull()
+      .default({}),
+
+    // When a catalog read last found it. Types the portal drops keep their
+    // row for the project items that use them, but aren't matched.
+    seenAt: timestamp('seen_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('portal_permit_types_external').on(
+      table.provider,
+      table.jurisdiction,
+      table.externalId,
+    ),
+    uniqueIndex('portal_permit_types_page_url').on(table.pageUrl),
   ],
 )
 

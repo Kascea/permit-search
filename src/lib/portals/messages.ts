@@ -1,5 +1,5 @@
 import type { Tone } from '#/components/Notice'
-import type { PermitCheckResult } from '#/lib/tracking/types'
+import type { PermitCheckResult } from '#/lib/portals/types'
 
 export interface CheckToast {
   tone: Tone

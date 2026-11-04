@@ -1,15 +1,13 @@
-import { logisEpermits } from '#/lib/tracking/logis'
-import type { Jurisdiction } from '#/lib/tracking/providers'
-import { PermitCheckError } from '#/lib/tracking/fetcher.server'
-import type { PermitStatusFetcher } from '#/lib/tracking/fetcher.server'
-import type { PermitStatus } from '#/lib/tracking/types'
+import { decodeHtmlText } from '#/lib/portals/html'
+import { LOGIS_USER_AGENT, logisEpermits } from '#/lib/portals/logis'
+import type { Jurisdiction } from '#/lib/portals/providers'
+import { PermitCheckError } from '#/lib/portals/fetcher.server'
+import type { PermitStatusFetcher } from '#/lib/portals/fetcher.server'
+import type { PermitStatus } from '#/lib/portals/types'
 
 // Reads a permit's public details page on epermits.logis.org, such as
 // permits/permitdetails.aspx?city=sl&permitnbr=SL306008. The page has no
 // status field, so the phase is worked out from its dates.
-
-const USER_AGENT =
-  'PermitSearch/1.0 (+https://permitsearch.app; permit status for the permit holder)'
 
 // Every value on the page is a label and field pair:
 // <div class="detail-label">Applied Date:</div><div class="detail-field">3/17/2021</div>
@@ -18,30 +16,15 @@ const USER_AGENT =
 const DETAIL_ROW =
   /<div class="detail-label">([^<]*)<\/div>\s*<div class="detail-field">([^<]*)<\/div>/g
 
-const ENTITIES = new Map([
-  ['&amp;', '&'],
-  ['&lt;', '<'],
-  ['&gt;', '>'],
-  ['&quot;', '"'],
-  ['&#39;', "'"],
-  ['&nbsp;', ' '],
-])
-
-function decode(text: string) {
-  return text
-    .replace(/&(?:amp|lt|gt|quot|#39|nbsp);/g, (entity) => ENTITIES.get(entity) ?? entity)
-    .trim()
-}
-
 // "Applied Date:" → "applied date". The page lists some labels twice (both
 // fee sections have "Total Fees:"), so values are kept in order.
 function readDetails(html: string) {
   const details = new Map<string, Array<string>>()
 
   for (const [, label = '', field = ''] of html.matchAll(DETAIL_ROW)) {
-    const key = decode(label).replace(/:$/, '').toLowerCase()
+    const key = decodeHtmlText(label).replace(/:$/, '').toLowerCase()
 
-    details.set(key, [...(details.get(key) ?? []), decode(field)])
+    details.set(key, [...(details.get(key) ?? []), decodeHtmlText(field)])
   }
 
   return details
@@ -155,7 +138,7 @@ export const logisStatusFetcher: PermitStatusFetcher = {
     const response = await fetch(
       logisEpermits.permitUrl(jurisdiction, permitNumber),
       {
-        headers: { 'User-Agent': USER_AGENT, Accept: 'text/html' },
+        headers: { 'User-Agent': LOGIS_USER_AGENT, Accept: 'text/html' },
         redirect: 'follow',
         signal: AbortSignal.timeout(15_000),
       },

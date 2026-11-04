@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
+import { OnlineApplications } from '#/components/OnlineApplications'
 import { rowPrimaryButtonClass } from '#/components/buttons'
 import { SavePermitButton } from '#/components/SavePermitButton'
 import { useAuth } from '#/lib/auth/use-auth'
@@ -35,6 +36,16 @@ export function SearchResultsList({
 
   return (
     <>
+      <OnlineApplications response={response} city={city} searchId={searchId} />
+
+      {/* In a city with a permit portal, the web results are the second
+          part: forms and handouts, and PDFs as the alternative. */}
+      {response.portal && response.results.length > 0 && (
+        <p className="mt-8 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
+          Forms and pages
+        </p>
+      )}
+
       {response.isGeneralFallback && (
         <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
           We couldn’t find a page specific to this project. These are the city’s
@@ -44,7 +55,11 @@ export function SearchResultsList({
       )}
 
       {response.results.length > 0 ? (
-        <ol className="mt-6 divide-y divide-ink/20 border-t border-ink">
+        <ol
+          className={`divide-y divide-ink/20 border-t border-ink ${
+            response.portal ? 'mt-2' : 'mt-6'
+          }`}
+        >
           {response.results.map((searchResult) => (
             <li key={searchResult.url} className="py-5">
               <div className="flex flex-wrap items-center gap-2">

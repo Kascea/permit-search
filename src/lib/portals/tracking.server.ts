@@ -3,11 +3,11 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import type { Database } from '#/lib/db/client.server'
 import { projectItems, projects, trackedPermits } from '#/lib/db/schema'
 import { UserError } from '#/lib/errors'
-import { isPermitCheckError } from '#/lib/tracking/fetcher.server'
-import { findJurisdiction, isPermitProviderId } from '#/lib/tracking/providers'
-import type { TrackedPermitInput } from '#/lib/tracking/providers'
-import { STATUS_FETCHERS } from '#/lib/tracking/providers.server'
-import type { PermitCheckResult, PermitStatus } from '#/lib/tracking/types'
+import { isPermitCheckError } from '#/lib/portals/fetcher.server'
+import { findJurisdiction, isPermitProviderId } from '#/lib/portals/providers'
+import type { TrackedPermitInput } from '#/lib/portals/providers'
+import { STATUS_FETCHERS } from '#/lib/portals/providers.server'
+import type { PermitCheckResult, PermitStatus } from '#/lib/portals/types'
 
 // Like projects.server.ts: each takes the request's open connection, and each
 // change is a single statement, except the status check.

@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
-import type { TrackedPermit } from '#/lib/tracking/types'
+import type { PortalPermitType, TrackedPermit } from '#/lib/portals/types'
 
-// A PDF saved to a project.
+// A PDF form or an online application in a project.
 export interface ProjectItem {
+  // Read back; 'online' is an application on the city's permit portal.
+  kind?: 'pdf' | 'online'
   sourceUrl: string
   title: string
   // Sent when adding: the public ID of the saved search it was found in.
@@ -13,6 +15,11 @@ export interface ProjectItem {
   search?: SearchLink
   // Read back: the city permit filed for it, once its number is added.
   permit?: TrackedPermit
+  // Sent when adding an online application: its permit type's ID. The
+  // server then takes the URL and title from the catalog.
+  portalPermitTypeId?: number
+  // Read back for an online application: its permit type.
+  online?: PortalPermitType
 }
 
 // The answers nearly every permit application asks for. Each is its own column
@@ -387,6 +394,7 @@ export const projectItemSchema = z.object({
     .catch('')
     .transform((title) => (title || 'PDF form').slice(0, MAX_TITLE_LENGTH)),
   searchId: publicIdSchema('search').optional(),
+  portalPermitTypeId: z.number().int().positive().optional(),
 })
 
 // "123 Main St, Unit 4, St Louis Park, Minnesota 55416", leaving out what's

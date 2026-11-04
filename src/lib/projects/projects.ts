@@ -11,6 +11,7 @@ import {
   deleteProject,
   listProjects,
   removeProjectItem,
+  resolveProjectItem,
   updateProject,
 } from '#/lib/projects/projects.server'
 import {
@@ -70,7 +71,10 @@ export const createAccountProject = createServerFn({ method: 'POST' })
     let publicId = ''
 
     const projects = await changeProjects(async (db, userId) => {
-      publicId = await createProject(db, userId, data)
+      publicId = await createProject(db, userId, {
+        ...data,
+        item: data.item && (await resolveProjectItem(db, data.item)),
+      })
     })
 
     return { publicId, projects }
@@ -99,8 +103,13 @@ export const addToAccountProject = createServerFn({ method: 'POST' })
     ),
   )
   .handler(({ data }) =>
-    changeProjects((db, userId) =>
-      addProjectItem(db, userId, data.publicId, data.item),
+    changeProjects(async (db, userId) =>
+      addProjectItem(
+        db,
+        userId,
+        data.publicId,
+        await resolveProjectItem(db, data.item),
+      ),
     ),
   )
 

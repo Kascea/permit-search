@@ -26,6 +26,47 @@ Three changes do most of the work:
 
 The visual style in [DESIGN.md](../DESIGN.md) doesn't change.
 
+## Where this is going: submitting through Permit Search
+
+The goal is to compete with PermitFlow. A user prepares a permit once in
+Permit Search, submits it to the city from here, and tracks it to final
+inspection. The difference: PermitFlow is a managed service for contractors
+and commercial builders, priced by quote. Permit Search is software that
+homeowners and small contractors use themselves.
+
+We get there in stages. Each one is useful on its own:
+
+| Stage | What the user does | What Permit Search does | Status |
+|---|---|---|---|
+| 1. Prepare | Fills the permit once | Finds the right permit (a PDF or an online application), fills it from the project, checks it | Built for PDFs |
+| 2. Hand off and track | Files it on the city's portal or by email, then adds the permit number | Says what to submit and where, then tracks the permit's status | Tracking built for LOGIS ([permit-tracking-plan.md](permit-tracking-plan.md)) |
+| 3. Online applications | Applies for an online permit type, with a PDF only as a supplement | A checklist from the city's requirements, the answers to paste in, the fee estimate | Planned ([online-applications-plan.md](online-applications-plan.md)) |
+| 4. Assisted submission | Clicks Submit on the city's own page | Fills the city's online form in the user's own session (a browser extension) | Later |
+| 5. Submission | Reviews and approves | Submits to the city and pays the fees, then tracks it | Later |
+
+Rules that hold at every stage:
+
+- **Providers are pluggable.** A city's portal (LOGIS ePermits, Tyler
+  EnerGov, Accela, BS&A and others) is reached through a provider adapter
+  that declares what it can do: list permit types, read requirements, look up
+  status, submit. The UI reads those capabilities, never a provider's name.
+  The data stays the same across providers.
+- **Answers are stored once, in our own terms.** A project's and an
+  application's answers use the app's fill keys (`ownerPhone`,
+  `estimatedCost`), never a portal's field names. Each provider maps them
+  when it fills or submits, so adding submission doesn't change stored data.
+- **We never store a user's city portal password.** Submission happens only
+  through sanctioned routes:
+  - an official API or a partnership with the portal operator;
+  - an agent account the portal offers to third parties, such as ePermits'
+    "Plan Submitter" account type;
+  - the user's own browser session.
+- **The user approves every submission,** after seeing exactly what will be
+  filed and what it costs.
+- **The user always knows what's theirs to do.** Until we submit for them,
+  every step that happens outside Permit Search says so: "Next, submit this
+  form to the city yourself." See DESIGN.md's Feedback rules.
+
 ## Where the app is today
 
 Most of the parts already exist, but each one sits on its own page and the
@@ -376,6 +417,12 @@ info.
 | `project_items` → `project_forms` | Renamed and changed | Add `public_id`, `saved_permit_id` (set null on delete), `source_hash`, `status` (not started, filling, needs fixes, ready, submitted), `check_summary` jsonb, `ready_at`. The form keeps its own `source_url` and `source_hash`, so removing a permit from the library doesn't break projects that use it. Backfill a `saved_permits` row for each existing item |
 | `pdf_drafts`                      | Changed             | Add `project_form_id`. Change the unique index to (`user_id`, `source_url`, `project_form_id`). Loose drafts keep a null `project_form_id`                                                                        |
 
+Online applications add a `portal_permit_types` catalog and a `kind` on
+project items (`pdf` or `online`). The tables are in
+[online-applications-plan.md](online-applications-plan.md#data-model).
+`tracked_permits` (in [permit-tracking-plan.md](permit-tracking-plan.md))
+hangs off a project item of either kind.
+
 The draft also records how each field got its value. Add to `DraftContent`:
 
 ```ts
@@ -636,9 +683,14 @@ Done. Every later phase adds its section to the sidebar (My permits in step
 - Should a confirmed field mapping for a public city form be shared with every
   user, or kept per user? Sharing improves auto-fill faster, but needs a rule
   for when a mapping is trusted.
-- Do we track forms after "ready": submitted, approved, inspection dates?
-- Many cities use online portals instead of PDFs. Do we save portal permits as
-  a link with a checklist, even though we can't fill them?
+- ~~Do we track forms after "ready": submitted, approved, inspection
+  dates?~~ Yes. A permit number added to a project item is tracked through
+  the city's portal; see [permit-tracking-plan.md](permit-tracking-plan.md).
+  Inspections are still open.
+- ~~Many cities use online portals instead of PDFs. Do we save portal permits
+  as a link with a checklist, even though we can't fill them?~~ Yes, as
+  online application items, with PDFs as supplements; see
+  [online-applications-plan.md](online-applications-plan.md).
 - Should projects hold attachments such as site plans and photos?
 - When the city replaces a form, do we carry the draft's answers over to the
   new PDF automatically, or ask first?

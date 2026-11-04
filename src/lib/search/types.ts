@@ -1,4 +1,5 @@
 import type { City } from '#/lib/location/types'
+import type { OnlineApplicationMatch } from '#/lib/portals/types'
 
 export interface PermitSearchInput {
   city: City
@@ -25,4 +26,11 @@ export interface PermitSearchResponse {
   isGeneralFallback: boolean
   // The permit types Jev identified for the project, such as "building permit".
   permitTypes: Array<string>
+  // In a city on a supported permit portal, the city's own online permit
+  // types the project needs. Missing on searches saved before this, and on
+  // searches in other cities.
+  onlineApplications?: Array<OnlineApplicationMatch>
+  // The portal those types are from, when the city has one, even if nothing
+  // matched.
+  portal?: { provider: string; providerName: string; applyUrl: string }
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { Jurisdiction, PermitProvider } from '#/lib/tracking/providers'
+import type { Jurisdiction, PermitProvider } from '#/lib/portals/providers'
 
 // LOGIS member cities with a permit search on epermits.logis.org. Each code is
 // the portal's ?city= value, and its permit numbers are that code in capitals
@@ -23,7 +23,11 @@ const LOGIS_CITIES: Array<[code: string, name: string]> = [
   ['wb', 'White Bear Lake'],
 ]
 
-const PORTAL_URL = 'https://epermits.logis.org'
+export const LOGIS_PORTAL_URL = 'https://epermits.logis.org'
+
+// Sent with every request, so LOGIS can see who's asking and reach us.
+export const LOGIS_USER_AGENT =
+  'PermitSearch/1.0 (+https://permitsearch.app; permit status for the permit holder)'
 
 function prefix(jurisdiction: Jurisdiction) {
   return jurisdiction.code.toUpperCase()
@@ -31,6 +35,9 @@ function prefix(jurisdiction: Jurisdiction) {
 
 export const logisEpermits: PermitProvider = {
   name: 'LOGIS ePermits',
+  description:
+    'A shared permit portal run by LOGIS, a cooperative of Twin Cities metro cities.',
+  capabilities: { catalog: true, statusLookup: true, submission: false },
   jurisdictions: LOGIS_CITIES.map(([code, name]) => ({
     code,
     city: { name, region: 'Minnesota' },
@@ -55,11 +62,11 @@ export const logisEpermits: PermitProvider = {
   placeholder: (jurisdiction) => `${prefix(jurisdiction)}123456`,
 
   applyUrl: (jurisdiction) =>
-    `${PORTAL_URL}/home.aspx?city=${jurisdiction.code}`,
+    `${LOGIS_PORTAL_URL}/home.aspx?city=${jurisdiction.code}`,
 
   // Public: no sign-in, and an unknown number says "could not be found".
   permitUrl: (jurisdiction, permitNumber) =>
-    `${PORTAL_URL}/permits/permitdetails.aspx?${new URLSearchParams({
+    `${LOGIS_PORTAL_URL}/permits/permitdetails.aspx?${new URLSearchParams({
       city: jurisdiction.code,
       permitnbr: permitNumber,
     })}`,

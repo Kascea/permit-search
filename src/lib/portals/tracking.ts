@@ -10,12 +10,12 @@ import {
   projectSourceUrlSchema,
   publicIdSchema,
 } from '#/lib/projects/types'
-import { trackedPermitInputSchema } from '#/lib/tracking/providers'
+import { trackedPermitInputSchema } from '#/lib/portals/providers'
 import {
   checkItemPermit,
   removeItemPermit,
   setItemPermit,
-} from '#/lib/tracking/tracking.server'
+} from '#/lib/portals/tracking.server'
 
 // A form in a project, as the project page names it.
 const projectFormSchema = z.object({

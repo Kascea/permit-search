@@ -13,9 +13,9 @@ import {
   findJurisdiction,
   isPermitProviderId,
   providerForCity,
-} from '#/lib/tracking/providers'
-import type { PermitProviderId } from '#/lib/tracking/providers'
-import { setProjectFormPermit } from '#/lib/tracking/tracking'
+} from '#/lib/portals/providers'
+import type { PermitProviderId } from '#/lib/portals/providers'
+import { setProjectFormPermit } from '#/lib/portals/tracking'
 
 interface PermitNumberDialogProps {
   // The form whose permit is being added; undefined while closed.
@@ -47,11 +47,17 @@ export function PermitNumberDialog({
 
 const PROVIDER_IDS = Object.keys(PERMIT_PROVIDERS).filter(isPermitProviderId)
 
-// The provider and city to start with: the permit's own, else the ones
-// covering the project's city, else the first provider and no city.
+// The provider and city to start with: the permit's own, else the online
+// application's, else the ones covering the project's city, else the first
+// provider and no city.
 function initialChoice(item: ProjectItem, project: Project) {
   if (item.permit && isPermitProviderId(item.permit.provider)) {
     return { provider: item.permit.provider, code: item.permit.jurisdiction }
+  }
+
+  // An online application was filed on its own portal, in its own city.
+  if (item.online && isPermitProviderId(item.online.provider)) {
+    return { provider: item.online.provider, code: item.online.jurisdiction }
   }
 
   const covering = providerForCity(project.city)
