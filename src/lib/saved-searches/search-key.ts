@@ -4,7 +4,9 @@ import { cityKey } from '#/lib/contacts/types'
 // saved results from the old flow aren't reused for new searches. Saved links
 // still show what they showed before.
 // 4: online permit types from the city's portal, where it has one.
-export const SEARCH_PIPELINE_VERSION = 4
+// 5: St. Louis Park's online permits were saved with the portal's home page
+//    as their apply link.
+export const SEARCH_PIPELINE_VERSION = 5
 
 // A matching search within this window reuses the saved result.
 export const SEARCH_REUSE_DAYS = 7
