@@ -1,0 +1,4 @@
+ALTER TABLE "saved_permits" ALTER COLUMN "source_hash" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "saved_permits" ADD COLUMN "portal_permit_type_id" bigint;--> statement-breakpoint
+ALTER TABLE "saved_permits" ADD CONSTRAINT "saved_permits_portal_permit_type_id_portal_permit_types_id_fk" FOREIGN KEY ("portal_permit_type_id") REFERENCES "public"."portal_permit_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saved_permits" ADD CONSTRAINT "saved_permits_pdf_or_online" CHECK (("saved_permits"."source_hash" is null) <> ("saved_permits"."portal_permit_type_id" is null));

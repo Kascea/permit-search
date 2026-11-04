@@ -4,6 +4,7 @@ import type { Database } from '#/lib/db/client.server'
 import {
   blankPdfs,
   cities,
+  portalPermitTypes,
   projectItems,
   projects,
   savedPermits,
@@ -12,7 +13,13 @@ import {
 import { UserError } from '#/lib/errors'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
 import { storeBlankPdf } from '#/lib/pdf/blank-pdf.server'
+import {
+  findPortalPermitType,
+  portalPermitTypeFromRow,
+  typeColumns,
+} from '#/lib/portals/catalog.server'
 import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
+import { MAX_PERMIT_TITLE_LENGTH } from '#/lib/permits/types'
 import type {
   SavePermitInput,
   SavedPermit,
@@ -32,7 +39,8 @@ function ownedBy(userId: string, publicId: string) {
 }
 
 // Grouped by city, then by title. With a public ID, just that permit (if it's
-// the user's).
+// the user's). Online permits whose provider or city is no longer supported
+// are left out.
 export async function listSavedPermits(
   db: Database,
   userId: string,
@@ -50,9 +58,12 @@ export async function listSavedPermits(
       notes: savedPermits.notes,
       savedAt: savedPermits.createdAt,
       versionSavedAt: savedPermits.versionSavedAt,
-      pageCount: blankPdfs.pageCount,
-      fieldCount: blankPdfs.fieldCount,
-      pdfModifiedAt: blankPdfs.pdfModifiedAt,
+      pdf: {
+        pageCount: blankPdfs.pageCount,
+        fieldCount: blankPdfs.fieldCount,
+        pdfModifiedAt: blankPdfs.pdfModifiedAt,
+      },
+      type: typeColumns,
       // Projects hold forms by link until they hold saved permits.
       projectCount: sql<number>`(
         select count(*)::int
@@ -67,7 +78,11 @@ export async function listSavedPermits(
       region: cities.region,
     })
     .from(savedPermits)
-    .innerJoin(blankPdfs, eq(blankPdfs.sourceHash, savedPermits.sourceHash))
+    .leftJoin(blankPdfs, eq(blankPdfs.sourceHash, savedPermits.sourceHash))
+    .leftJoin(
+      portalPermitTypes,
+      eq(portalPermitTypes.id, savedPermits.portalPermitTypeId),
+    )
     .leftJoin(searches, eq(searches.id, savedPermits.searchId))
     .leftJoin(cities, eq(cities.id, searches.cityId))
     .where(
@@ -80,22 +95,37 @@ export async function listSavedPermits(
     )
     .limit(MAX_SAVED_PERMITS)
 
-  return rows.map((row) => ({
-    publicId: row.publicId,
-    title: row.title,
-    city: { name: row.cityName, region: row.cityRegion },
-    permitTypes: row.permitTypes,
-    sourceUrl: row.sourceUrl,
-    sourceHash: row.sourceHash,
-    pageCount: row.pageCount,
-    fieldCount: row.fieldCount,
-    notes: row.notes,
-    projectCount: row.projectCount,
-    search: searchLinkFromColumns({ ...row, cityName: row.searchCityName }),
-    savedAt: row.savedAt.toISOString(),
-    versionSavedAt: row.versionSavedAt.toISOString(),
-    pdfModifiedAt: row.pdfModifiedAt?.toISOString() ?? null,
-  }))
+  return rows.flatMap((row): Array<SavedPermit> => {
+    const base = {
+      publicId: row.publicId,
+      title: row.title,
+      city: { name: row.cityName, region: row.cityRegion },
+      permitTypes: row.permitTypes,
+      sourceUrl: row.sourceUrl,
+      notes: row.notes,
+      projectCount: row.projectCount,
+      search: searchLinkFromColumns({ ...row, cityName: row.searchCityName }),
+      savedAt: row.savedAt.toISOString(),
+      versionSavedAt: row.versionSavedAt.toISOString(),
+    }
+
+    if (row.sourceHash && row.pdf) {
+      return [
+        {
+          ...base,
+          kind: 'pdf',
+          sourceHash: row.sourceHash,
+          pageCount: row.pdf.pageCount,
+          fieldCount: row.pdf.fieldCount,
+          pdfModifiedAt: row.pdf.pdfModifiedAt?.toISOString() ?? null,
+        },
+      ]
+    }
+
+    const online = row.type && portalPermitTypeFromRow(row.type)
+
+    return online ? [{ ...base, kind: 'online', online }] : []
+  })
 }
 
 // The projects holding a saved permit's link, for its page.
@@ -132,7 +162,8 @@ async function findBySourceUrl(
   return row?.publicId
 }
 
-// Downloads the form, stores a blank copy, and adds it to the library.
+// Downloads the form, stores a blank copy, and adds it to the library. An
+// online permit is saved from the catalog instead, with nothing to download.
 // Returns the permit's public ID; a link already saved returns the existing
 // one without downloading it again.
 export async function savePermit(
@@ -140,7 +171,19 @@ export async function savePermit(
   userId: string,
   input: SavePermitInput,
 ) {
-  const existing = await findBySourceUrl(db, userId, input.sourceUrl)
+  // An online permit's URL, title and city come from the catalog, never from
+  // the browser.
+  const online =
+    input.portalPermitTypeId === undefined
+      ? null
+      : await findPortalPermitType(db, input.portalPermitTypeId)
+
+  if (input.portalPermitTypeId !== undefined && !online) {
+    throw new UserError('That online permit isn’t available.')
+  }
+
+  const sourceUrl = online?.pageUrl ?? input.sourceUrl
+  const existing = await findBySourceUrl(db, userId, sourceUrl)
 
   if (existing) return existing
 
@@ -155,10 +198,9 @@ export async function savePermit(
     )
   }
 
-  const sourceHash = await storeBlankPdf(
-    db,
-    await fetchPdfBytes(input.sourceUrl),
-  )
+  const sourceHash = online
+    ? null
+    : await storeBlankPdf(db, await fetchPdfBytes(sourceUrl))
 
   const fromSearch = sql`from ${searches} where ${searches.publicId} = ${input.searchId ?? null}`
 
@@ -167,18 +209,19 @@ export async function savePermit(
     .values({
       publicId: newPublicId(),
       userId,
-      sourceUrl: input.sourceUrl,
+      sourceUrl,
       sourceHash,
-      title: input.title,
-      cityName: input.city.name,
-      cityRegion: input.city.region,
+      portalPermitTypeId: online?.id ?? null,
+      title: online?.name.slice(0, MAX_PERMIT_TITLE_LENGTH) ?? input.title,
+      cityName: online?.city.name ?? input.city.name,
+      cityRegion: online?.city.region ?? input.city.region,
       permitTypes: sql`coalesce((select ${searches.permitTypes} ${fromSearch}), '[]'::jsonb)`,
       searchId: sql`(select ${searches.id} ${fromSearch})`,
     })
     // Saved meanwhile from another tab: that one stands.
     .onConflictDoNothing()
 
-  const saved = await findBySourceUrl(db, userId, input.sourceUrl)
+  const saved = await findBySourceUrl(db, userId, sourceUrl)
 
   if (!saved) throw new Error('The saved permit was not found after saving.')
 

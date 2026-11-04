@@ -25,7 +25,7 @@ function hoursFromNow(hours: number) {
   return new Date(Date.now() + hours * 3_600_000)
 }
 
-const typeColumns = {
+export const typeColumns = {
   id: portalPermitTypes.id,
   provider: portalPermitTypes.provider,
   jurisdiction: portalPermitTypes.jurisdiction,
@@ -294,8 +294,11 @@ export async function findPortalPermitType(
     .from(portalPermitTypes)
     .where(eq(portalPermitTypes.id, id))
 
-  if (!row) return null
+  return row ? portalPermitTypeFromRow(row) : null
+}
 
+// Null when the type's provider or city is no longer supported.
+export function portalPermitTypeFromRow(row: TypeRow): PortalPermitType | null {
   if (!isPermitProviderId(row.provider)) return null
 
   const jurisdiction = findJurisdiction(row.provider, row.jurisdiction)

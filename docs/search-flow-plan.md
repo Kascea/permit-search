@@ -83,6 +83,13 @@ FORMS AND PAGES
   category says so, and the documents the city asks for.
 - **Add to project** adds it as an online application item; see
   online-applications-plan.md.
+- **Save permit** keeps it in My permits beside saved PDFs, for reuse in
+  other projects. It's saved by its permit type, like a project item.
+- **It shows before the web results are ready.** `startSearch` streams the
+  online matches first (catalog and Jev only), then the saved search's ID once
+  the web search finishes, so the pending page shows Apply online while it
+  still says "Searching for forms and pages". Save and Add to project appear
+  once the search is saved.
 - With no matches in a supported city (the work isn't in the city's online
   list), the section says so in one line, and the web results follow.
   Crystal, for example, lists only single-family items online.

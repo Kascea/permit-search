@@ -1,22 +1,24 @@
 import { AddToProjectButton } from '#/components/AddToProjectDialog'
 import { quietActionClass, rowPrimaryButtonClass } from '#/components/buttons'
+import { SavePermitButton } from '#/components/SavePermitButton'
 import type { OnlineApplicationMatch } from '#/lib/portals/types'
-import type { PermitSearchResponse } from '#/lib/search/types'
+import type { OnlineApplicationsPreview } from '#/lib/search/types'
 
 const badgeClass =
   'rounded-full px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] uppercase'
 
 // A search in a city on a supported permit portal opens with the city's own
 // online permit types that the project needs, before the web results. See
-// docs/search-flow-plan.md.
+// docs/search-flow-plan.md. It also shows while the web search is still
+// running, before the search is saved; it has no searchId then.
 export function OnlineApplications({
   response,
   city,
   searchId,
 }: {
-  response: PermitSearchResponse
+  response: Partial<OnlineApplicationsPreview>
   city: { name: string; region: string }
-  searchId: string
+  searchId?: string
 }) {
   const { portal, onlineApplications = [] } = response
 
@@ -64,7 +66,7 @@ function OnlineApplication({
 }: {
   match: OnlineApplicationMatch
   city: { name: string; region: string }
-  searchId: string
+  searchId?: string
 }) {
   const documents = match.requirements?.documents ?? []
 
@@ -119,15 +121,28 @@ function OnlineApplication({
             Requirements <span aria-hidden="true">↗</span>
           </a>
         )}
-        <AddToProjectButton
-          city={city}
-          item={{
-            sourceUrl: match.pageUrl,
-            title: match.name,
-            searchId,
-            portalPermitTypeId: match.id,
-          }}
-        />
+        {/* Not before the search is saved: the page moves to the saved
+            results then, which would close a dialog mid-use. */}
+        {searchId && (
+          <>
+            <SavePermitButton
+              sourceUrl={match.pageUrl}
+              title={match.name}
+              city={city}
+              searchId={searchId}
+              portalPermitTypeId={match.id}
+            />
+            <AddToProjectButton
+              city={city}
+              item={{
+                sourceUrl: match.pageUrl,
+                title: match.name,
+                searchId,
+                portalPermitTypeId: match.id,
+              }}
+            />
+          </>
+        )}
       </div>
     </li>
   )

@@ -15,18 +15,22 @@ import {
 const BOOKMARK_ICON =
   'M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z'
 
-// The labeled "Save permit" action on a PDF search result: keeps a blank copy
-// of the form in My permits. Once saved it links to the saved permit.
+// The labeled "Save permit" action on a PDF search result, or on an online
+// permit: keeps a blank copy of the form, or the online permit, in My
+// permits. Once saved it links to the saved permit.
 export function SavePermitButton({
   sourceUrl,
   title,
   city,
   searchId,
+  portalPermitTypeId,
 }: {
+  // For an online permit, its type's page URL.
   sourceUrl: string
   title: string
   city: { name: string; region: string }
   searchId: string
+  portalPermitTypeId?: number
 }) {
   const { user } = useAuth()
   const permits = useSavedPermits(Boolean(user))
@@ -58,7 +62,7 @@ export function SavePermitButton({
 
     try {
       const permit = await saveAccountPermit({
-        data: { sourceUrl, title, city, searchId },
+        data: { sourceUrl, title, city, searchId, portalPermitTypeId },
       })
 
       putSavedPermit(permit)

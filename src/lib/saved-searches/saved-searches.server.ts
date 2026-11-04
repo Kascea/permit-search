@@ -16,6 +16,7 @@ import type { OnlineApplicationMatch } from '#/lib/portals/types'
 import { matchOnlineApplications } from '#/lib/search/online-applications.server'
 import { searchPermitsWithTavily } from '#/lib/search/tavily.server'
 import type {
+  OnlineApplicationsPreview,
   PermitSearchInput,
   PermitSearchResponse,
 } from '#/lib/search/types'
@@ -31,6 +32,15 @@ export interface SavedSearch {
   ageMinutes: number
 }
 
+// A search that runSavedSearch has started. The online applications come from
+// the database and Jev, so they're ready well before the web search; the
+// results page shows them while the rest of the search runs.
+export interface StartedSearch {
+  // Null when a saved search was reused, or the city has no permit portal.
+  online: Promise<OnlineApplicationsPreview | null>
+  saved: Promise<{ publicId: string; wasReused: boolean }>
+}
+
 // Reuses a matching search from the last SEARCH_REUSE_DAYS when there is one;
 // otherwise runs the search and saves it. `fresh` runs it again unless it
 // already ran in the last SEARCH_REFRESH_HOURS. `userId` records who ran it, for
@@ -44,7 +54,7 @@ export async function runSavedSearch(
     fresh?: boolean
     userId?: string | null | Promise<string | null>
   } = {},
-): Promise<{ publicId: string; wasReused: boolean }> {
+): Promise<StartedSearch> {
   const userIdRequest = Promise.resolve(pendingUserId)
   // Observed now so a failure while looking up the search isn't reported as
   // an unhandled rejection; awaiting it below still throws.
@@ -105,20 +115,62 @@ export async function runSavedSearch(
       }),
     )
 
-    return { publicId: reused, wasReused: true }
+    return {
+      online: Promise.resolve(null),
+      saved: Promise.resolve({ publicId: reused, wasReused: true }),
+    }
   }
+
+  const onlineApplications = matchOnlineApplications(input)
+
+  const saved = saveNewSearch(input, {
+    fresh,
+    queryKey,
+    onlineApplications,
+    userIdRequest,
+  })
+
+  // Observed now for the same reason as userIdRequest; the caller still sees
+  // the failure.
+  saved.catch(() => {})
+
+  return {
+    online: onlineApplications.then((matches) => withPortal(input, matches)),
+    saved,
+  }
+}
+
+// Runs the web search beside the online applications, and saves the response.
+async function saveNewSearch(
+  input: PermitSearchInput,
+  {
+    fresh,
+    queryKey,
+    onlineApplications: onlineApplicationsRequest,
+    userIdRequest,
+  }: {
+    fresh: boolean
+    queryKey: string
+    onlineApplications: Promise<Array<OnlineApplicationMatch>>
+    userIdRequest: Promise<string | null>
+  },
+): Promise<{ publicId: string; wasReused: boolean }> {
+  const region = input.city.region ?? ''
 
   // The city row doesn't depend on the results, so it's saved during the
   // search. In a city on a supported portal, its online permit types are
   // matched alongside the web search, so they add no wait.
   const [webResponse, onlineApplications, city, userId] = await Promise.all([
     searchPermitsWithTavily(input),
-    matchOnlineApplications(input),
+    onlineApplicationsRequest,
     withDatabase((db) => upsertCity(db, { name: input.city.name, region })),
     userIdRequest,
   ])
 
-  const response = withPortal(webResponse, input, onlineApplications)
+  const response: PermitSearchResponse = {
+    ...webResponse,
+    ...withPortal(input, onlineApplications),
+  }
 
   const reuseUntil = new Date()
   reuseUntil.setUTCDate(reuseUntil.getUTCDate() + SEARCH_REUSE_DAYS)
@@ -158,23 +210,21 @@ export async function runSavedSearch(
   return { publicId, wasReused: false }
 }
 
-// Adds the city's portal and its matched permit types, when it has a portal.
+// The city's portal and its matched permit types, when it has a portal.
 function withPortal(
-  response: PermitSearchResponse,
   input: PermitSearchInput,
   onlineApplications: Array<OnlineApplicationMatch>,
-): PermitSearchResponse {
+): OnlineApplicationsPreview | null {
   const covering = providerForCity({
     name: input.city.name,
     region: input.city.region ?? '',
   })
 
-  if (!covering) return response
+  if (!covering) return null
 
   const provider = PERMIT_PROVIDERS[covering.provider]
 
   return {
-    ...response,
     onlineApplications,
     portal: {
       provider: covering.provider,

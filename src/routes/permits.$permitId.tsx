@@ -26,8 +26,13 @@ import {
   MAX_PERMIT_TITLE_LENGTH,
   STALE_AFTER_DAYS,
   isStale,
+  savedPermitProjectItem,
 } from '#/lib/permits/types'
-import type { SavedPermit } from '#/lib/permits/types'
+import type {
+  SavedOnlinePermit,
+  SavedPdfPermit,
+  SavedPermit,
+} from '#/lib/permits/types'
 import {
   putSavedPermit,
   setSavedPermits,
@@ -128,55 +133,41 @@ function PermitDetails({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
-        <Link
-          to="/editor"
-          search={{ url: permit.sourceUrl }}
-          className={primaryButtonClass}
-        >
-          Fill once
-        </Link>
+        {permit.kind === 'pdf' ? (
+          <Link
+            to="/editor"
+            search={{ url: permit.sourceUrl }}
+            className={primaryButtonClass}
+          >
+            Fill once
+          </Link>
+        ) : (
+          <a
+            href={permit.online.applyUrl ?? permit.online.pageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={primaryButtonClass}
+          >
+            Apply on {permit.online.providerName}{' '}
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
         <AddToProjectButton
           city={permit.city}
-          item={{
-            sourceUrl: permit.sourceUrl,
-            title: permit.title,
-            searchId: permit.search?.publicId,
-          }}
+          item={savedPermitProjectItem(permit)}
         />
       </div>
 
-      <section className="mt-8">
-        <h2 className="text-sm font-medium text-ink">Version</h2>
-        <dl className="mt-2 divide-y divide-ink/20 border-t border-b border-ink text-sm">
-          <Fact label="Saved to your library">
-            <EditedDate iso={permit.savedAt} />
-          </Fact>
-          <Fact label="Last updated from the city">
-            <EditedDate iso={permit.versionSavedAt} />
-            <span className="text-ink/60">
-              {' '}
-              (<UpdatedAge iso={permit.versionSavedAt} />)
-            </span>
-            {isStale(permit) && (
-              <p className="mt-1 text-redline" suppressHydrationWarning>
-                Over {STALE_AFTER_DAYS} days old. The city may have posted a
-                newer version; compare with the city’s link below before you
-                submit.
-              </p>
-            )}
-          </Fact>
-          <Fact label="Date inside the PDF">
-            {permit.pdfModifiedAt ? (
-              <EditedDate iso={permit.pdfModifiedAt} />
-            ) : (
-              <span className="text-ink/60">None given</span>
-            )}
-          </Fact>
-        </dl>
-      </section>
+      {permit.kind === 'pdf' ? (
+        <PdfVersion permit={permit} />
+      ) : (
+        <OnlineRequirements permit={permit} />
+      )}
 
       <section className="mt-8">
-        <h2 className="text-sm font-medium text-ink">The form</h2>
+        <h2 className="text-sm font-medium text-ink">
+          {permit.kind === 'pdf' ? 'The form' : 'The online permit'}
+        </h2>
         <dl className="mt-2 divide-y divide-ink/20 border-t border-b border-ink text-sm">
           <Fact label="Permit types">
             {permit.permitTypes.length > 0 ? (
@@ -185,31 +176,52 @@ function PermitDetails({
               <span className="text-ink/60">None recorded</span>
             )}
           </Fact>
-          <Fact label="Size">
-            {permit.pageCount} {permit.pageCount === 1 ? 'page' : 'pages'},{' '}
-            {permit.fieldCount}{' '}
-            {permit.fieldCount === 1 ? 'fillable field' : 'fillable fields'}
-          </Fact>
-          <Fact label="City’s link">
-            <a
-              href={permit.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="break-all text-blueprint underline-offset-2 hover:underline"
-            >
-              {permit.sourceUrl}
-            </a>
-          </Fact>
-          <Fact label="Saved copy">
-            <a
-              href={`/api/pdf?hash=${permit.sourceHash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-blueprint underline-offset-2 hover:underline"
-            >
-              Open the saved PDF
-            </a>
-          </Fact>
+          {permit.kind === 'pdf' ? (
+            <>
+              <Fact label="Size">
+                {permit.pageCount} {permit.pageCount === 1 ? 'page' : 'pages'},{' '}
+                {permit.fieldCount}{' '}
+                {permit.fieldCount === 1 ? 'fillable field' : 'fillable fields'}
+              </Fact>
+              <Fact label="City’s link">
+                <a
+                  href={permit.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="break-all text-blueprint underline-offset-2 hover:underline"
+                >
+                  {permit.sourceUrl}
+                </a>
+              </Fact>
+              <Fact label="Saved copy">
+                <a
+                  href={`/api/pdf?hash=${permit.sourceHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blueprint underline-offset-2 hover:underline"
+                >
+                  Open the saved PDF
+                </a>
+              </Fact>
+            </>
+          ) : (
+            <>
+              <Fact label="Permit portal">{permit.online.providerName}</Fact>
+              {permit.online.category && (
+                <Fact label="Category">{permit.online.category}</Fact>
+              )}
+              <Fact label="City’s page">
+                <a
+                  href={permit.online.pageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="break-all text-blueprint underline-offset-2 hover:underline"
+                >
+                  {permit.online.pageUrl}
+                </a>
+              </Fact>
+            </>
+          )}
           {permit.search && (
             <Fact label="Found in">
               <Link
@@ -259,6 +271,74 @@ function PermitDetails({
         Remove from My permits
       </button>
     </>
+  )
+}
+
+// When the stored copy was downloaded from the city, and how old it is.
+function PdfVersion({ permit }: { permit: SavedPdfPermit }) {
+  return (
+    <section className="mt-8">
+      <h2 className="text-sm font-medium text-ink">Version</h2>
+      <dl className="mt-2 divide-y divide-ink/20 border-t border-b border-ink text-sm">
+        <Fact label="Saved to your library">
+          <EditedDate iso={permit.savedAt} />
+        </Fact>
+        <Fact label="Last updated from the city">
+          <EditedDate iso={permit.versionSavedAt} />
+          <span className="text-ink/60">
+            {' '}
+            (<UpdatedAge iso={permit.versionSavedAt} />)
+          </span>
+          {isStale(permit) && (
+            <p className="mt-1 text-redline" suppressHydrationWarning>
+              Over {STALE_AFTER_DAYS} days old. The city may have posted a newer
+              version; compare with the city’s link below before you submit.
+            </p>
+          )}
+        </Fact>
+        <Fact label="Date inside the PDF">
+          {permit.pdfModifiedAt ? (
+            <EditedDate iso={permit.pdfModifiedAt} />
+          ) : (
+            <span className="text-ink/60">None given</span>
+          )}
+        </Fact>
+      </dl>
+    </section>
+  )
+}
+
+// What the city asks for with the application. The catalog keeps it
+// current, so there's no version to show.
+function OnlineRequirements({ permit }: { permit: SavedOnlinePermit }) {
+  const { online } = permit
+  const documents = online.requirements?.documents ?? []
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-sm font-medium text-ink">Requirements</h2>
+      <dl className="mt-2 divide-y divide-ink/20 border-t border-b border-ink text-sm">
+        <Fact label="Saved to your library">
+          <EditedDate iso={permit.savedAt} />
+        </Fact>
+        {online.plansRequired !== null && (
+          <Fact label="Plans required">
+            {online.plansRequired ? 'Yes' : 'No'}
+          </Fact>
+        )}
+        <Fact label="The city asks for">
+          {documents.length > 0 ? (
+            <ul className="list-disc space-y-1 pl-5">
+              {documents.map((document) => (
+                <li key={document}>{document}</li>
+              ))}
+            </ul>
+          ) : (
+            <span className="text-ink/60">Not listed</span>
+          )}
+        </Fact>
+      </dl>
+    </section>
   )
 }
 

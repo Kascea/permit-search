@@ -1,32 +1,60 @@
 import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
+import type { PortalPermitType } from '#/lib/portals/types'
 import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
+import type { ProjectItem } from '#/lib/projects/types'
 
-// A blank form in the user's library. It holds no answers; projects fill it.
-export interface SavedPermit {
+// A permit in the user's library: a blank PDF form, or an online permit on
+// the city's portal. Neither holds answers; projects fill them.
+interface SavedPermitBase {
   publicId: string
   title: string
   city: { name: string; region: string }
   // Such as "fence permit", from the search it was saved from.
   permitTypes: Array<string>
-  // The city's link, checked again for newer versions.
+  // The city's link: the PDF, checked again for newer versions, or the
+  // online permit's page.
   sourceUrl: string
-  // The stored copy, served at /api/pdf?hash=.
-  sourceHash: string
-  pageCount: number
-  fieldCount: number
   notes: string
-  // How many of the user's projects hold this form's link.
+  // How many of the user's projects hold this permit's link.
   projectCount: number
   search?: SearchLink
 
   // When the user saved it.
   savedAt: string
-  // When the stored copy was last downloaded from the city's link.
+  // When the stored copy was last downloaded from the city's link; for an
+  // online permit, when it was saved.
   versionSavedAt: string
+}
+
+export interface SavedPdfPermit extends SavedPermitBase {
+  kind: 'pdf'
+  // The stored copy, served at /api/pdf?hash=.
+  sourceHash: string
+  pageCount: number
+  fieldCount: number
   // The date written inside the PDF, if any; often its revision date.
   pdfModifiedAt: string | null
+}
+
+// The catalog keeps the permit type current, so it's never stale.
+export interface SavedOnlinePermit extends SavedPermitBase {
+  kind: 'online'
+  online: PortalPermitType
+}
+
+export type SavedPermit = SavedPdfPermit | SavedOnlinePermit
+
+// What adding a saved permit to a project sends. An online permit is added by
+// its type, as from search results.
+export function savedPermitProjectItem(permit: SavedPermit): ProjectItem {
+  return {
+    sourceUrl: permit.sourceUrl,
+    title: permit.title,
+    searchId: permit.search?.publicId,
+    portalPermitTypeId: permit.kind === 'online' ? permit.online.id : undefined,
+  }
 }
 
 // A copy older than this may be out of date, and the library says so. Cities
@@ -35,11 +63,11 @@ export const STALE_AFTER_DAYS = 30
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export function isStale(
-  permit: Pick<SavedPermit, 'versionSavedAt'>,
-  now = Date.now(),
-) {
-  return now - Date.parse(permit.versionSavedAt) > STALE_AFTER_DAYS * DAY_MS
+export function isStale(permit: SavedPermit, now = Date.now()) {
+  return (
+    permit.kind === 'pdf' &&
+    now - Date.parse(permit.versionSavedAt) > STALE_AFTER_DAYS * DAY_MS
+  )
 }
 
 export const MAX_PERMIT_TITLE_LENGTH = 300
@@ -74,6 +102,9 @@ export const savePermitSchema = z.object({
   city: permitCitySchema,
   // The saved search it was found in; its permit types are kept with it.
   searchId: publicIdSchema('search').optional(),
+  // For an online permit: its permit type's ID. The server then takes the
+  // URL, title and city from the catalog, and sourceUrl is ignored.
+  portalPermitTypeId: z.number().int().positive().optional(),
 })
 
 export type SavePermitInput = z.output<typeof savePermitSchema>

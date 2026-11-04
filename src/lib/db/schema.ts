@@ -1,7 +1,9 @@
+import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
   char,
+  check,
   date,
   index,
   integer,
@@ -595,12 +597,19 @@ export const savedPermits = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
 
-    // Where the city posts the form; checked again for newer versions.
+    // Where the city posts the form; checked again for newer versions. For
+    // an online permit, its type's page_url, as in project_items.
     sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
-    // The stored copy of the version saved; see blankPdfs.
-    sourceHash: char('source_hash', { length: 64 })
-      .notNull()
-      .references(() => blankPdfs.sourceHash),
+    // The stored copy of the version saved; see blankPdfs. Null for an
+    // online permit.
+    sourceHash: char('source_hash', { length: 64 }).references(
+      () => blankPdfs.sourceHash,
+    ),
+    // An online permit's type in the portal catalog; null for a PDF. Types
+    // are never deleted (see portalPermitTypes.seenAt).
+    portalPermitTypeId: bigint('portal_permit_type_id', {
+      mode: 'number',
+    }).references(() => portalPermitTypes.id),
     title: varchar('title', { length: 300 }).notNull(),
     cityName: varchar('city_name', { length: 100 }).notNull(),
     cityRegion: varchar('city_region', { length: 100 }).notNull(),
@@ -625,6 +634,11 @@ export const savedPermits = pgTable(
   (table) => [
     uniqueIndex('saved_permits_public_id').on(table.publicId),
     uniqueIndex('saved_permits_user_source').on(table.userId, table.sourceUrl),
+    // Each saved permit is either a PDF or an online permit.
+    check(
+      'saved_permits_pdf_or_online',
+      sql`(${table.sourceHash} is null) <> (${table.portalPermitTypeId} is null)`,
+    ),
     index('saved_permits_user_city_title').on(
       table.userId,
       table.cityRegion,

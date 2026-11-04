@@ -34,3 +34,9 @@ export interface PermitSearchResponse {
   // matched.
   portal?: { provider: string; providerName: string; applyUrl: string }
 }
+
+// The part of a response the results page can show before the web search
+// finishes: the city's portal and its matched online permit types.
+export type OnlineApplicationsPreview = Required<
+  Pick<PermitSearchResponse, 'onlineApplications' | 'portal'>
+>

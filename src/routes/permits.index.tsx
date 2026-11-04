@@ -10,6 +10,7 @@ import { StaleBadge, UpdatedAge } from '#/components/SavedPermitStatus'
 import { SignInButton } from '#/components/SignInDialog'
 import { formatCity } from '#/lib/location/format'
 import { listAccountPermits, removeAccountPermit } from '#/lib/permits/permits'
+import { savedPermitProjectItem } from '#/lib/permits/types'
 import type { SavedPermit } from '#/lib/permits/types'
 import { setSavedPermits } from '#/lib/permits/use-saved-permits'
 import { confirm } from '#/components/ConfirmDialog'
@@ -75,14 +76,14 @@ function Permits() {
         My permits
       </p>
       <h1 className="mt-1 text-[1.75rem] leading-[1.05] font-medium tracking-[-0.03em] text-ink sm:text-4xl">
-        Your blank forms
+        Your saved permits
       </h1>
 
       {!permits ? (
         <div className="mt-6 border-t border-ink pt-5">
           <p className="text-base leading-6 text-ink/70">
-            Sign in to save blank permit forms by city and reuse them in any
-            project.
+            Sign in to save blank permit forms and online permits by city and
+            reuse them in any project.
           </p>
           <SignInButton className={`mt-5 ${buttonClass}`} />
         </div>
@@ -90,9 +91,9 @@ function Permits() {
         <p className="mt-6 max-w-[60ch] border-t border-ink pt-5 text-base leading-6 text-ink/70">
           No saved permits yet. Search for a permit, then choose{' '}
           <span className="font-medium text-ink">Save permit</span> on a PDF
-          result to keep a blank copy here. Each one shows when it was last
-          updated, so you can tell when it’s worth getting a fresh copy from
-          the city.
+          result to keep a blank copy here, or on an online permit to keep its
+          application link. Each PDF shows when it was last updated, so you can
+          tell when it’s worth getting a fresh copy from the city.
         </p>
       ) : (
         <Library permits={permits} onChange={update} />
@@ -316,32 +317,48 @@ function PermitRow({
         {showCity && `${formatCity(permit.city)} · `}
         {permit.permitTypes.length > 0 &&
           `${permit.permitTypes.join(', ')} · `}
-        {permit.pageCount} {permit.pageCount === 1 ? 'page' : 'pages'}
+        {permit.kind === 'pdf'
+          ? `${permit.pageCount} ${permit.pageCount === 1 ? 'page' : 'pages'}`
+          : `Online on ${permit.online.providerName}`}
         {permit.projectCount > 0 &&
           ` · In ${permit.projectCount} ${
             permit.projectCount === 1 ? 'project' : 'projects'
           }`}
       </p>
       <p className="mt-0.5 text-sm text-ink/60">
-        Saved <EditedDate iso={permit.savedAt} /> · Updated{' '}
-        <UpdatedAge iso={permit.versionSavedAt} />
+        Saved <EditedDate iso={permit.savedAt} />
+        {/* The catalog keeps an online permit current. */}
+        {permit.kind === 'pdf' && (
+          <>
+            {' '}
+            · Updated <UpdatedAge iso={permit.versionSavedAt} />
+          </>
+        )}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <Link
-          to="/editor"
-          search={{ url: permit.sourceUrl }}
-          className={rowActionClass}
-        >
-          Fill once
-        </Link>
+        {permit.kind === 'pdf' ? (
+          <Link
+            to="/editor"
+            search={{ url: permit.sourceUrl }}
+            className={rowActionClass}
+          >
+            Fill once
+          </Link>
+        ) : (
+          <a
+            href={permit.online.applyUrl ?? permit.online.pageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={rowActionClass}
+          >
+            Apply on {permit.online.providerName}{' '}
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
         <AddToProjectButton
           city={permit.city}
-          item={{
-            sourceUrl: permit.sourceUrl,
-            title: permit.title,
-            searchId: permit.search?.publicId,
-          }}
+          item={savedPermitProjectItem(permit)}
         />
         <button
           type="button"
