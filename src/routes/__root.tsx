@@ -8,6 +8,7 @@ import {
 import type { ReactNode } from 'react'
 
 import { AppSidebar } from '#/components/AppSidebar'
+import { ConfirmHost } from '#/components/ConfirmDialog'
 import { getAuthState } from '#/lib/auth/session'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
 import { Toaster } from '#/components/Toaster'
@@ -110,6 +111,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         {children}
         <LocalDraftSync />
         <Toaster />
+        <ConfirmHost />
         <Scripts />
       </body>
     </html>

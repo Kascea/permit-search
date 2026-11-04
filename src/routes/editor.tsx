@@ -51,6 +51,7 @@ import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { parseOrigin, searchLabel } from '#/lib/navigation/origin'
 import type { Origin } from '#/lib/navigation/origin'
 import { getSearchSummary } from '#/lib/search/permit-search'
+import { confirm } from '#/components/ConfirmDialog'
 
 type NativeField =
   | {
@@ -706,7 +707,16 @@ function PdfEditor({
   async function discardDraft() {
     if (!sourceBytes) return
 
-    if (!window.confirm('Discard your saved entries for this form?')) return
+    if (
+      !(await confirm({
+        title: 'Discard your saved entries for this form?',
+        message: 'The form goes back to its original values.',
+        confirmLabel: 'Discard entries',
+        isDestructive: true,
+      }))
+    ) {
+      return
+    }
 
     try {
       deleteLocalDraft(url)

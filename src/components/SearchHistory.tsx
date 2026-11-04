@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { HistoryItem } from '#/lib/history/history.server'
 import { removeSearchHistory } from '#/lib/history/history'
 import { formatCity } from '#/lib/location/format'
+import { confirm } from '#/components/ConfirmDialog'
 
 // The signed-in user's searches, each removable, on /history.
 export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
@@ -14,7 +15,12 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
   async function remove(publicId?: string) {
     if (
       !publicId &&
-      !window.confirm('Clear your whole search history? This can’t be undone.')
+      !(await confirm({
+        title: 'Clear your whole search history?',
+        message: 'This can’t be undone.',
+        confirmLabel: 'Clear history',
+        isDestructive: true,
+      }))
     ) {
       return
     }

@@ -32,6 +32,7 @@ import {
   putSavedPermit,
   setSavedPermits,
 } from '#/lib/permits/use-saved-permits'
+import { confirm } from '#/components/ConfirmDialog'
 
 export const Route = createFileRoute('/permits/$permitId')({
   loader: ({ params }) =>
@@ -92,9 +93,12 @@ function PermitDetails({
 
   async function remove() {
     if (
-      !window.confirm(
-        `Remove “${permit.title}” from My permits? Projects that use it keep it.`,
-      )
+      !(await confirm({
+        title: `Remove “${permit.title}” from My permits?`,
+        message: 'Projects that use it keep it.',
+        confirmLabel: 'Remove permit',
+        isDestructive: true,
+      }))
     ) {
       return
     }

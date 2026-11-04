@@ -26,6 +26,7 @@ import type {
   ProjectTextKey,
 } from '#/lib/projects/types'
 import { Notice } from '#/components/Notice'
+import { confirm } from '#/components/ConfirmDialog'
 
 interface ProjectFormProps {
   // create: a submit button at the end. edit: always editable, with a save
@@ -112,9 +113,15 @@ export function ProjectForm({
   const isSubmittingRef = useRef(false)
   const shouldBlock = () => isDirty && !isSubmittingRef.current
   useBlocker({
-    shouldBlockFn: () =>
+    shouldBlockFn: async () =>
       shouldBlock() &&
-      !window.confirm('You have unsaved changes. Leave without saving?'),
+      !(await confirm({
+        title: 'Leave without saving?',
+        message: 'You have unsaved changes.',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Keep editing',
+        isDestructive: true,
+      })),
     enableBeforeUnload: shouldBlock,
     withResolver: false,
   })

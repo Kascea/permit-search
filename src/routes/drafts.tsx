@@ -13,6 +13,7 @@ import { deleteAccountDraft, listAccountDrafts } from '#/lib/drafts/drafts'
 import type { DraftSummary } from '#/lib/drafts/types'
 import { listAccountProjects } from '#/lib/projects/projects'
 import type { Project } from '#/lib/projects/types'
+import { confirm } from '#/components/ConfirmDialog'
 
 export const Route = createFileRoute('/drafts')({
   head: () => ({
@@ -93,8 +94,16 @@ function DraftList({
   const [addingDraft, setAddingDraft] = useState<DraftSummary>()
 
   async function remove(draft: DraftSummary) {
-    if (!window.confirm(`Delete your draft of “${draft.name ?? draft.title}”?`))
+    if (
+      !(await confirm({
+        title: `Delete your draft of “${draft.name ?? draft.title}”?`,
+        confirmLabel: 'Delete draft',
+        isDestructive: true,
+      }))
+    ) {
       return
+    }
+
     setDeletingId(draft.publicId)
 
     try {

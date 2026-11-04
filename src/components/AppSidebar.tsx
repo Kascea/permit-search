@@ -21,6 +21,7 @@ import {
   setAccountProjects,
   useAccountProjects,
 } from '#/lib/projects/use-account-projects'
+import { confirm } from '#/components/ConfirmDialog'
 
 // How many recent projects the sidebar lists under Projects.
 const RECENT_PROJECT_COUNT = 5
@@ -355,9 +356,12 @@ function SidebarMenu({
     onClose()
 
     if (
-      !window.confirm(
-        `Delete the project “${target.name}”? Your drafts stay in Drafts.`,
-      )
+      !(await confirm({
+        title: `Delete the project “${target.name}”?`,
+        message: 'Your drafts stay in Drafts.',
+        confirmLabel: 'Delete project',
+        isDestructive: true,
+      }))
     ) {
       return
     }

@@ -12,6 +12,7 @@ import { formatCity } from '#/lib/location/format'
 import { listAccountPermits, removeAccountPermit } from '#/lib/permits/permits'
 import type { SavedPermit } from '#/lib/permits/types'
 import { setSavedPermits } from '#/lib/permits/use-saved-permits'
+import { confirm } from '#/components/ConfirmDialog'
 
 const SORTS = [
   { id: 'city', label: 'City' },
@@ -275,9 +276,12 @@ function PermitRow({
 
   async function remove() {
     if (
-      !window.confirm(
-        `Remove “${permit.title}” from My permits? Projects that use it keep it.`,
-      )
+      !(await confirm({
+        title: `Remove “${permit.title}” from My permits?`,
+        message: 'Projects that use it keep it.',
+        confirmLabel: 'Remove permit',
+        isDestructive: true,
+      }))
     ) {
       return
     }

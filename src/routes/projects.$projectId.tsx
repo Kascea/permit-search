@@ -33,6 +33,7 @@ import {
 } from '#/lib/projects/types'
 import type { Project } from '#/lib/projects/types'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
+import { confirm } from '#/components/ConfirmDialog'
 
 export const Route = createFileRoute('/projects/$projectId')({
   loader: async ({ params }) => {
@@ -118,9 +119,12 @@ function ProjectPage() {
 
   async function remove(current: Project) {
     if (
-      !window.confirm(
-        `Delete the project “${current.name}”? Your drafts stay in Drafts.`,
-      )
+      !(await confirm({
+        title: `Delete the project “${current.name}”?`,
+        message: 'Your drafts stay in Drafts.',
+        confirmLabel: 'Delete project',
+        isDestructive: true,
+      }))
     ) {
       return
     }
