@@ -44,7 +44,6 @@ import {
 import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
 import type { FieldIssue, IssueSeverity } from '#/lib/forms/checks'
 import { checkFormDraft, prepareFormSchema } from '#/lib/forms/forms'
-import type { FieldRole } from '#/lib/forms/roles'
 import { projectFills } from '#/lib/projects/autofill'
 import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
@@ -180,9 +179,9 @@ function PdfEditor({
   const { projects } = useAccountProjects(signedIn)
   // The project chosen in the fill menu, or the one the editor was opened from.
   const [fillProjectId, setFillProjectId] = useState(projectId)
-  // What each field asks for, by field name, once the server has read the
-  // form; autofill uses it before guessing from field names.
-  const [formRoles, setFormRoles] = useState<Record<string, FieldRole>>({})
+  // Each field's printed label, by field name, once the server has read the
+  // form; autofill reads them along with the field names.
+  const [formLabels, setFormLabels] = useState<Record<string, string>>({})
   // The last form check, and the entries it checked, to tell when it's out
   // of date.
   const [formCheck, setFormCheck] = useState<FormCheckState>()
@@ -209,15 +208,23 @@ function PdfEditor({
       project.items.some((item) => item.sourceUrl === url),
     )
 
-  // The text fields still empty, which a project can fill.
-  const emptyTextFields = useMemo(
+  // The text fields, which a project can fill when they're empty.
+  const textFields = useMemo(
     () =>
       nativeFields.flatMap((field) =>
-        field.kind === 'text' && !field.value.trim()
-          ? [{ id: field.id, name: field.name, width: field.widgets[0].width }]
+        field.kind === 'text'
+          ? [
+              {
+                id: field.id,
+                name: field.name,
+                label: formLabels[field.name] ?? '',
+                width: field.widgets[0].width,
+                isEmpty: !field.value.trim(),
+              },
+            ]
           : [],
       ),
-    [nativeFields],
+    [nativeFields, formLabels],
   )
 
   // How many empty fields each project can fill, by public ID.
@@ -226,10 +233,10 @@ function PdfEditor({
       new Map(
         (projects ?? []).map((project) => [
           project.publicId,
-          projectFills(emptyTextFields, project, formRoles).size,
+          projectFills(textFields, project).size,
         ]),
       ),
-    [projects, emptyTextFields, formRoles],
+    [projects, textFields],
   )
 
   const draftContent = useMemo<DraftContent>(
@@ -254,7 +261,7 @@ function PdfEditor({
   })
 
   // Reads the form on the server as soon as it opens, so checking is quick
-  // and autofill knows each field's role. A failure here only means the
+  // and autofill knows each field's label. A failure here only means the
   // check button does the work later.
   const hasNativeFields = nativeFields.length > 0
   useEffect(() => {
@@ -263,8 +270,8 @@ function PdfEditor({
     let cancelled = false
 
     prepareFormSchema({ data: { sourceUrl: url, sourceHash } })
-      .then(({ roles }) => {
-        if (!cancelled) setFormRoles(roles)
+      .then(({ labels }) => {
+        if (!cancelled) setFormLabels(labels)
       })
       .catch(() => undefined)
 
@@ -669,7 +676,7 @@ function PdfEditor({
   // still holding the filled value, so later typing is kept.
   function fillFromProject(project: Project) {
     setFillProjectId(project.publicId)
-    const filled = projectFills(emptyTextFields, project, formRoles)
+    const filled = projectFills(textFields, project)
 
     if (filled.size === 0) {
       toast(`“${project.name}” has nothing to fill in the empty fields.`)

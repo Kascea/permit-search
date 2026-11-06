@@ -230,10 +230,9 @@ function trackedPermitFromRow(row: ItemRow): TrackedPermit | undefined {
     status: row.trackedStatus,
     checkedAt: row.trackedCheckedAt,
     checkError: row.trackedCheckError,
-    permitUrl: PERMIT_PROVIDERS[provider].permitUrl(
-      jurisdiction,
-      row.trackedNumber,
-    ),
+    permitUrl:
+      row.trackedStatus?.permitUrl ??
+      PERMIT_PROVIDERS[provider].permitUrl(jurisdiction, row.trackedNumber),
   }
 }
 

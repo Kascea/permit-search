@@ -66,6 +66,9 @@ export interface PermitStatus {
   }
   // Unpaid application and permit fees, in cents; null when not shown.
   balanceDueCents: number | null
+  // The permit's own page, for a provider whose check finds a link that its
+  // number alone can't build. Otherwise the provider's permitUrl is used.
+  permitUrl?: string
 }
 
 // What a status check did, so the page can always say so, even when nothing

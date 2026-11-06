@@ -35,6 +35,9 @@ below:
   supplemental PDFs.
 - **Providers declare `catalog`, `statusLookup` and `submission`.** The
   About page lists them with their cities.
+- **Austin is the second provider,** not EnerGov as planned in phase 5. It
+  reads the city's website and open data instead of its portal; see
+  [austin-permits.md](austin-permits.md).
 
 This is the next step toward the product direction in
 [ux-redesign-plan.md](ux-redesign-plan.md#where-this-is-going-submitting-through-permit-search):

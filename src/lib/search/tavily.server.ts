@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { saveCityPermitsUrl } from '#/lib/contacts/store.server'
 import { isPdfUrl } from '#/lib/pdf/url'
 import { hasDatabase, withDatabase } from '#/lib/db/client.server'
+import { providerForCity } from '#/lib/portals/providers'
 import type { ReviewedLink } from '#/lib/search/link-review.server'
 
 import type {
@@ -117,18 +118,24 @@ export async function searchPermitsWithTavily(
       }),
     )
 
-    const officialPages = results
-      .filter(
-        (result) =>
-          result.isGovernmentSource &&
-          isLikelyHtmlPage(result.url) &&
-          !isPdfUrl(result.url),
-      )
-      .sort(
-        (first, second) =>
-          rankExtractionPage(second, input) - rankExtractionPage(first, input),
-      )
-      .slice(0, MAX_OFFICIAL_PAGES_TO_EXTRACT)
+    const formsPage = cityFormsPage(input)
+
+    const officialPages = [
+      ...(formsPage ? [formsPage] : []),
+      ...results
+        .filter(
+          (result) =>
+            result.isGovernmentSource &&
+            isLikelyHtmlPage(result.url) &&
+            !isPdfUrl(result.url) &&
+            result.url !== formsPage?.url,
+        )
+        .sort(
+          (first, second) =>
+            rankExtractionPage(second, input) - rankExtractionPage(first, input),
+        )
+        .slice(0, MAX_OFFICIAL_PAGES_TO_EXTRACT),
+    ]
 
     const extractedByPage = await Promise.all(
       officialPages.map(async (page) => ({
@@ -215,6 +222,25 @@ export async function searchPermitsWithTavily(
     throw error
   } finally {
     clearTimeout(timeout)
+  }
+}
+
+// The page listing the city's forms, read on every search there so its forms
+// don't depend on the page ranking well in Tavily. Null for most cities.
+function cityFormsPage({ city }: PermitSearchInput): PermitSearchResult | null {
+  const formsPage = providerForCity({
+    name: city.name,
+    region: city.region ?? '',
+  })?.jurisdiction.formsPage
+
+  if (!formsPage) return null
+
+  return {
+    ...formsPage,
+    domain: new URL(formsPage.url).hostname.replace(/^www\./, ''),
+    description: '',
+    score: 0,
+    isGovernmentSource: true,
   }
 }
 

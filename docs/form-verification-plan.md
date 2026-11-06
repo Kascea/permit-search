@@ -32,13 +32,11 @@ Where the build differs from the plan below:
   made required by a heading. Except for roles in `ALWAYS_APPLIES_ROLES`, an
   empty required field under a heading is reported only when Jev is
   confident its section applies; an unsure answer is silent.
-- **Dates.** Autofill puts today's date in fields with the `signatureDate`
-  role, and only those; `projectDate` fields (start, completion, inspection)
-  are left alone. The `dateCurrent` check flags a signature date more than 7
-  days old or in the future, including dates the user places.
-- **Autofill trusts roles.** Once the form has been read, a field with a
-  role is filled only from that role; name matching is used only for fields
-  without one.
+- **Dates.** The `dateCurrent` check flags a signature date more than 7 days
+  old or in the future, including dates the user places.
+- **Autofill doesn't use roles.** It matches in code from field names and
+  printed labels; see [autofill.ts](../src/lib/projects/autofill.ts). The plan
+  to improve it is in [form-labeling-plan.md](form-labeling-plan.md).
 - **Dropdowns, lists and radio buttons** get only the required check.
 - **Labels are read on the server** with the pdf.js legacy build, which adds
   about 0.5 MB gzipped to the Worker (2.6 MB in all).
@@ -247,13 +245,6 @@ How answers become severities, with the thresholds from
   and scores, and uses the existing `rate_limits` table.
 - A migration for `form_schemas`.
 
-## Side benefit: better autofill
-
-`matchProjectField` in [autofill.ts](../src/lib/projects/autofill.ts) guesses
-from field names with regexes, and returns nothing for a name like `Text12`.
-With a schema, autofill reads the field's role (`role: 'ownerPhone'` maps to
-`FIELD_ROLES.ownerPhone.project`) instead.
-
 ## Risks
 
 - **Scanned PDFs with no text layer** have no labels. Fallback for later: send
@@ -272,4 +263,3 @@ With a schema, autofill reads the field's role (`role: 'ownerPhone'` maps to
    using `TYPESAFE_API_KEY`, at a cost of a few cents.
 3. Code checks, the Check button, and the sidebar results.
 4. The Jev checks.
-5. Switch autofill over to field roles.

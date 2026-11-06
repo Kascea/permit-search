@@ -8,7 +8,6 @@ import { draftSchema } from '#/lib/drafts/types'
 import { parseUserInput } from '#/lib/errors'
 import { checkDraft } from '#/lib/forms/check.server'
 import { loadFormSchema } from '#/lib/forms/ingest.server'
-import type { FieldRole } from '#/lib/forms/roles'
 import { listProjects } from '#/lib/projects/projects.server'
 import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
 import { limitRequest } from '#/lib/rate-limit.server'
@@ -19,7 +18,7 @@ const formInput = z.object({
 })
 
 // Reads a form for checking when the editor opens it, so the check button is
-// quick. Returns each field's role, by field name.
+// quick. Returns each field's printed label, by field name, for autofill.
 export const prepareFormSchema = createServerFn({ method: 'POST' })
   .validator(parseUserInput(formInput))
   .handler(async ({ data }) => {
@@ -28,9 +27,9 @@ export const prepareFormSchema = createServerFn({ method: 'POST' })
     const schema = await loadFormSchema(data.sourceUrl, data.sourceHash)
 
     return {
-      roles: Object.fromEntries(
-        schema.fields.flatMap(({ name, role }) => (role ? [[name, role]] : [])),
-      ) satisfies Record<string, FieldRole>,
+      labels: Object.fromEntries(
+        schema.fields.map(({ name, label }) => [name, label]),
+      ) satisfies Record<string, string>,
     }
   })
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { austinDevelopmentServices } from '#/lib/portals/austin'
 import { logisEpermits } from '#/lib/portals/logis'
 
 // A city as a provider knows it.
@@ -8,6 +9,9 @@ export interface Jurisdiction {
   code: string
   // Matched against a project's city.
   city: { name: string; region: string }
+  // A page listing the city's forms, when it has one worth reading on every
+  // search there.
+  formsPage?: { title: string; url: string }
 }
 
 // What a provider can do. The app reads these, never a provider's ID, so a
@@ -44,6 +48,7 @@ export interface PermitProvider {
 // migration.
 export const PERMIT_PROVIDERS = {
   'logis-epermits': logisEpermits,
+  'austin-development-services': austinDevelopmentServices,
 } as const satisfies Record<string, PermitProvider>
 
 export type PermitProviderId = keyof typeof PERMIT_PROVIDERS
