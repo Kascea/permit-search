@@ -51,6 +51,11 @@ import {
   findPageBoxes,
   prepareFormSchema,
 } from '#/lib/forms/forms'
+import {
+  exclusiveOptions,
+  selectOption,
+  selectedOption,
+} from '#/lib/pdf/exclusive-checkbox'
 import { boxValue, codeMatches, fillOptions } from '#/lib/projects/autofill'
 import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
@@ -81,6 +86,9 @@ type NativeField =
       name: string
       value: string
       options: Array<string>
+      // Drawn as checkboxes: the PDF builds its answers as a checkbox per
+      // answer, of which only one can be on.
+      asCheckboxes?: boolean
       widgets: Array<PdfRect>
     }
   | {
@@ -1539,6 +1547,26 @@ function NativeFieldControl({
     )
   }
 
+  if (field.asCheckboxes && widget.option) {
+    return (
+      <input
+        checked={field.value === widget.option}
+        className={`${className} accent-blueprint`}
+        data-editor-control
+        data-field-id={field.id}
+        onChange={(event) =>
+          onChange((current) => ({
+            ...current,
+            value: event.target.checked ? (widget.option ?? '') : '',
+          }))
+        }
+        style={style}
+        title={widget.option}
+        type="checkbox"
+      />
+    )
+  }
+
   if (field instanceof Object && widget.option) {
     return (
       <label
@@ -1918,6 +1946,10 @@ async function readNativeFields(bytes: ArrayBuffer) {
     .flatMap<NativeField>((field, fieldIndex) => {
       if (field.isReadOnly()) return []
 
+      // A Yes/No built as a checkbox with a box per answer acts as a radio group.
+      const exclusive =
+        field instanceof PDFCheckBox ? exclusiveOptions(field) : null
+
       const widgets = field.acroField
         .getWidgets()
         .map<PdfRect | null>((widget, widgetIndex) => {
@@ -1949,6 +1981,8 @@ async function readNativeFields(bytes: ArrayBuffer) {
 
           if (field instanceof PDFRadioGroup) {
             pdfRect.option = field.getOptions()[widgetIndex]
+          } else if (exclusive) {
+            pdfRect.option = exclusive[widgetIndex]
           }
 
           return pdfRect
@@ -1975,7 +2009,17 @@ async function readNativeFields(bytes: ArrayBuffer) {
       }
 
       if (field instanceof PDFCheckBox) {
-        return [{ ...common, kind: 'checkbox', checked: field.isChecked() }]
+        return exclusive
+          ? [
+              {
+                ...common,
+                kind: 'choice',
+                value: selectedOption(field),
+                options: exclusive,
+                asCheckboxes: true,
+              },
+            ]
+          : [{ ...common, kind: 'checkbox', checked: field.isChecked() }]
       }
 
       if (field instanceof PDFDropdown) {
@@ -2042,6 +2086,8 @@ async function createEditedPdf(
       } else if (field instanceof PDFRadioGroup) {
         if (model.value) field.select(model.value)
         else field.clear()
+      } else if (field instanceof PDFCheckBox) {
+        selectOption(field, model.value)
       }
     } else if (model.kind === 'multiple' && field instanceof PDFOptionList) {
       if (model.values.length) field.select(model.values)
