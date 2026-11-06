@@ -2,11 +2,13 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { SidebarToggle } from '#/components/AppSidebar'
 import { SignInButton } from '#/components/SignInDialog'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { listLocalDrafts } from '#/lib/drafts/local'
 import { draftTitle } from '#/lib/drafts/types'
 import { originParam } from '#/lib/navigation/origin'
+import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 interface SidebarDraft {
@@ -61,6 +63,10 @@ interface DraftSidebarProps {
   // Changes when the current draft saves, so the list picks it up.
   refreshKey: string
   onNavigate?: () => void
+  // Just the folders' icons; see CollapsedFiles.
+  isCollapsed?: boolean
+  // Shows SidebarToggle: on the desktop panel, not in the phone drawer.
+  canCollapse?: boolean
 }
 
 export function DraftSidebar({
@@ -68,6 +74,8 @@ export function DraftSidebar({
   signedIn,
   refreshKey,
   onNavigate,
+  isCollapsed = false,
+  canCollapse = false,
 }: DraftSidebarProps) {
   const [drafts, setDrafts] = useState(cachedDrafts)
   const [error, setError] = useState(false)
@@ -114,16 +122,38 @@ export function DraftSidebar({
 
   const hasProjects = projects !== undefined && projects.length > 0
 
+  if (isCollapsed) {
+    return (
+      <CollapsedFiles
+        signedIn={signedIn}
+        folders={[
+          ...(signedIn && pdfProjects ? pdfProjects : []).map((project) => ({
+            key: `project:${project.publicId}`,
+            name: project.name,
+            holdsCurrent: project.items.some(
+              ({ sourceUrl }) => sourceUrl === currentUrl,
+            ),
+          })),
+          {
+            key: 'drafts',
+            name: hasProjects ? 'Drafts' : 'Your drafts',
+            holdsCurrent:
+              otherDrafts?.some(({ sourceUrl }) => sourceUrl === currentUrl) ??
+              false,
+          },
+        ]}
+      />
+    )
+  }
+
   return (
     <nav
       aria-label="Your projects and drafts"
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 overflow-y-auto py-3">
-        <Link
-          to="/"
-          className="flex h-8 items-center gap-2 px-4 text-sm text-ink/70 transition hover:text-ink"
-        >
+        {canCollapse && <SidebarToggle expandedClassName={topRowClass} />}
+        <Link to="/" className={topRowClass}>
           <Glyph path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           {signedIn ? 'Dashboard' : 'Search'}
         </Link>
@@ -238,6 +268,9 @@ export function DraftSidebar({
   )
 }
 
+const topRowClass =
+  'flex h-8 items-center gap-2 px-4 text-sm text-ink/70 transition hover:text-ink'
+
 const manageLinkClass =
   'text-xs font-medium text-blueprint underline-offset-2 hover:underline'
 
@@ -252,6 +285,64 @@ const FOLDER_OPEN_ICON =
 
 const FILE_ICON =
   'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z'
+
+const COLLAPSED_ROW_CLASS =
+  'flex h-8 w-full items-center justify-center transition'
+
+// The collapsed sidebar: the way back, then a folder icon for each project and
+// for drafts, with the open PDF's folder selected. Files need their names, so
+// choosing a folder brings the sidebar back with that folder open.
+function CollapsedFiles({
+  signedIn,
+  folders,
+}: {
+  signedIn: boolean
+  folders: Array<{ key: string; name: string; holdsCurrent: boolean }>
+}) {
+  const { setIsCollapsed } = useSidebarCollapsed()
+  const backLabel = signedIn ? 'Dashboard' : 'Search'
+
+  return (
+    <nav
+      aria-label="Your projects and drafts"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto py-3"
+    >
+      <SidebarToggle />
+      <Link
+        to="/"
+        title={backLabel}
+        className={`${COLLAPSED_ROW_CLASS} text-ink/70 hover:text-ink`}
+      >
+        <Glyph path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+        <span className="sr-only">{backLabel}</span>
+      </Link>
+
+      <ul aria-label="Files" className="mt-3">
+        {folders.map((folder) => (
+          <li key={folder.key}>
+            <button
+              type="button"
+              title={folder.name}
+              aria-current={folder.holdsCurrent ? 'true' : undefined}
+              className={`${COLLAPSED_ROW_CLASS} ${
+                folder.holdsCurrent
+                  ? 'bg-blueprint/10 text-blueprint'
+                  : 'text-ink/60 hover:bg-ink/5 hover:text-ink'
+              }`}
+              onClick={() => {
+                folderChoices.set(folder.key, true)
+                setIsCollapsed(false)
+              }}
+            >
+              <Glyph path={FOLDER_ICON} />
+              <span className="sr-only">{`Open ${folder.name}`}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
 
 // A folder that opens and closes like a file browser's: caret, folder icon
 // (open or closed), name, and how many files it holds. Its files are indented

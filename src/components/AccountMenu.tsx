@@ -10,11 +10,14 @@ import { CONTACT_EMAIL } from '#/lib/site'
 // The header's sign-in pill, or the signed-in user's initial with a menu of
 // pages, settings, about and contact. In AppSidebar ("sidebar"), the trigger
 // is a full row with the user's name, the menu opens upward, and the page
-// links are left out, since the sidebar lists them.
+// links are left out, since the sidebar lists them. In a collapsed sidebar,
+// the row is just the initial, and the menu says who's signed in instead.
 export function AccountMenu({
   variant = 'header',
+  isCollapsed = false,
 }: {
   variant?: 'header' | 'sidebar'
+  isCollapsed?: boolean
 }) {
   const inSidebar = variant === 'sidebar'
 
@@ -81,9 +84,10 @@ export function AccountMenu({
         aria-haspopup="menu"
         className={
           inSidebar
-            ? `group/account flex h-16 w-full items-center gap-3 px-8 text-left transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blueprint ${isOpen ? 'bg-ink/5' : ''}`
+            ? `group/account flex h-16 w-full items-center transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blueprint ${isCollapsed ? 'justify-center' : 'gap-3 px-8 text-left'} ${isOpen ? 'bg-ink/5' : ''}`
             : 'rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
         }
+        title={isCollapsed ? user.name : undefined}
         onClick={() => setIsOpen((open) => !open)}
       >
         <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-ink bg-ink text-sm font-medium text-paper">
@@ -98,7 +102,7 @@ export function AccountMenu({
             (user.name || user.email).charAt(0).toUpperCase()
           )}
         </span>
-        {inSidebar && (
+        {inSidebar && !isCollapsed && (
           <span className="min-w-0 flex-1 text-sm leading-5">
             <span className="block truncate font-medium text-ink">
               {user.name}
@@ -107,7 +111,7 @@ export function AccountMenu({
           </span>
         )}
         {/* Marks the row as a menu: it opens upward with more inside. */}
-        {inSidebar && (
+        {inSidebar && !isCollapsed && (
           <svg
             aria-hidden="true"
             className="size-4 shrink-0 text-ink/50 transition group-hover/account:text-ink"
@@ -129,11 +133,13 @@ export function AccountMenu({
         <div
           role="menu"
           className={`absolute z-50 w-60 rounded-xs border border-ink bg-paper text-sm ${
-            inSidebar ? 'bottom-full left-8 mb-2' : 'top-full right-0 mt-2'
+            inSidebar
+              ? `bottom-full mb-2 ${isCollapsed ? 'left-4' : 'left-8'}`
+              : 'top-full right-0 mt-2'
           }`}
         >
-          {/* The sidebar's trigger already shows who's signed in. */}
-          {!inSidebar && (
+          {/* The full sidebar's trigger already shows who's signed in. */}
+          {(!inSidebar || isCollapsed) && (
             <div className="border-b border-ink/20 px-4 py-3">
               <p className="truncate font-medium text-ink">{user.name}</p>
               <p className="truncate text-ink/60">{user.email}</p>

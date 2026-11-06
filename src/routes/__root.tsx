@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 import { AppSidebar } from '#/components/AppSidebar'
 import { ConfirmHost } from '#/components/ConfirmDialog'
 import { getAuthState } from '#/lib/auth/session'
+import { getIsSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
 import { Toaster } from '#/components/Toaster'
 
@@ -74,7 +75,14 @@ export const Route = createRootRoute({
   }),
   // Sign-in sends the browser away and back, so this only needs reloading
   // after sign-out (router.invalidate()).
-  loader: () => getAuthState(),
+  loader: async () => {
+    const [authState, isSidebarCollapsed] = await Promise.all([
+      getAuthState(),
+      getIsSidebarCollapsed(),
+    ])
+
+    return { ...authState, isSidebarCollapsed }
+  },
   staleTime: Infinity,
   shellComponent: RootDocument,
   component: AppLayout,

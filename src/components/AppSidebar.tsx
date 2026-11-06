@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 
 import { AccountMenu } from '#/components/AccountMenu'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { deleteAccountProject } from '#/lib/projects/projects'
 import {
   setAccountProjects,
@@ -60,6 +61,9 @@ const SECTIONS = [
 // right rule (rule-r) lands on a grid line.
 const rowClass = 'flex h-8 items-center gap-4 px-8 text-sm transition'
 
+// Collapsed, it's 2 cells wide, with each row's icon centered.
+const collapsedRowClass = 'flex h-8 items-center justify-center text-sm transition'
+
 const inactiveRowClass = 'text-ink/90 hover:bg-ink/5 hover:text-ink'
 
 const activeRowClass = 'bg-blueprint/10 font-medium text-blueprint'
@@ -74,16 +78,59 @@ const ruledRowClass =
 
 // The sidebar's logo, two cells tall with its rule at the foot, so the rule
 // runs on into the top bar's beside it. The editor's file panel uses it too.
-export function SidebarBrand() {
+export function SidebarBrand({ isCollapsed = false }: { isCollapsed?: boolean }) {
   return (
     <Link
       to="/"
       aria-label="Permit Search home"
-      className="flex h-16 shrink-0 items-center gap-3 px-8 text-ink rule-b"
+      className={`flex h-16 shrink-0 items-center text-ink rule-b ${
+        isCollapsed ? 'justify-center' : 'gap-3 px-8'
+      }`}
     >
       <PermitSearchLogo className="size-8" />
-      <span className="text-sm font-medium tracking-tight">Permit Search</span>
+      {!isCollapsed && (
+        <span className="text-sm font-medium tracking-tight">
+          Permit Search
+        </span>
+      )}
     </Link>
+  )
+}
+
+// Shrinks the sidebar to its icons or brings it back. It's the row above
+// Dashboard both ways, so the pointer is still on it to undo. The editor's file
+// panel uses it too, with its own rows' look while expanded.
+export function SidebarToggle({
+  expandedClassName = `${rowClass} ${inactiveRowClass}`,
+}: {
+  expandedClassName?: string
+}) {
+  const { isCollapsed, setIsCollapsed } = useSidebarCollapsed()
+
+  return (
+    <button
+      type="button"
+      aria-expanded={!isCollapsed}
+      title={isCollapsed ? 'Expand sidebar' : undefined}
+      className={`mb-8 w-full ${
+        isCollapsed
+          ? `${collapsedRowClass} ${inactiveRowClass}`
+          : expandedClassName
+      }`}
+      onClick={() => setIsCollapsed(!isCollapsed)}
+    >
+      <SidebarIcon
+        path={
+          isCollapsed
+            ? 'm5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5'
+            : 'm18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5'
+        }
+      />
+      {/* Sized here because buttons take their font from styles.css. */}
+      <span className={isCollapsed ? 'sr-only' : 'text-sm'}>
+        {isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      </span>
+    </button>
   )
 }
 
@@ -103,31 +150,45 @@ function RuleMarker() {
 export function AppSidebar() {
   const { projects } = useAccountProjects(true)
   const recentProjects = projects?.slice(0, RECENT_PROJECT_COUNT) ?? []
+  const { isCollapsed } = useSidebarCollapsed()
 
+  // Above the page, since its menus open out over it.
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col rule-r lg:flex">
-      <SidebarBrand />
+    <aside
+      className={`sticky top-0 z-50 hidden h-screen shrink-0 flex-col rule-r lg:flex ${
+        isCollapsed ? 'w-16' : 'w-64'
+      }`}
+    >
+      <SidebarBrand isCollapsed={isCollapsed} />
 
       {/* A cell down, so the first row starts a cell below the rule. */}
       <nav
         aria-label="Main"
         className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-8"
       >
+        <SidebarToggle />
         <ul>
           {SECTIONS.map((section) => (
             <li key={section.to}>
               {section.to === '/projects' ? (
-                <ProjectsGroup icon={section.icon} projects={recentProjects} />
+                <ProjectsGroup
+                  icon={section.icon}
+                  projects={recentProjects}
+                  isCollapsed={isCollapsed}
+                />
               ) : (
                 <Link
                   to={section.to}
-                  className={rowClass}
+                  title={isCollapsed ? section.label : undefined}
+                  className={isCollapsed ? collapsedRowClass : rowClass}
                   activeOptions={{ exact: section.to === '/' }}
                   activeProps={{ className: activeRowClass }}
                   inactiveProps={{ className: inactiveRowClass }}
                 >
                   <SidebarIcon path={section.icon} />
-                  {section.label}
+                  <span className={isCollapsed ? 'sr-only' : undefined}>
+                    {section.label}
+                  </span>
                 </Link>
               )}
             </li>
@@ -137,7 +198,7 @@ export function AppSidebar() {
 
       {/* Settings, About and Contact us are in its menu. */}
       <div className="shrink-0 pt-8">
-        <AccountMenu variant="sidebar" />
+        <AccountMenu variant="sidebar" isCollapsed={isCollapsed} />
       </div>
     </aside>
   )
@@ -176,13 +237,16 @@ function subscribeProjectsOpen(listener: () => void) {
 // projects along a margin rule. Right-click (or the keyboard's
 // menu key) opens SidebarMenu: on the row for New project, on a project to
 // open or delete it. Only the list page lights up the Projects row, so a
-// project's page highlights just that project.
+// project's page highlights just that project. Collapsed, the list is hidden,
+// so the row lights up on every project page instead.
 function ProjectsGroup({
   icon,
   projects,
+  isCollapsed,
 }: {
   icon: string
   projects: Array<{ publicId: string; name: string }>
+  isCollapsed: boolean
 }) {
   const listId = useId()
   const [menu, setMenu] = useState<SidebarMenuState>()
@@ -209,7 +273,8 @@ function ProjectsGroup({
     if (projectPath && !readProjectsOpen()) writeProjectsOpen(true)
   }, [projectPath])
 
-  const isOpen = isStoredOpen && projects.length > 0
+  const hasList = !isCollapsed && projects.length > 0
+  const isOpen = isStoredOpen && hasList
 
   return (
     <>
@@ -222,16 +287,16 @@ function ProjectsGroup({
       >
         <Link
           to="/projects"
-          title="Right-click for New project"
-          className={`${rowClass} pr-16`}
-          activeOptions={{ exact: true }}
+          title={isCollapsed ? 'Projects' : 'Right-click for New project'}
+          className={isCollapsed ? collapsedRowClass : `${rowClass} pr-16`}
+          activeOptions={{ exact: !isCollapsed }}
           activeProps={{ className: activeRowClass }}
           inactiveProps={{ className: inactiveRowClass }}
         >
           <SidebarIcon path={icon} />
-          Projects
+          <span className={isCollapsed ? 'sr-only' : undefined}>Projects</span>
         </Link>
-        {projects.length > 0 && (
+        {hasList && (
           <button
             type="button"
             aria-expanded={isOpen}

@@ -61,6 +61,7 @@ import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { parseOrigin, searchLabel } from '#/lib/navigation/origin'
 import type { Origin } from '#/lib/navigation/origin'
+import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { getSearchSummary } from '#/lib/search/permit-search'
 import { confirm } from '#/components/ConfirmDialog'
 
@@ -189,6 +190,7 @@ function PdfEditor({
   // PDF.js render scale; 1 is the PDF's size at 72 DPI.
   const [scale, setScale] = useState(1.25)
   const [currentPage, setCurrentPage] = useState(1)
+  const { isCollapsed: isSidebarCollapsed } = useSidebarCollapsed()
   // The drafts drawer on small screens; the sidebar is always shown on large.
   const [isDraftsOpen, setIsDraftsOpen] = useState(false)
   const { projects } = useAccountProjects(signedIn)
@@ -203,6 +205,9 @@ function PdfEditor({
   // of date.
   const [formCheck, setFormCheck] = useState<FormCheckState>()
   const [checkedContent, setCheckedContent] = useState<string>()
+  // The user downloaded without a current check; rings the Check button until
+  // they open it.
+  const [isCheckNudged, setIsCheckNudged] = useState(false)
   // The side panel's open tab, if it's open.
   const [panelTab, setPanelTab] = useState<FormPanelTab>()
   const scrollRef = useRef<HTMLElement>(null)
@@ -293,6 +298,25 @@ function PdfEditor({
       ? { ...formCheck, stale: checkedContent !== contentKey }
       : formCheck
 
+  // The number of findings when the check matches the form's entries.
+  const currentIssueCount =
+    shownCheck?.status === 'done' && !shownCheck.stale
+      ? shownCheck.result.issues.length
+      : undefined
+
+  // There's something to check, and no check has looked at it yet.
+  const needsCheck =
+    currentIssueCount === undefined &&
+    formCheck?.status !== 'checking' &&
+    (placedFields.some(({ value }) => value.trim()) ||
+      nativeFields.some((field) =>
+        field.kind === 'checkbox'
+          ? field.checked
+          : field.kind === 'multiple'
+            ? field.values.length > 0
+            : field.value.trim(),
+      ))
+
   // The fields with findings, by native field name or placed field ID, while
   // the check is current.
   const flaggedFields = useMemo(() => {
@@ -324,6 +348,7 @@ function PdfEditor({
     if (!sourceHash) return
 
     setPanelTab('check')
+    setIsCheckNudged(false)
     setFormCheck({ status: 'checking' })
     const checked = contentKey
 
@@ -372,6 +397,8 @@ function PdfEditor({
 
   // Opens a tab of the side panel, or closes the panel if it's already showing.
   function togglePanel(tab: FormPanelTab) {
+    if (tab === 'check') setIsCheckNudged(false)
+
     setPanelTab((current) => (current === tab ? undefined : tab))
   }
 
@@ -852,6 +879,7 @@ function PdfEditor({
       setDraftStatus('idle')
       setAutofill(undefined)
       setFormCheck(undefined)
+      setIsCheckNudged(false)
     } catch (clearError) {
       toast.error(errorMessage(clearError, 'The form couldn’t be cleared.'))
     }
@@ -900,12 +928,7 @@ function PdfEditor({
         },
       })
 
-      // A nudge, not a gate: the download has already started.
-      if (formCheck?.status !== 'done' || checkedContent !== contentKey) {
-        toast('Check this form for mistakes before you submit it?', {
-          action: { label: 'Check form', onClick: () => void checkForm() },
-        })
-      }
+      if (needsCheck) setIsCheckNudged(true)
     } catch (saveError) {
       toast.error(
         errorMessage(saveError, 'The edited PDF couldn’t be created.'),
@@ -916,28 +939,39 @@ function PdfEditor({
   }
 
   // Framed like AppSidebar (its logo and account row) around a file browser
-  // of the PDFs, on plain paper: these are files, not pages of the app.
-  const sidebar = (
-    <>
-      <SidebarBrand />
-      <DraftSidebar
-        currentUrl={url}
-        signedIn={signedIn}
-        refreshKey={draftStatus}
-        onNavigate={() => setIsDraftsOpen(false)}
-      />
-      {signedIn && (
-        <div className="shrink-0 pt-8">
-          <AccountMenu variant="sidebar" />
-        </div>
-      )}
-    </>
-  )
+  // of the PDFs, on plain paper: these are files, not pages of the app. Only
+  // the desktop panel collapses; the phone drawer is already out of the way.
+  function renderSidebar({ inDrawer }: { inDrawer: boolean }) {
+    const isCollapsed = !inDrawer && isSidebarCollapsed
+
+    return (
+      <>
+        <SidebarBrand isCollapsed={isCollapsed} />
+        <DraftSidebar
+          currentUrl={url}
+          signedIn={signedIn}
+          refreshKey={draftStatus}
+          onNavigate={() => setIsDraftsOpen(false)}
+          isCollapsed={isCollapsed}
+          canCollapse={!inDrawer}
+        />
+        {signedIn && (
+          <div className="shrink-0 pt-8">
+            <AccountMenu variant="sidebar" isCollapsed={isCollapsed} />
+          </div>
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      <aside className="hidden w-64 shrink-0 flex-col bg-paper rule-r lg:flex">
-        {sidebar}
+      <aside
+        className={`hidden shrink-0 flex-col bg-paper rule-r lg:flex ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {renderSidebar({ inDrawer: false })}
       </aside>
 
       {isDraftsOpen && (
@@ -949,7 +983,7 @@ function PdfEditor({
             type="button"
           />
           <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col bg-paper rule-r">
-            {sidebar}
+            {renderSidebar({ inDrawer: true })}
           </aside>
         </div>
       )}
@@ -1039,18 +1073,39 @@ function PdfEditor({
                   </div>
                   <button
                     aria-expanded={panelTab === 'check'}
-                    className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-xs font-medium transition disabled:opacity-50 ${
+                    className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-xs font-medium whitespace-nowrap transition disabled:opacity-50 ${
                       panelTab === 'check'
                         ? 'border-blueprint bg-blueprint/10 text-blueprint'
-                        : 'border-ink/35 text-ink hover:border-ink'
-                    }`}
+                        : currentIssueCount === 0
+                          ? 'border-success/50 text-success hover:border-success'
+                          : currentIssueCount
+                            ? 'border-redline/50 text-redline hover:border-redline'
+                            : 'border-ink/35 text-ink hover:border-ink'
+                    } ${isCheckNudged ? 'ring-2 ring-blueprint/40' : ''}`}
                     disabled={!sourceHash}
                     onClick={() => togglePanel('check')}
-                    title="Show the form check"
+                    title={
+                      needsCheck
+                        ? 'Not checked yet. Look for mistakes before you submit.'
+                        : 'Show the form check'
+                    }
                     type="button"
                   >
                     <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    {formCheck?.status === 'checking' ? 'Checking…' : 'Check'}
+                    {formCheck?.status === 'checking'
+                      ? 'Checking…'
+                      : currentIssueCount === 0
+                        ? 'No issues'
+                        : currentIssueCount
+                          ? `${currentIssueCount} to review`
+                          : 'Check'}
+                    {needsCheck && (
+                      <span
+                        aria-label="Not checked yet"
+                        className="size-1.5 rounded-full bg-blueprint"
+                        role="img"
+                      />
+                    )}
                   </button>
                   <button
                     className="flex h-8 items-center gap-1.5 rounded-full bg-blueprint pr-3 pl-2.5 text-xs font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
