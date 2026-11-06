@@ -23,13 +23,18 @@ export const startSearch = createServerFn({ method: 'POST' })
     ...validatePermitSearch(input),
     fresh: input.fresh === true,
   }))
-  .handler(({ data }) => {
+  .handler(async ({ data }) => {
     // Not awaited here: the session check runs alongside the search lookup.
     const userId = getSessionUser(new Headers(getRequestHeaders())).then(
       (user) => user?.id ?? null,
     )
 
-    return runSavedSearch(data, { fresh: data.fresh, userId })
+    // Running a search again costs money, so it's for signed-in users; anyone
+    // else gets the saved results.
+    const fresh =
+      data.fresh === true && (await userId.catch(() => null)) !== null
+
+    return runSavedSearch(data, { fresh, userId })
   })
 
 export const getSavedSearch = createServerFn({ method: 'GET' })

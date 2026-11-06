@@ -276,14 +276,15 @@ sidebar is see-through and the top bar draws the same fixed grid, so the
 grid runs edge to edge. The footer's "confirm with your permitting office"
 notice is on the results page, where it applies. Below lg, the header
 returns with the logo and account menu, and the footer returns. The editor
-keeps its own full-window toolbar and has no sidebar. Signed-out pages keep
-the header, with a **Drafts** link, and the footer.
+keeps its own full-window toolbar and has no sidebar. Signed-out visitors get
+the same sidebar, with a lock on account-only rows and **Sign in** at its foot,
+except on the home page, which stands alone with no header or sidebar.
 
 Every page but the editor uses one frame, `AppPage`. Signed in, from lg up,
 it centers the page's column beside the sidebar, rounding the offset down to
 whole grid cells so its edges stay on grid lines. The column is 24 cells wide
 (35 for wide pages such as results) and starts two cells below the top bar.
-Signed out, the column is centered.
+On the signed-out home page, the column is centered.
 
 | Section        | Route                                                  | Replaces                             | What it holds                                                                                |
 | -------------- | ------------------------------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------- |

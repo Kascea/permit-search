@@ -4,17 +4,26 @@ import type { ReactNode } from 'react'
 
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { authClient, signInWithGoogle } from '#/lib/auth/auth-client'
+import { rememberResume } from '#/lib/auth/resume'
 import { Notice } from '#/components/Notice'
 
 type Mode = 'sign-in' | 'sign-up'
 
-interface SignInDialogProps {
+interface SignInOptions {
+  // Why they're being asked, shown under the title.
+  reason?: string
+  // What to finish once they've signed in; see useResumeAfterSignIn.
+  resume?: string
+  initialMode?: Mode
+}
+
+interface SignInDialogProps extends SignInOptions {
   isOpen: boolean
   onClose: () => void
 }
 
 // Email and password sign-in or account creation, with Google as an option.
-export function SignInDialog({ isOpen, onClose }: SignInDialogProps) {
+export function SignInDialog({ isOpen, onClose, ...options }: SignInDialogProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -22,7 +31,7 @@ export function SignInDialog({ isOpen, onClose }: SignInDialogProps) {
       widthClass="max-w-105"
       onClose={onClose}
     >
-      <SignInForm onClose={onClose} />
+      <SignInForm onClose={onClose} {...options} />
     </Modal>
   )
 }
@@ -31,9 +40,14 @@ export function SignInDialog({ isOpen, onClose }: SignInDialogProps) {
 export function SignInButton({
   className = 'shrink-0 rounded-full border border-ink px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint',
   children = 'Sign in',
-}: {
+  title,
+  ariaLabel,
+  ...options
+}: SignInOptions & {
   className?: string
   children?: ReactNode
+  title?: string
+  ariaLabel?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -41,22 +55,33 @@ export function SignInButton({
     <>
       <button
         type="button"
+        aria-label={ariaLabel}
         className={className}
+        title={title}
         onClick={() => setIsOpen(true)}
       >
         {children}
       </button>
-      <SignInDialog isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <SignInDialog
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        {...options}
+      />
     </>
   )
 }
 
-function SignInForm({ onClose }: { onClose: () => void }) {
+function SignInForm({
+  onClose,
+  reason,
+  resume,
+  initialMode = 'sign-in',
+}: SignInOptions & { onClose: () => void }) {
   const router = useRouter()
   const nameId = useId()
   const emailId = useId()
   const passwordId = useId()
-  const [mode, setMode] = useState<Mode>('sign-in')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -102,6 +127,8 @@ function SignInForm({ onClose }: { onClose: () => void }) {
         return
       }
 
+      if (resume) rememberResume(resume)
+
       onClose()
       // Reloads the root loader's sign-in state.
       await router.invalidate()
@@ -118,21 +145,26 @@ function SignInForm({ onClose }: { onClose: () => void }) {
       noValidate
       onSubmit={submit}
     >
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="text-lg font-medium text-ink">
-          {isSignUp ? 'Create an account' : 'Sign in'}
-        </h2>
-        <ModalCloseButton onClick={onClose} />
+      <div className="mb-5">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-medium text-ink">
+            {isSignUp ? 'Create an account' : 'Sign in'}
+          </h2>
+          <ModalCloseButton onClick={onClose} />
+        </div>
+        {reason && <p className="mt-1 text-sm text-ink/70">{reason}</p>}
       </div>
 
       <button
         type="button"
         className="flex w-full items-center justify-center gap-2.5 rounded-full border border-ink px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-ink/5"
-        onClick={() =>
+        onClick={() => {
+          if (resume) rememberResume(resume)
+
           void signInWithGoogle(
             window.location.pathname + window.location.search,
           )
-        }
+        }}
       >
         <GoogleMark />
         Continue with Google

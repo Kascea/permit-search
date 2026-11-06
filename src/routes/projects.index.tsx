@@ -2,7 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 
 import { AppPage } from '#/components/AppPage'
 import { EditedDate } from '#/components/EditedDate'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { listAccountProjects } from '#/lib/projects/projects'
 import { formatProjectAddress } from '#/lib/projects/types'
 
@@ -39,13 +39,7 @@ function Projects() {
       </div>
 
       {!projects ? (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to keep your property and contact details in projects,
-            and fill out permit forms with them.
-          </p>
-          <SignInButton className={`mt-5 ${buttonClass}`} />
-        </div>
+        <SignInGate>Sign in to keep your property and contact details in projects, and fill out permit forms with them.</SignInGate>
       ) : projects.length === 0 ? (
         <div className="mt-6 border-t border-ink pt-5">
           <p className="max-w-[60ch] text-base leading-6 text-ink/70">

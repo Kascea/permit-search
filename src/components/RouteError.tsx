@@ -51,14 +51,19 @@ function ErrorPage({
   message: string
   children?: ReactNode
 }) {
-  // AppSidebar is beside the page when the root route loaded a user; from lg
-  // up it has the logo, and this is the bare top bar beside it, as in
-  // SiteHeader. Read without throwing, for the same reason.
+  // AppSidebar is beside the page once the root route has loaded, except on
+  // the signed-out home page; from lg up it has the logo, and this is the bare
+  // top bar beside it, as in SiteHeader. Read without throwing, for the same
+  // reason.
   const besideSidebar = useRouterState({
     select: (state) => {
       const root = state.matches.at(0)?.loaderData
 
-      return Boolean(root && 'user' in root && root.user)
+      return Boolean(
+        root &&
+          'user' in root &&
+          (root.user || state.location.pathname !== '/'),
+      )
     },
   })
 

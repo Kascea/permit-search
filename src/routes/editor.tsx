@@ -29,6 +29,7 @@ import { FormPanel } from '#/components/FormPanel'
 import type { FormPanelTab } from '#/components/FormPanel'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { SignInButton } from '#/components/SignInDialog'
+import { useResumeAfterSignIn } from '#/lib/auth/resume'
 import { useAuth } from '#/lib/auth/use-auth'
 import { deleteAccountDraft } from '#/lib/drafts/drafts'
 import { deleteLocalDraft } from '#/lib/drafts/local'
@@ -264,12 +265,22 @@ function PdfEditor({
     searchId: origin.kind === 'search' ? origin.id : undefined,
   })
 
+  // Signed out, Autofill and Check ask for sign-in; this opens the one they
+  // chose once they have. It opens rather than runs, so they see the panel's
+  // own button and what it will do.
+  useResumeAfterSignIn(`autofill:${url}`, signedIn, () =>
+    setPanelTab('autofill'),
+  )
+  useResumeAfterSignIn(`form-check:${url}`, signedIn, () =>
+    setPanelTab('check'),
+  )
+
   // Reads the form on the server as soon as it opens, so checking is quick
   // and autofill knows each field's label. A failure here only means the
-  // check button does the work later.
+  // check button does the work later. Signed out, neither is available.
   const hasNativeFields = nativeFields.length > 0
   useEffect(() => {
-    if (!sourceHash || !hasNativeFields) return
+    if (!signedIn || !sourceHash || !hasNativeFields) return
 
     let cancelled = false
 
@@ -282,7 +293,7 @@ function PdfEditor({
     return () => {
       cancelled = true
     }
-  }, [url, sourceHash, hasNativeFields])
+  }, [signedIn, url, sourceHash, hasNativeFields])
 
   // The project the form is checked against: the one it's in, else the one
   // chosen in the Autofill tab or opened from.
@@ -1047,7 +1058,7 @@ function PdfEditor({
             <div className="flex shrink-0 items-center gap-2">
               {pdf && (
                 <>
-                  {signedIn && (
+                  {signedIn ? (
                     <button
                       aria-expanded={panelTab === 'autofill'}
                       aria-label="Autofill"
@@ -1063,6 +1074,17 @@ function PdfEditor({
                       <Icon path="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
                       <span className="hidden sm:inline">Autofill</span>
                     </button>
+                  ) : (
+                    <SignInButton
+                      ariaLabel="Autofill"
+                      className="flex h-8 items-center gap-1.5 rounded-full border border-ink/35 px-2.5 text-xs font-medium text-ink transition hover:border-ink sm:pr-3"
+                      reason="Sign in to keep your details in a project and fill forms from it."
+                      resume={`autofill:${url}`}
+                      title="Fill this form from a project"
+                    >
+                      <Icon path="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                      <span className="hidden sm:inline">Autofill</span>
+                    </SignInButton>
                   )}
                   <div className="hidden sm:block">
                     <DraftStatusLabel
@@ -1071,42 +1093,54 @@ function PdfEditor({
                       status={draftStatus}
                     />
                   </div>
-                  <button
-                    aria-expanded={panelTab === 'check'}
-                    className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-xs font-medium whitespace-nowrap transition disabled:opacity-50 ${
-                      panelTab === 'check'
-                        ? 'border-blueprint bg-blueprint/10 text-blueprint'
+                  {signedIn ? (
+                    <button
+                      aria-expanded={panelTab === 'check'}
+                      className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-xs font-medium whitespace-nowrap transition disabled:opacity-50 ${
+                        panelTab === 'check'
+                          ? 'border-blueprint bg-blueprint/10 text-blueprint'
+                          : currentIssueCount === 0
+                            ? 'border-success/50 text-success hover:border-success'
+                            : currentIssueCount
+                              ? 'border-redline/50 text-redline hover:border-redline'
+                              : 'border-ink/35 text-ink hover:border-ink'
+                      } ${isCheckNudged ? 'ring-2 ring-blueprint/40' : ''}`}
+                      disabled={!sourceHash}
+                      onClick={() => togglePanel('check')}
+                      title={
+                        needsCheck
+                          ? 'Not checked yet. Look for mistakes before you submit.'
+                          : 'Show the form check'
+                      }
+                      type="button"
+                    >
+                      <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      {formCheck?.status === 'checking'
+                        ? 'Checking…'
                         : currentIssueCount === 0
-                          ? 'border-success/50 text-success hover:border-success'
+                          ? 'No issues'
                           : currentIssueCount
-                            ? 'border-redline/50 text-redline hover:border-redline'
-                            : 'border-ink/35 text-ink hover:border-ink'
-                    } ${isCheckNudged ? 'ring-2 ring-blueprint/40' : ''}`}
-                    disabled={!sourceHash}
-                    onClick={() => togglePanel('check')}
-                    title={
-                      needsCheck
-                        ? 'Not checked yet. Look for mistakes before you submit.'
-                        : 'Show the form check'
-                    }
-                    type="button"
-                  >
-                    <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    {formCheck?.status === 'checking'
-                      ? 'Checking…'
-                      : currentIssueCount === 0
-                        ? 'No issues'
-                        : currentIssueCount
-                          ? `${currentIssueCount} to review`
-                          : 'Check'}
-                    {needsCheck && (
-                      <span
-                        aria-label="Not checked yet"
-                        className="size-1.5 rounded-full bg-blueprint"
-                        role="img"
-                      />
-                    )}
-                  </button>
+                            ? `${currentIssueCount} to review`
+                            : 'Check'}
+                      {needsCheck && (
+                        <span
+                          aria-label="Not checked yet"
+                          className="size-1.5 rounded-full bg-blueprint"
+                          role="img"
+                        />
+                      )}
+                    </button>
+                  ) : (
+                    <SignInButton
+                      className="flex h-8 items-center gap-1.5 rounded-full border border-ink/35 pr-3 pl-2.5 text-xs font-medium whitespace-nowrap text-ink transition hover:border-ink"
+                      reason="Sign in to check this form for mistakes before you submit it."
+                      resume={`form-check:${url}`}
+                      title="Look for mistakes before you submit"
+                    >
+                      <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      Check
+                    </SignInButton>
+                  )}
                   <button
                     className="flex h-8 items-center gap-1.5 rounded-full bg-blueprint pr-3 pl-2.5 text-xs font-medium text-paper transition hover:bg-blueprint-deep disabled:opacity-50"
                     disabled={isSaving}
@@ -1121,7 +1155,7 @@ function PdfEditor({
               )}
               {/* Signed in, the sidebar's account row has it from lg up. */}
               <div className={signedIn ? 'lg:hidden' : ''}>
-                <AccountMenu />
+                <AccountMenu hideVisitorMenu />
               </div>
             </div>
           </div>
@@ -1329,7 +1363,8 @@ function PdfEditor({
         </section>
       </div>
 
-      {panelTab && (
+      {/* Signing out with it open leaves nothing it can do. */}
+      {signedIn && panelTab && (
         <>
           <button
             aria-label="Close panel"
@@ -1340,7 +1375,6 @@ function PdfEditor({
           <aside className="fixed inset-y-0 right-0 z-[60] flex w-80 max-w-[85vw] flex-col border-l border-ink bg-paper lg:static lg:z-auto lg:max-w-none lg:shrink-0">
             <FormPanel
               tab={panelTab}
-              hasAutofill={signedIn}
               onTab={setPanelTab}
               onClose={() => setPanelTab(undefined)}
             >

@@ -1,4 +1,4 @@
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useRouterState } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getCookie } from '@tanstack/react-start/server'
 import { useSyncExternalStore } from 'react'
@@ -41,6 +41,21 @@ function subscribe(listener: () => void) {
   listeners.add(listener)
 
   return () => listeners.delete(listener)
+}
+
+// Whether AppSidebar is beside this page, from lg up. Everyone gets it, so
+// signing in doesn't move anything. The exceptions: the editor has its own file
+// panel, and the signed-out home page stands alone, as the site's front door.
+export function useHasAppSidebar() {
+  const { user } = rootRoute.useLoaderData()
+
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+
+  if (pathname.startsWith('/editor')) return false
+
+  return Boolean(user) || pathname !== '/'
 }
 
 export function useSidebarCollapsed() {

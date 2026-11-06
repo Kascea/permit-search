@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { AppPage } from '#/components/AppPage'
@@ -8,9 +8,11 @@ import { AddToProjectDialog } from '#/components/AddToProjectDialog'
 import { EditedDate } from '#/components/EditedDate'
 import { SearchLinkText } from '#/components/SearchLinkText'
 import { Pending } from '#/components/Pending'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { deleteAccountDraft, listAccountDrafts } from '#/lib/drafts/drafts'
-import type { DraftSummary } from '#/lib/drafts/types'
+import { deleteLocalDraft, listLocalDrafts } from '#/lib/drafts/local'
+import { draftTitle } from '#/lib/drafts/types'
+import type { Draft, DraftSummary } from '#/lib/drafts/types'
 import { listAccountProjects } from '#/lib/projects/projects'
 import type { Project } from '#/lib/projects/types'
 import { confirm } from '#/components/ConfirmDialog'
@@ -65,15 +67,97 @@ function Drafts() {
           onStartSearch={() => setIsSearchOpen(true)}
         />
       ) : (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to see forms you’ve saved to your account. Forms you
-            fill out while signed out are saved on this device.
-          </p>
-          <SignInButton className="mt-5 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep" />
-        </div>
+        <LocalDraftList onStartSearch={() => setIsSearchOpen(true)} />
       )}
     </AppPage>
+  )
+}
+
+// Signed out: the forms started in this browser, which sign-in moves to the
+// account (see LocalDraftSync). They're only readable in the browser, so the
+// list fills in after the page loads.
+function LocalDraftList({ onStartSearch }: { onStartSearch: () => void }) {
+  const [drafts, setDrafts] = useState<Array<Draft>>()
+
+  useEffect(() => {
+    setDrafts(readLocalDrafts())
+  }, [])
+
+  async function remove(draft: Draft) {
+    if (
+      !(await confirm({
+        title: `Delete your draft of “${draftTitle(draft.sourceUrl)}”?`,
+        confirmLabel: 'Delete draft',
+        isDestructive: true,
+      }))
+    ) {
+      return
+    }
+
+    deleteLocalDraft(draft.sourceUrl)
+    setDrafts(readLocalDrafts())
+    toast.success('Draft deleted.')
+  }
+
+  return (
+    <>
+      {drafts && drafts.length > 0 ? (
+        // No rule below: the sign-in prompt's closes it.
+        <ul className="mt-6 divide-y divide-ink/20 border-t border-ink">
+          {drafts.map((draft) => (
+            <li
+              key={draft.sourceUrl}
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 py-4"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-ink">
+                  {draftTitle(draft.sourceUrl)}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-ink/60">
+                  {hostname(draft.sourceUrl)} · Edited{' '}
+                  <EditedDate iso={draft.updatedAt} />
+                </p>
+              </div>
+              <Link
+                to="/editor"
+                search={{ url: draft.sourceUrl, from: 'drafts' }}
+                className="rounded-full bg-blueprint px-4 py-2 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
+              >
+                Open
+              </Link>
+              <button
+                type="button"
+                className="rounded-full border border-ink/35 px-4 py-2 text-sm font-medium transition hover:border-redline hover:text-redline"
+                onClick={() => void remove(draft)}
+              >
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        drafts && (
+          <div className="mt-6 border-t border-ink pt-5">
+            <p className="text-base leading-6 text-ink/70">
+              No drafts yet. When you fill out a PDF form from your search
+              results, your entries save here automatically.
+            </p>
+            <StartSearchButton onClick={onStartSearch} />
+          </div>
+        )
+      )}
+
+      <SignInGate>
+        Forms you fill out while signed out are saved on this device only. Sign
+        in to keep them in your account and open them anywhere.
+      </SignInGate>
+    </>
+  )
+}
+
+function readLocalDrafts() {
+  return listLocalDrafts().sort((a, b) =>
+    b.updatedAt.localeCompare(a.updatedAt),
   )
 }
 

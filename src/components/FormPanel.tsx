@@ -5,24 +5,19 @@ export type FormPanelTab = 'autofill' | 'check'
 // The panel beside the pages, shared by Autofill's results and the form check.
 export function FormPanel({
   tab,
-  hasAutofill,
   onTab,
   onClose,
   children,
 }: {
   tab: FormPanelTab
-  // Signed out, there are no projects to fill from.
-  hasAutofill: boolean
   onTab: (tab: FormPanelTab) => void
   onClose: () => void
   children: ReactNode
 }) {
-  const tabs: Array<{ id: FormPanelTab; label: string }> = hasAutofill
-    ? [
-        { id: 'autofill', label: 'Autofill' },
-        { id: 'check', label: 'Check' },
-      ]
-    : [{ id: 'check', label: 'Check' }]
+  const tabs: Array<{ id: FormPanelTab; label: string }> = [
+    { id: 'autofill', label: 'Autofill' },
+    { id: 'check', label: 'Check' },
+  ]
 
   return (
     <section aria-label="Form tools" className="flex min-h-0 flex-1 flex-col">

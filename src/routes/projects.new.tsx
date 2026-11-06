@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 
 import { AppPage } from '#/components/AppPage'
 import { ProjectForm } from '#/components/ProjectForm'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { useAuth } from '#/lib/auth/use-auth'
 import { createAccountProject } from '#/lib/projects/projects'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
@@ -52,12 +52,7 @@ function NewProject() {
           onCancel={() => void navigate({ to: '/projects' })}
         />
       ) : (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to start a project. Projects are saved to your account.
-          </p>
-          <SignInButton className="mt-5 rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep" />
-        </div>
+        <SignInGate>Sign in to start a project. Projects are saved to your account.</SignInGate>
       )}
     </AppPage>
   )

@@ -12,7 +12,7 @@ import { AppPage } from '#/components/AppPage'
 import { EditedDate } from '#/components/EditedDate'
 import { Notice } from '#/components/Notice'
 import { StaleBadge, UpdatedAge } from '#/components/SavedPermitStatus'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { primaryButtonClass } from '#/components/buttons'
 import { errorMessage } from '#/lib/errors'
 import { formatCity } from '#/lib/location/format'
@@ -65,12 +65,7 @@ function SavedPermitPage() {
       </Link>
 
       {!loaded ? (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to see your saved permits.
-          </p>
-          <SignInButton className={`mt-5 ${primaryButtonClass}`} />
-        </div>
+        <SignInGate>Sign in to see your saved permits.</SignInGate>
       ) : !loaded.permit ? (
         <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
           This permit isn’t in your library. It may have been removed.

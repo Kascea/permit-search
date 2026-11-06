@@ -14,44 +14,58 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 
-import { AccountMenu } from '#/components/AccountMenu'
+import {
+  ABOUT_ICON,
+  AccountMenu,
+  CONTACT_ICON,
+} from '#/components/AccountMenu'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+import { SignInButton } from '#/components/SignInDialog'
+import { useAuth } from '#/lib/auth/use-auth'
 import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { deleteAccountProject } from '#/lib/projects/projects'
 import {
   setAccountProjects,
   useAccountProjects,
 } from '#/lib/projects/use-account-projects'
+import { CONTACT_EMAIL } from '#/lib/site'
 import { confirm } from '#/components/ConfirmDialog'
 
 // How many recent projects the sidebar lists under Projects.
 const RECENT_PROJECT_COUNT = 5
 
-// Outline icon paths on a 24px grid, as in AccountMenu.
+// Outline icon paths on a 24px grid, as in AccountMenu. Visitors see the same
+// rows; accountOnly ones are marked with a lock and open a page that explains
+// them and asks them to sign in.
 const SECTIONS = [
   {
     to: '/',
     label: 'Dashboard',
+    accountOnly: false,
     icon: 'M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z',
   },
   {
     to: '/history',
     label: 'History',
+    accountOnly: true,
     icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   },
   {
     to: '/permits',
     label: 'My permits',
+    accountOnly: true,
     icon: 'M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z',
   },
   {
     to: '/projects',
     label: 'Projects',
+    accountOnly: true,
     icon: 'M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z',
   },
   {
     to: '/drafts',
     label: 'Drafts',
+    accountOnly: false,
     icon: 'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z',
   },
 ] as const
@@ -144,11 +158,13 @@ function RuleMarker() {
   )
 }
 
-// The signed-in app's navigation and account, beside every page from lg up.
-// SiteHeader's top bar beside it holds search; below lg the header's account
-// menu holds these links. It's see-through, so the page's grid runs under it.
+// The app's navigation and account, beside every page from lg up, for visitors
+// too: signing in fills it in rather than moving anything. SiteHeader's top bar
+// beside it holds search; below lg the header's account menu holds these links.
+// It's see-through, so the page's grid runs under it.
 export function AppSidebar() {
-  const { projects } = useAccountProjects(true)
+  const { user } = useAuth()
+  const { projects } = useAccountProjects(Boolean(user))
   const recentProjects = projects?.slice(0, RECENT_PROJECT_COUNT) ?? []
   const { isCollapsed } = useSidebarCollapsed()
 
@@ -175,11 +191,14 @@ export function AppSidebar() {
                   icon={section.icon}
                   projects={recentProjects}
                   isCollapsed={isCollapsed}
+                  isLocked={!user}
                 />
               ) : (
                 <Link
                   to={section.to}
-                  title={isCollapsed ? section.label : undefined}
+                  title={
+                    isCollapsed ? sectionLabel(section, !user) : undefined
+                  }
                   className={isCollapsed ? collapsedRowClass : rowClass}
                   activeOptions={{ exact: section.to === '/' }}
                   activeProps={{ className: activeRowClass }}
@@ -187,8 +206,9 @@ export function AppSidebar() {
                 >
                   <SidebarIcon path={section.icon} />
                   <span className={isCollapsed ? 'sr-only' : undefined}>
-                    {section.label}
+                    {sectionLabel(section, !user)}
                   </span>
+                  {!user && section.accountOnly && !isCollapsed && <LockMark />}
                 </Link>
               )}
             </li>
@@ -196,11 +216,80 @@ export function AppSidebar() {
         </ul>
       </nav>
 
-      {/* Settings, About and Contact us are in its menu. */}
       <div className="shrink-0 pt-8">
-        <AccountMenu variant="sidebar" isCollapsed={isCollapsed} />
+        {user ? (
+          // Settings, About and Contact us are in its menu.
+          <AccountMenu variant="sidebar" isCollapsed={isCollapsed} />
+        ) : (
+          <VisitorFoot isCollapsed={isCollapsed} />
+        )}
       </div>
     </aside>
+  )
+}
+
+// Without an account there's no dashboard; the same row goes to the home page.
+function sectionLabel(section: (typeof SECTIONS)[number], isVisitor: boolean) {
+  return isVisitor && section.to === '/' ? 'Home' : section.label
+}
+
+// Marks a row that needs an account, at the row's end.
+function LockMark() {
+  return (
+    <span
+      className="ml-auto text-ink/40"
+      title="Sign in to use this"
+    >
+      <SidebarIcon path="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      <span className="sr-only">Sign in to use this</span>
+    </span>
+  )
+}
+
+// Where a signed-in user's account row sits, for visitors: what its menu would
+// hold, and the way in.
+function VisitorFoot({ isCollapsed }: { isCollapsed: boolean }) {
+  const row = isCollapsed ? collapsedRowClass : rowClass
+
+  return (
+    <>
+      <Link
+        to="/about"
+        title={isCollapsed ? 'About' : undefined}
+        className={row}
+        activeProps={{ className: activeRowClass }}
+        inactiveProps={{ className: inactiveRowClass }}
+      >
+        <SidebarIcon path={ABOUT_ICON} />
+        <span className={isCollapsed ? 'sr-only' : undefined}>About</span>
+      </Link>
+      <a
+        href={`mailto:${CONTACT_EMAIL}`}
+        title={isCollapsed ? 'Contact us' : undefined}
+        className={`${row} ${inactiveRowClass}`}
+      >
+        <SidebarIcon path={CONTACT_ICON} />
+        <span className={isCollapsed ? 'sr-only' : undefined}>Contact us</span>
+      </a>
+      <div
+        className={`flex h-16 items-center ${
+          isCollapsed ? 'justify-center' : 'px-8'
+        }`}
+      >
+        {isCollapsed ? (
+          <SignInButton
+            ariaLabel="Sign in"
+            title="Sign in"
+            className="grid size-8 place-items-center rounded-full border border-ink text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+          >
+            <SidebarIcon path="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+          </SignInButton>
+        ) : (
+          // Outlined: a page's own sign-in prompt is its one primary button.
+          <SignInButton className="w-full rounded-full border border-ink px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint" />
+        )}
+      </div>
+    </>
   )
 }
 
@@ -243,10 +332,13 @@ function ProjectsGroup({
   icon,
   projects,
   isCollapsed,
+  isLocked,
 }: {
   icon: string
   projects: Array<{ publicId: string; name: string }>
   isCollapsed: boolean
+  // Signed out: the row just opens the page, which asks them to sign in.
+  isLocked: boolean
 }) {
   const listId = useId()
   const [menu, setMenu] = useState<SidebarMenuState>()
@@ -281,20 +373,35 @@ function ProjectsGroup({
       <div
         className="relative"
         onContextMenu={(event) => {
+          if (isLocked) return
+
           event.preventDefault()
           setMenu({ x: event.clientX, y: event.clientY })
         }}
       >
         <Link
           to="/projects"
-          title={isCollapsed ? 'Projects' : 'Right-click for New project'}
-          className={isCollapsed ? collapsedRowClass : `${rowClass} pr-16`}
+          title={
+            isCollapsed
+              ? 'Projects'
+              : isLocked
+                ? undefined
+                : 'Right-click for New project'
+          }
+          className={
+            isCollapsed
+              ? collapsedRowClass
+              : isLocked
+                ? rowClass
+                : `${rowClass} pr-16`
+          }
           activeOptions={{ exact: !isCollapsed }}
           activeProps={{ className: activeRowClass }}
           inactiveProps={{ className: inactiveRowClass }}
         >
           <SidebarIcon path={icon} />
           <span className={isCollapsed ? 'sr-only' : undefined}>Projects</span>
+          {isLocked && !isCollapsed && <LockMark />}
         </Link>
         {hasList && (
           <button

@@ -4,6 +4,7 @@ import { errorMessage } from '#/lib/errors'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { quietActionClass } from '#/components/buttons'
 import { SignInButton } from '#/components/SignInDialog'
+import { useResumeAfterSignIn } from '#/lib/auth/resume'
 import { useAuth } from '#/lib/auth/use-auth'
 import { formatCity } from '#/lib/location/format'
 import {
@@ -285,6 +286,9 @@ export function AddToProjectButton({
 }) {
   const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
+  const resumeAction = `add-to-project:${item.sourceUrl}`
+
+  useResumeAfterSignIn(resumeAction, Boolean(user), () => setIsOpen(true))
 
   const label = (
     <>
@@ -307,7 +311,15 @@ export function AddToProjectButton({
   )
 
   if (!user) {
-    return <SignInButton className={quietActionClass}>{label}</SignInButton>
+    return (
+      <SignInButton
+        className={quietActionClass}
+        reason="Sign in to keep this form in a project."
+        resume={resumeAction}
+      >
+        {label}
+      </SignInButton>
+    )
   }
 
   return (

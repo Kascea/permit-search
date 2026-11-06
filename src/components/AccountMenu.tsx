@@ -7,17 +7,21 @@ import { authClient, settled } from '#/lib/auth/auth-client'
 import { useAuth } from '#/lib/auth/use-auth'
 import { CONTACT_EMAIL } from '#/lib/site'
 
-// The header's sign-in pill, or the signed-in user's initial with a menu of
-// pages, settings, about and contact. In AppSidebar ("sidebar"), the trigger
-// is a full row with the user's name, the menu opens upward, and the page
-// links are left out, since the sidebar lists them. In a collapsed sidebar,
-// the row is just the initial, and the menu says who's signed in instead.
+// The signed-in user's initial with a menu of pages, settings, about and
+// contact. In AppSidebar ("sidebar"), the trigger is a full row with the user's
+// name, the menu opens upward, and the page links are left out, since the
+// sidebar lists them. In a collapsed sidebar, the row is just the initial, and
+// the menu says who's signed in instead. Signed out, it's the sign-in pill and,
+// below lg, a menu of the same pages. AppSidebar has its own foot for visitors.
 export function AccountMenu({
   variant = 'header',
   isCollapsed = false,
+  hideVisitorMenu = false,
 }: {
   variant?: 'header' | 'sidebar'
   isCollapsed?: boolean
+  // In the editor, whose toolbar has little room and whose drawer has the links.
+  hideVisitorMenu?: boolean
 }) {
   const inSidebar = variant === 'sidebar'
 
@@ -55,7 +59,59 @@ export function AccountMenu({
     }
   }, [isOpen])
 
-  if (!user) return <SignInButton />
+  if (!user) {
+    return (
+      <div className="flex shrink-0 items-center gap-2">
+        <SignInButton />
+        {!hideVisitorMenu && (
+          <div ref={menuRef} className="relative lg:hidden">
+            <button
+              type="button"
+              aria-label="Menu"
+              aria-expanded={isOpen}
+              aria-haspopup="menu"
+              className="grid size-8 place-items-center rounded-full border border-ink/35 text-ink transition hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+              onClick={() => setIsOpen((open) => !open)}
+            >
+              <MenuIcon path={MENU_ICON} className="text-ink" />
+            </button>
+            {isOpen && (
+              <div
+                role="menu"
+                className="absolute top-full right-0 z-50 mt-2 w-60 rounded-xs border border-ink bg-paper text-sm"
+              >
+                {MENU_LINKS.flatMap((link) =>
+                  link.to === '/settings'
+                    ? []
+                    : [
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          role="menuitem"
+                          className={menuItemClass}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <MenuIcon path={link.icon} />
+                          {link.to === '/' ? 'Home' : link.label}
+                        </Link>,
+                      ],
+                )}
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  role="menuitem"
+                  className={menuItemClass}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <MenuIcon path={CONTACT_ICON} />
+                  Contact us
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   async function signOut() {
     setIsBusy(true)
@@ -188,6 +244,9 @@ export function AccountMenu({
 const menuItemClass =
   'flex items-center gap-3 px-4 py-2.5 text-ink transition hover:bg-ink/5'
 
+export const ABOUT_ICON =
+  'm11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z'
+
 // Outline icon paths on a 24px grid. inSidebar links are also in AppSidebar,
 // so its menu leaves them out.
 const MENU_LINKS = [
@@ -231,11 +290,13 @@ const MENU_LINKS = [
     to: '/about',
     label: 'About',
     inSidebar: false,
-    icon: 'm11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z',
+    icon: ABOUT_ICON,
   },
 ] as const
 
-const CONTACT_ICON =
+const MENU_ICON = 'M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5'
+
+export const CONTACT_ICON =
   'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75'
 
 const SIGN_OUT_ICON =

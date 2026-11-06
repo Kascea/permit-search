@@ -171,13 +171,24 @@ Show one only while the user is waiting on something they asked for. For data
 that's nice to have, such as the city contact card, show nothing until it
 arrives.
 
-**Header.** `SiteHeader`, on every page except home and the editor. A sticky
-56px bar on `bg-paper` with a strong `border-b border-ink`, its contents as
-wide as the page content. On the left: the logo, a short light divider, then the page links
-(add links to `NAV_LINKS`; the current page's link is blueprint). On the right
-of every page, a round search pill with a pin and a blue search button shows
-the current city (or "Search for a permit") and opens the search modal, which
-`SiteHeader` owns.
+**App frame.** `AppSidebar` sits beside every page from lg up, signed in or not
+(`useHasAppSidebar`), so signing in fills it in rather than moving anything. The
+exceptions are the editor and the signed-out home page, which stands alone with
+no header or sidebar. Visitors see the same rows, with a lock on the ones that
+need an account, and "Sign in" where the account row sits.
+
+**Sign-in gates.** An account-only page shows `<SignInGate>` with one line on
+what the page is for. An account-only action stays visible and is a
+`SignInButton` with a `reason` and a `resume`, so sign-in says why it's asking
+and finishes the action. The server enforces every gate; these only explain it.
+
+**Header.** `SiteHeader`, on every page except the editor and the signed-out
+home page. A sticky 56px bar on
+`bg-paper` with a strong `border-b border-ink`, its contents as wide as the page
+content. On the left, below lg: the logo. On the right, a round search pill
+with a pin and a blue search button shows the current city (or "Search for a
+permit") and opens the search modal, which `SiteHeader` owns. Below lg, the
+account menu holds the page links, for visitors too.
 
 **Editor tool row.** In the PDF editor, the field tools, zoom and pages sit on
 plain paper in `border-ink/30` groups. Only the field tool icons are
@@ -190,7 +201,8 @@ It fades and rises in over 180ms. Draw the panel with `modalPanelClass`, and
 put a header row with the title on the left and `ModalCloseButton` on the
 right.
 
-**Footer.** `SiteFooter` on every page except the editor: a slim
+**Footer.** `SiteFooter` on every page except the editor, and below lg wherever
+`AppSidebar` is: a slim
 `bg-blueprint` strip, one line of `text-xs` paper text. On the left, a small
 logo with the copyright and disclaimer (`text-paper/70`). On the right,
 "About" and "Contact us" in `font-medium`, fading on hover. Keep it compact so

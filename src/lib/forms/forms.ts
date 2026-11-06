@@ -2,8 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
 import { z } from 'zod'
 
-import { withUserDatabase } from '#/lib/auth/auth.server'
-import { hasDatabase } from '#/lib/db/client.server'
+import { getSessionUser, withUserDatabase } from '#/lib/auth/auth.server'
 import { draftSchema } from '#/lib/drafts/types'
 import { UserError, parseUserInput } from '#/lib/errors'
 import { checkDraft } from '#/lib/forms/check.server'
@@ -28,10 +27,17 @@ const formInput = z.object({
 
 // Reads a form for checking when the editor opens it, so the check button is
 // quick. Returns each field's printed label, by field name, for autofill.
+// Reading a new form costs money, and only Check and Autofill use it, so it's
+// for signed-in users.
 export const prepareFormSchema = createServerFn({ method: 'POST' })
   .validator(parseUserInput(formInput))
   .handler(async ({ data }) => {
-    await limitRequest('form-schema', new Headers(getRequestHeaders()))
+    const headers = new Headers(getRequestHeaders())
+    await limitRequest('form-schema', headers)
+
+    if (!(await getSessionUser(headers))) {
+      throw new UserError('Sign in to continue.')
+    }
 
     const schema = await loadFormSchema(data.sourceUrl, data.sourceHash)
 
@@ -64,17 +70,17 @@ export const findPageBoxes = createServerFn({ method: 'POST' })
 
     const { projectId, pageIndex } = data
 
-    const [schema, project] = await Promise.all([
-      loadFormSchema(data.sourceUrl, data.sourceHash),
-      withUserDatabase(
-        headers,
-        async (userId, db) =>
-          (await listProjects(db, userId, projectId)).at(0) ?? null,
-        () => null,
-      ),
-    ])
+    // First, so a signed-out call never pays to read the form.
+    const project = await withUserDatabase(
+      headers,
+      async (userId, db) =>
+        (await listProjects(db, userId, projectId)).at(0) ?? null,
+      () => null,
+    )
 
     if (!project) throw new UserError('That project couldn’t be found.')
+
+    const schema = await loadFormSchema(data.sourceUrl, data.sourceHash)
 
     const page = Uint8Array.from(atob(data.pageImage), (char) =>
       char.charCodeAt(0),
@@ -108,8 +114,8 @@ export const findPageBoxes = createServerFn({ method: 'POST' })
     }
   })
 
-// Checks a draft for mistakes. The project, when given, must be the signed-in
-// user's; it's what the draft's values are compared with.
+// Checks a draft for mistakes, for signed-in users. The project, when given,
+// must be theirs; it's what the draft's values are compared with.
 export const checkFormDraft = createServerFn({ method: 'POST' })
   .validator(
     parseUserInput(
@@ -125,17 +131,20 @@ export const checkFormDraft = createServerFn({ method: 'POST' })
 
     const { projectId } = data
 
-    const [schema, project] = await Promise.all([
-      loadFormSchema(data.sourceUrl, data.sourceHash),
-      projectId && hasDatabase()
-        ? withUserDatabase(
-            headers,
-            async (userId, db) =>
-              (await listProjects(db, userId, projectId)).at(0) ?? null,
-            () => null,
-          )
-        : null,
-    ])
+    // Before the form is read, which costs money, and on its own connection,
+    // which isn't held through the long calls below.
+    const project = await withUserDatabase(
+      headers,
+      async (userId, db) =>
+        projectId
+          ? ((await listProjects(db, userId, projectId)).at(0) ?? null)
+          : null,
+      () => {
+        throw new UserError('Sign in to check this form.')
+      },
+    )
+
+    const schema = await loadFormSchema(data.sourceUrl, data.sourceHash)
 
     return checkDraft(schema, data.content, project)
   })

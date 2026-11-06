@@ -7,7 +7,7 @@ import { AddToProjectButton } from '#/components/AddToProjectDialog'
 import { AppPage } from '#/components/AppPage'
 import { EditedDate } from '#/components/EditedDate'
 import { StaleBadge, UpdatedAge } from '#/components/SavedPermitStatus'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { formatCity } from '#/lib/location/format'
 import { listAccountPermits, removeAccountPermit } from '#/lib/permits/permits'
 import { savedPermitProjectItem } from '#/lib/permits/types'
@@ -49,9 +49,6 @@ export const Route = createFileRoute('/permits/')({
   component: Permits,
 })
 
-const buttonClass =
-  'inline-flex shrink-0 items-center rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint'
-
 function Permits() {
   const loaded = Route.useLoaderData()
   // Removals return the updated library, so it's kept here rather
@@ -80,13 +77,7 @@ function Permits() {
       </h1>
 
       {!permits ? (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to save blank permit forms and online permits by city and
-            reuse them in any project.
-          </p>
-          <SignInButton className={`mt-5 ${buttonClass}`} />
-        </div>
+        <SignInGate>Sign in to save blank permit forms and online permits by city and reuse them in any project.</SignInGate>
       ) : permits.length === 0 ? (
         <p className="mt-6 max-w-[60ch] border-t border-ink pt-5 text-base leading-6 text-ink/70">
           No saved permits yet. Search for a permit, then choose{' '}

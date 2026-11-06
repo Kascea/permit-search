@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 
 import { AppPage } from '#/components/AppPage'
 import { Breadcrumbs, crumbLinkClass } from '#/components/Breadcrumbs'
-import { primaryButtonClass, quietActionClass } from '#/components/buttons'
+import { quietActionClass } from '#/components/buttons'
 import { DraftName } from '#/components/DraftName'
 import { EditedDate } from '#/components/EditedDate'
 import { Notice } from '#/components/Notice'
@@ -19,7 +19,7 @@ import { Pending } from '#/components/Pending'
 import { PermitNumberDialog } from '#/components/PermitNumberDialog'
 import { ProjectForm } from '#/components/ProjectForm'
 import { SearchLinkText } from '#/components/SearchLinkText'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { originParam } from '#/lib/navigation/origin'
 import type { DraftSummary } from '#/lib/drafts/types'
@@ -121,12 +121,7 @@ function ProjectPage() {
   if (!project) {
     return (
       <Page>
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to see this project.
-          </p>
-          <SignInButton className={`mt-5 ${primaryButtonClass}`} />
-        </div>
+        <SignInGate>Sign in to see this project.</SignInGate>
       </Page>
     )
   }

@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /api/
+Disallow: /editor
+Disallow: /drafts
+Disallow: /history
+Disallow: /permits
+Disallow: /projects
+Disallow: /settings
+
+Sitemap: https://permitsearch.app/sitemap.xml

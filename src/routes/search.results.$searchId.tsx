@@ -1,7 +1,15 @@
-import { Link, createFileRoute, notFound } from '@tanstack/react-router'
+import {
+  Link,
+  createFileRoute,
+  notFound,
+  useNavigate,
+} from '@tanstack/react-router'
 
 import { ResultsPage } from '#/components/ResultsPage'
 import { SearchResultsList } from '#/components/SearchResultsList'
+import { SignInButton } from '#/components/SignInDialog'
+import { useResumeAfterSignIn } from '#/lib/auth/resume'
+import { useAuth } from '#/lib/auth/use-auth'
 import { SEARCH_REFRESH_HOURS } from '#/lib/saved-searches/search-key'
 import { getSavedSearch } from '#/lib/search/permit-search'
 import type { SavedSearch } from '#/lib/saved-searches/saved-searches.server'
@@ -55,8 +63,24 @@ function SavedResults() {
 }
 
 // Whether these results were just run or reused. "Search again" appears only
-// once a fresh run is allowed; the timing isn't shown.
+// once a fresh run is allowed; the timing isn't shown. Signed out, it asks them
+// to sign in, since a new run costs money.
 function SearchStatus({ saved }: { saved: SavedSearch }) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const resumeAction = `search-again:${saved.publicId}`
+
+  const freshSearch = {
+    city: saved.city.name,
+    region: saved.city.region,
+    permit: saved.permit,
+    fresh: true,
+  }
+
+  useResumeAfterSignIn(resumeAction, Boolean(user), () => {
+    void navigate({ to: '/search/results', search: freshSearch })
+  })
+
   if (saved.ageMinutes < NEW_FOR_MINUTES) {
     return <span>New results</span>
   }
@@ -67,18 +91,23 @@ function SearchStatus({ saved }: { saved: SavedSearch }) {
       {saved.ageMinutes >= SEARCH_REFRESH_HOURS * 60 && (
         <>
           <span aria-hidden="true">·</span>
-          <Link
-            className="font-medium text-blueprint underline-offset-2 hover:underline"
-            to="/search/results"
-            search={{
-              city: saved.city.name,
-              region: saved.city.region,
-              permit: saved.permit,
-              fresh: true,
-            }}
-          >
-            Search again
-          </Link>
+          {user ? (
+            <Link
+              className="font-medium text-blueprint underline-offset-2 hover:underline"
+              to="/search/results"
+              search={freshSearch}
+            >
+              Search again
+            </Link>
+          ) : (
+            <SignInButton
+              className="font-medium text-blueprint underline-offset-2 hover:underline"
+              reason="Sign in to run this search again."
+              resume={resumeAction}
+            >
+              Search again
+            </SignInButton>
+          )}
         </>
       )}
     </>

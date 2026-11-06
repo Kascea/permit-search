@@ -1,3 +1,4 @@
+import { useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { useAuth } from '#/lib/auth/use-auth'
@@ -8,6 +9,7 @@ import { deleteLocalDraft, listLocalDrafts } from '#/lib/drafts/local'
 // nothing.
 export function LocalDraftSync() {
   const { user } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     if (!user) return
@@ -20,12 +22,15 @@ export function LocalDraftSync() {
         for (const draft of drafts.slice(0, 100)) {
           deleteLocalDraft(draft.sourceUrl)
         }
+
+        // The page may have loaded the account's drafts before these joined.
+        return router.invalidate()
       })
       .catch((cause: unknown) => {
         // Kept locally; the next page load tries again.
         console.error('Local drafts could not be synced.', cause)
       })
-  }, [user])
+  }, [user, router])
 
   return null
 }

@@ -1,18 +1,18 @@
 import { Link } from '@tanstack/react-router'
 
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
-import { useAuth } from '#/lib/auth/use-auth'
+import { useHasAppSidebar } from '#/lib/navigation/sidebar'
 import { CONTACT_EMAIL } from '#/lib/site'
 
-// A slim blue strip at the bottom of every page but the editor. Signed in,
-// AppSidebar carries its links from lg up, so the page is all canvas there.
+// A slim blue strip at the bottom of every page but the editor. AppSidebar
+// carries its links from lg up, so the page is all canvas beside it.
 export function SiteFooter() {
-  const { user } = useAuth()
+  const hasSidebar = useHasAppSidebar()
 
   return (
     <footer
       className={`mt-16 bg-blueprint px-4 py-3 text-paper sm:px-6 ${
-        user ? 'lg:hidden' : ''
+        hasSidebar ? 'lg:hidden' : ''
       }`}
     >
       <div className="mx-auto flex max-w-280 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs">

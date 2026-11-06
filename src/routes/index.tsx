@@ -2,10 +2,14 @@ import { Link, createFileRoute, useNavigate, useRouter } from '@tanstack/react-r
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { HowItWorks, SupportedPortals } from '#/components/AboutSections'
 import { AppPage } from '#/components/AppPage'
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
+import { rowPrimaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
 import { PermitSearchForm } from '#/components/PermitSearchForm'
+import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+import { SignInButton } from '#/components/SignInDialog'
 import { getDashboard } from '#/lib/dashboard/dashboard'
 import type { Dashboard } from '#/lib/dashboard/dashboard'
 import {
@@ -20,18 +24,31 @@ import { originParam } from '#/lib/navigation/origin'
 import type { Project } from '#/lib/projects/types'
 import { formatProjectAddress } from '#/lib/projects/types'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
+import { SITE_URL } from '#/lib/site'
 
-// Signed in, the dashboard. Signed out, the landing page: the search form.
+const HOME_TITLE = 'Permit Search | Find local permit requirements'
+
+const HOME_DESCRIPTION =
+  'Find your city’s official permit pages and forms for home improvement and construction projects, fill out PDF forms, and track your permit’s status.'
+
+// Signed in, the dashboard. Signed out, the home page: the search form first,
+// then what the site is.
 export const Route = createFileRoute('/')({
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData
-          ? 'Dashboard | Permit Search'
-          : 'Permit Search | Find local permit requirements',
-      },
-    ],
-  }),
+  head: ({ loaderData }) =>
+    loaderData
+      ? { meta: [{ title: 'Dashboard | Permit Search' }] }
+      : {
+          meta: [
+            { title: HOME_TITLE },
+            { name: 'description', content: HOME_DESCRIPTION },
+            { property: 'og:type', content: 'website' },
+            { property: 'og:site_name', content: 'Permit Search' },
+            { property: 'og:url', content: SITE_URL },
+            { property: 'og:title', content: HOME_TITLE },
+            { property: 'og:description', content: HOME_DESCRIPTION },
+          ],
+          links: [{ rel: 'canonical', href: SITE_URL }],
+        },
   // Null when signed out.
   loader: () => getDashboard(),
   component: Home,
@@ -43,19 +60,44 @@ function Home() {
   return dashboard ? <DashboardPage dashboard={dashboard} /> : <Landing />
 }
 
-// The search form as the whole page, for visitors who aren't signed in.
-// Signed-in users search from the header's search pill.
+// What a visitor can do straight away, and what an account adds. The second
+// list is what's gated, so keep it in step with the sign-in checks.
+const WITHOUT_ACCOUNT = [
+  'Find your city’s permit pages and forms',
+  'Share your results with a link',
+  'See who to contact at the city',
+  'Fill out PDF forms and download them, with drafts saved on this device',
+]
+
+const WITH_ACCOUNT = [
+  'Check a form for mistakes before you submit it',
+  'Enter a job’s details once, in a project, and autofill its forms',
+  'Save permits to reuse, and keep a history of your searches',
+  'Track a permit’s status in supported cities',
+  'Keep your drafts in your account and open them anywhere',
+]
+
+// For visitors who aren't signed in: the search form first, since searching is
+// why most come, then what the site is. It stands alone, with no header or
+// sidebar, so its logo and sign-in link are its own. Rendered on the server, so
+// search engines read all of it. Signed-in users search from the header's
+// search pill.
 function Landing() {
   const navigate = useNavigate()
 
   return (
-    <AppPage hideSearch>
-      <div className="mb-10 pt-4 text-center sm:pt-8">
+    <AppPage hideHeader>
+      <div className="mb-10 text-center">
+        <p className="mb-8 inline-flex items-center gap-2.5 text-sm font-medium tracking-tight text-ink">
+          <PermitSearchLogo className="size-8" />
+          Permit Search
+        </p>
         <h1 className="text-[clamp(3rem,9vw,5.5rem)] leading-[1] font-medium tracking-[-0.04em] text-ink">
           Find your city permit.
         </h1>
         <p className="mx-auto mt-6 max-w-lg text-lg leading-6 font-medium text-ink">
-          Select your city and describe the work you’re planning.
+          Select your city and describe the work you’re planning. We’ll find
+          the official pages and forms.
         </p>
       </div>
 
@@ -67,7 +109,70 @@ function Landing() {
           })
         }
       />
+
+      {/* The way in for people who already use the site. A div, as the button
+          brings its dialog, which can't sit in a paragraph. */}
+      <div className="mt-4 text-center text-sm text-ink/70">
+        Already have an account?{' '}
+        <SignInButton className="font-medium text-blueprint underline-offset-2 hover:underline" />
+        {' · '}
+        <Link
+          to="/drafts"
+          className="font-medium text-blueprint underline-offset-2 hover:underline"
+        >
+          Your drafts
+        </Link>
+      </div>
+
+      <HowItWorks />
+
+      <h2 className="mt-8 border-t border-ink pt-5 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
+        What you can do
+      </h2>
+      <div className="mt-4 grid gap-8 sm:grid-cols-2">
+        <div>
+          <FeatureList title="No account needed" items={WITHOUT_ACCOUNT} />
+        </div>
+        <div>
+          <FeatureList title="With an account" items={WITH_ACCOUNT} />
+          <SignInButton
+            className={`mt-5 ${rowPrimaryButtonClass}`}
+            initialMode="sign-up"
+          >
+            Create an account
+          </SignInButton>
+        </div>
+      </div>
+
+      <SupportedPortals />
+
+      <p className="mt-8 border-t border-ink pt-5 text-base leading-6 text-ink/70">
+        Permit Search points you to official sources but isn’t one. Requirements
+        change, so always confirm with your local permitting office before you
+        start work.
+      </p>
     </AppPage>
+  )
+}
+
+function FeatureList({
+  title,
+  items,
+}: {
+  title: string
+  items: Array<string>
+}) {
+  return (
+    <>
+      <h3 className="font-medium text-ink">{title}</h3>
+      <ul className="mt-2 divide-y divide-ink/20">
+        {items.map((item) => (
+          <li key={item} className="py-2 text-base leading-6 text-ink/70">
+            {item}
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 

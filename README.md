@@ -76,8 +76,8 @@ copy. Do not add proprietary reference-site fonts.
 
 ## Repository structure
 
-- `src/routes/index.tsx` — signed-in dashboard, or the search landing page
-  when signed out
+- `src/routes/index.tsx` — signed-in dashboard, or the home page when signed
+  out
 - `src/routes/history.tsx` — past searches
 - `src/routes/search.results.*.tsx` — running and showing a search
 - `src/components/CityCombobox.tsx` — accessible city autocomplete

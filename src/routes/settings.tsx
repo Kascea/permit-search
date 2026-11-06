@@ -7,7 +7,7 @@ import { AppPage } from '#/components/AppPage'
 import { Modal, ModalCloseButton, modalPanelClass } from '#/components/Modal'
 import { Notice } from '#/components/Notice'
 import type { Tone } from '#/components/Notice'
-import { SignInButton } from '#/components/SignInDialog'
+import { SignInGate } from '#/components/SignInGate'
 import { authClient, settled, signInWithGoogle } from '#/lib/auth/auth-client'
 import type { AccountUser } from '#/lib/auth/session'
 import { useAuth } from '#/lib/auth/use-auth'
@@ -70,12 +70,7 @@ function Settings() {
           <DeleteSection method={method} />
         </>
       ) : (
-        <div className="mt-6 border-t border-ink pt-5">
-          <p className="text-base leading-6 text-ink/70">
-            Sign in to manage your account.
-          </p>
-          <SignInButton className={`mt-5 ${buttonClass}`} />
-        </div>
+        <SignInGate>Sign in to manage your account.</SignInGate>
       )}
     </AppPage>
   )

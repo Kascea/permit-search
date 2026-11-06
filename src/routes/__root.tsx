@@ -3,14 +3,13 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
-  useRouterState,
 } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { AppSidebar } from '#/components/AppSidebar'
 import { ConfirmHost } from '#/components/ConfirmDialog'
 import { getAuthState } from '#/lib/auth/session'
-import { getIsSidebarCollapsed } from '#/lib/navigation/sidebar'
+import { getIsSidebarCollapsed, useHasAppSidebar } from '#/lib/navigation/sidebar'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
 import { Toaster } from '#/components/Toaster'
 
@@ -73,8 +72,7 @@ export const Route = createRootRoute({
       },
     ],
   }),
-  // Sign-in sends the browser away and back, so this only needs reloading
-  // after sign-out (router.invalidate()).
+  // Reloaded by router.invalidate() after signing in or out.
   loader: async () => {
     const [authState, isSidebarCollapsed] = await Promise.all([
       getAuthState(),
@@ -88,16 +86,9 @@ export const Route = createRootRoute({
   component: AppLayout,
 })
 
-// Signed-in pages sit beside the sidebar. The editor fills the window with its
-// own toolbar, so it goes without.
+// Pages sit beside the sidebar, except where useHasAppSidebar says otherwise.
 function AppLayout() {
-  const { user } = Route.useLoaderData()
-
-  const isEditor = useRouterState({
-    select: (state) => state.location.pathname.startsWith('/editor'),
-  })
-
-  if (!user || isEditor) return <Outlet />
+  if (!useHasAppSidebar()) return <Outlet />
 
   return (
     <div className="lg:flex">

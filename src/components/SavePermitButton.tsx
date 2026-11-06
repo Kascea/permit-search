@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import { quietActionClass } from '#/components/buttons'
 import { SignInButton } from '#/components/SignInDialog'
+import { useResumeAfterSignIn } from '#/lib/auth/resume'
 import { useAuth } from '#/lib/auth/use-auth'
 import { errorMessage } from '#/lib/errors'
 import { saveAccountPermit } from '#/lib/permits/permits'
@@ -36,10 +37,19 @@ export function SavePermitButton({
   const permits = useSavedPermits(Boolean(user))
   const [isSaving, setIsSaving] = useState(false)
   const saved = permits?.find((permit) => permit.sourceUrl === sourceUrl)
+  const resumeAction = `save-permit:${sourceUrl}`
+
+  useResumeAfterSignIn(resumeAction, Boolean(user && permits), () => {
+    if (!saved) void save()
+  })
 
   if (!user) {
     return (
-      <SignInButton className={quietActionClass}>
+      <SignInButton
+        className={quietActionClass}
+        reason="Sign in to keep this permit in My permits."
+        resume={resumeAction}
+      >
         <SaveLabel label="Save permit" />
       </SignInButton>
     )

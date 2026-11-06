@@ -155,7 +155,7 @@ export function DraftSidebar({
         {canCollapse && <SidebarToggle expandedClassName={topRowClass} />}
         <Link to="/" className={topRowClass}>
           <Glyph path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          {signedIn ? 'Dashboard' : 'Search'}
+          {signedIn ? 'Dashboard' : 'Home'}
         </Link>
 
         <div className="mt-3 flex h-8 items-center justify-between px-4">
@@ -300,7 +300,7 @@ function CollapsedFiles({
   folders: Array<{ key: string; name: string; holdsCurrent: boolean }>
 }) {
   const { setIsCollapsed } = useSidebarCollapsed()
-  const backLabel = signedIn ? 'Dashboard' : 'Search'
+  const backLabel = signedIn ? 'Dashboard' : 'Home'
 
   return (
     <nav
