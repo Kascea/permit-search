@@ -2,6 +2,7 @@ import {
   describeField,
   findSignatureLines,
   mergeLines,
+  textOverBox,
 } from '#/lib/forms/labels'
 import type {
   FormFieldKind,
@@ -20,6 +21,8 @@ export interface ExtractedField {
   label: string
   section: string | null
   line: string
+  // Printed text just above or over the box, often what names a table's cell.
+  textAbove: string
 }
 
 export interface ExtractedForm {
@@ -176,6 +179,7 @@ export async function extractForm(bytes: ArrayBuffer): Promise<ExtractedForm> {
         requiredFlag: annotation.required === true,
         rect,
         ...described,
+        textAbove: textOverBox(rect, lines),
         label:
           described.label ||
           (tooltip && tooltip !== 'undefined' ? tooltip : '') ||

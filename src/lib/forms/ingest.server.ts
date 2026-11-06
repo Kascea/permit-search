@@ -204,9 +204,11 @@ async function classifyFields(
     const noulOf = (name: string) => readNoul(answers.get(`${key}_${name}`))
     const officeUse = noulOf('officeUse') >= YES_THRESHOLD
 
+    const markedOnField =
+      field.requiredFlag || noulOf('markedRequired') >= YES_THRESHOLD
+
     const markedRequired =
-      field.requiredFlag ||
-      noulOf('markedRequired') >= YES_THRESHOLD ||
+      markedOnField ||
       (field.section !== null && requiredHeadings.has(field.section))
 
     const workType =
@@ -215,12 +217,19 @@ async function classifyFields(
     const roleAnswer = answers.get(`${key}_role`)
     const role = roleAnswer?.type === 'choice' ? readRole(roleAnswer) : null
 
+    const roleProbability =
+      roleAnswer?.type === 'choice' && role
+        ? (roleAnswer.probabilities[roleAnswer.choice] ?? null)
+        : null
+
     return {
       ...field,
       role,
+      roleProbability,
       workType,
       officeUse,
       markedRequired,
+      markedOnField,
       checks: checksFor(field.kind, role, workType, officeUse, markedRequired),
     }
   })

@@ -16,35 +16,33 @@ const GROUPS: Array<{ severity: IssueSeverity; title: string }> = [
   { severity: 'review', title: 'Worth a look' },
 ]
 
-// The results of checking a form, beside the pages. Each finding links to
-// its field.
+// The results of checking a form, in the panel beside the pages. Each finding
+// links to its field.
 export function FormCheckPanel({
   state,
   onCheck,
-  onClose,
   onSelect,
 }: {
-  state: FormCheckState
+  // Undefined before the form has been checked.
+  state: FormCheckState | undefined
   onCheck: () => void
-  onClose: () => void
   onSelect: (issue: FieldIssue) => void
 }) {
   return (
-    <section aria-label="Form check" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4 rule-b lg:h-16">
-        <h2 className="text-sm font-medium text-ink">Form check</h2>
-        <button
-          aria-label="Close form check"
-          className="grid size-8 place-items-center rounded-xs text-ink transition hover:bg-ink/10"
-          onClick={onClose}
-          type="button"
-        >
-          ×
-        </button>
-      </div>
-
+    <>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {state.status === 'checking' ? (
+        {!state ? (
+          <div className="px-4 py-6 text-sm leading-6 text-ink/70">
+            <p>Look for mistakes and anything missing from your entries.</p>
+            <button
+              className="mt-3 font-medium text-blueprint underline-offset-2 hover:underline"
+              onClick={onCheck}
+              type="button"
+            >
+              Check this form
+            </button>
+          </div>
+        ) : state.status === 'checking' ? (
           <p className="flex items-center gap-3 px-4 py-6 text-sm text-ink/70">
             <span className="size-4 spinner" />
             Checking your entries…
@@ -74,7 +72,7 @@ export function FormCheckPanel({
         Checked by Jev, a model that can be wrong. Read the form over before you
         submit it.
       </p>
-    </section>
+    </>
   )
 }
 
@@ -106,9 +104,20 @@ function CheckResults({
         </p>
       )}
 
-      <p className="px-4 pt-4 text-xs leading-5 text-ink/60">
-        {result.checkedFields} {result.checkedFields === 1 ? 'field' : 'fields'}{' '}
-        checked{against}.
+      <p className="flex items-baseline justify-between gap-3 px-4 pt-4 text-xs leading-5 text-ink/60">
+        <span>
+          {result.checkedFields}{' '}
+          {result.checkedFields === 1 ? 'field' : 'fields'} checked{against}.
+        </span>
+        {!stale && (
+          <button
+            className="shrink-0 font-medium text-blueprint underline-offset-2 hover:underline"
+            onClick={onCheck}
+            type="button"
+          >
+            Check again
+          </button>
+        )}
       </p>
 
       {result.issues.length === 0 ? (

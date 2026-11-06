@@ -4,11 +4,11 @@ import type { DraftContent, NativeValue, PlacedField } from '#/lib/drafts/types'
 import { UserError } from '#/lib/errors'
 import {
   DESCRIPTION_VAGUE_MESSAGE,
-  ALWAYS_APPLIES_ROLES,
   VAGUE_MIN_PROBABILITY,
   YES_THRESHOLD,
   dateCurrentIssue,
   formatIssue,
+  isAlwaysMissing,
   missingMessage,
   noulSeverity,
   projectMismatchMessage,
@@ -27,9 +27,9 @@ import type {
 import { describeField } from '#/lib/forms/labels'
 import {
   agreesWithProjectQuestion,
+  boxAppliesQuestion,
   descriptionSpecificQuestion,
   projectState,
-  sectionAppliesQuestion,
   valueFitsQuestion,
   workTypeIncludedQuestion,
 } from '#/lib/forms/questions'
@@ -191,32 +191,26 @@ export async function checkDraft(
     project?.details.workDescription ||
     ''
 
-  // Empty required fields, by section, waiting on whether it applies.
-  const emptyBySection = new Map<string, Array<CheckedField>>()
+  // Empty required fields, waiting on whether each applies.
+  const emptyRequired: Array<CheckedField> = []
 
   for (const field of fields) {
     const { checks, text } = field
 
     if (!text && !field.checked) {
       if (checks.includes('required')) {
-        const { section } = field.view
-        const role = field.schema?.role
-
-        if (section && !(role && ALWAYS_APPLIES_ROLES.has(role))) {
-          emptyBySection.set(section, [
-            ...(emptyBySection.get(section) ?? []),
-            field,
-          ])
-        } else {
+        if (field.schema && isAlwaysMissing(field.schema)) {
           issues.push(
             issueAt(field, 'required', {
               severity: 'missing',
               message: missingMessage(
                 field.view.label,
-                field.schema?.kind === 'checkbox',
+                field.schema.kind === 'checkbox',
               ),
             }),
           )
+        } else {
+          emptyRequired.push(field)
         }
       }
 
@@ -355,24 +349,18 @@ export async function checkDraft(
     )
     .map(({ label, section, line }) => ({ label, section, line }))
 
-  // A section with empty required fields: ask once whether it applies.
-  for (const [section, empty] of emptyBySection) {
+  // An empty required field: ask whether it applies to this application.
+  for (const field of emptyRequired) {
     pending.push({
-      question: sectionAppliesQuestion(
-        section,
-        empty.map((field) => field.view.label),
-        checkedBoxes,
-      ),
+      question: boxAppliesQuestion(field.schema ?? field.view, checkedBoxes),
       read: (answer) => {
         const noul = 'noul' in answer ? answer.noul : 1
 
-        // Unsure means the form gave Jev nothing to go on, such as an
-        // optional-looking section with no checked box saying who does the
-        // work; reporting it would only add noise.
+        // Unsure means the form gave Jev nothing to go on; reporting it would
+        // only add noise.
         if (noul < YES_THRESHOLD) return []
 
-        // One question covers the section; each empty field is listed.
-        return empty.map((field) =>
+        return [
           issueAt(field, 'required', {
             severity: 'missing',
             message: missingMessage(
@@ -381,7 +369,7 @@ export async function checkDraft(
             ),
             score: noul,
           }),
-        )
+        ]
       },
     })
   }

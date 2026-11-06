@@ -37,6 +37,24 @@ function fieldContext(field: FieldView) {
   ) satisfies FieldContext
 }
 
+// A text field when working out its role: its printed text, plus the PDF's name
+// for it and the text above it, as a table's cell may have only its row's label
+// beside it.
+export interface RoleFieldView extends FieldView {
+  name: string
+  textAbove: string
+}
+
+function roleFieldContext(field: RoleFieldView) {
+  return {
+    pdf_field_name: field.name,
+    ...fieldContext(field),
+    ...Object.fromEntries(
+      field.textAbove ? [['text_above_it', field.textAbove]] : [],
+    ),
+  } satisfies FieldContext
+}
+
 const ROLE_OPTIONS = Object.fromEntries(
   Object.entries(FIELD_ROLES).map(([role, { describe }]) => [role, describe]),
 )
@@ -47,13 +65,13 @@ const ROLE_MIN_PROBABILITY = 0.5
 
 // Ingest: what a text field asks for, whether staff fill it in, and whether
 // the form marks it as required.
-export function textFieldQuestions(field: FieldView) {
+export function textFieldQuestions(field: RoleFieldView) {
   return {
     role: choice(
       {
         question:
           'What does `field` on this permit application ask the applicant to write?',
-        field: fieldContext(field),
+        field: roleFieldContext(field),
       },
       ROLE_OPTIONS,
     ),
@@ -140,6 +158,37 @@ function officeUseQuestion(field: FieldView) {
   )
 }
 
+// Autofill: which box on a page asks for a project field. A Choice always picks
+// one, so pageHasBoxQuestion says whether any does. boxes: each box's
+// description, by field name.
+export function whichBoxQuestion(
+  projectField: string,
+  boxes: Record<string, string>,
+) {
+  return choice(
+    {
+      question: 'Which box on `page` asks for the value saved as `project_field`?',
+      project_field: projectField,
+    },
+    boxes,
+  )
+}
+
+export function pageHasBoxQuestion(projectField: string) {
+  return noul(
+    {
+      question:
+        'Does `page` have a box that asks for the value saved as `project_field`?',
+      project_field: projectField,
+    },
+    {
+      true: 'A box on this page asks for exactly this fact: the same person, unit and measurement, in the same units.',
+      false:
+        'No box on this page asks for this fact, though one may ask for something related, such as the same detail for a different person or unit.',
+    },
+  )
+}
+
 export function readRole(answer: ChoiceResponse): FieldRole | null {
   const probability = answer.probabilities[answer.choice] ?? 0
 
@@ -201,25 +250,31 @@ export function descriptionSpecificQuestion(
   )
 }
 
-// Check: whether a section with empty fields applies to this application,
-// given the boxes the applicant checked (such as "Owner and occupant") and
-// the state's `project`, when there is one.
-export function sectionAppliesQuestion(
-  section: string,
-  labels: Array<string>,
+// Check: whether an empty box applies to this application, given the boxes the
+// applicant checked (such as "Owner and occupant"), and the state's `project` and
+// `descriptionOfWork` when there are any.
+export function boxAppliesQuestion(
+  field: FieldView & { name?: string; textAbove?: string },
   checkedBoxes: Array<FieldView>,
 ): NoulQuestion {
   return noul(
     {
       question:
-        'Does the applicant need to fill in `section` on this application?',
-      section: { heading: section, fields: labels },
+        'Does the applicant need to fill in `field` on this application?',
+      field:
+        field.name === undefined
+          ? fieldContext(field)
+          : roleFieldContext({
+              ...field,
+              name: field.name,
+              textAbove: field.textAbove ?? '',
+            }),
       checkedBoxes: checkedBoxes.map((box) => fieldContext(box)),
     },
     {
-      true: 'The section asks about a person or place this project has, such as the property owner, the job site, or a contractor when one is hired.',
+      true: 'The box asks about something this application has, such as its job site, its owner, or a contractor when one is hired.',
       false:
-        'The section is marked optional or “if applicable” and doesn’t apply, such as a contractor section when the owner is doing the work.',
+        'The box doesn’t apply to this application: it is optional or “if applicable”, it’s for something this project doesn’t have, such as a unit, structure or contractor, or the form limits it to a situation not shown here.',
     },
   )
 }

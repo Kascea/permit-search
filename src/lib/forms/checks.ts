@@ -29,7 +29,7 @@ export const CHECKS = {
   required: {
     runner: 'jev',
     describe:
-      'Is filled in, unless Jev says its section doesn’t apply to this application',
+      'Is filled in, unless it doesn’t clearly apply to this application',
   },
   signed: { runner: 'code', describe: 'Has a signature' },
   valueFitsLabel: {
@@ -112,17 +112,35 @@ export function checksFor(
 // unit number.
 const NEVER_REQUIRED_ROLES: ReadonlySet<FieldRole> = new Set(['propertyUnit'])
 
-// Required roles that apply to every application, so an empty one is
-// always missing. Any other required field under a heading is missing only
-// if Jev says its section applies: a contractor section doesn't when the
-// owner does the work.
-export const ALWAYS_APPLIES_ROLES: ReadonlySet<FieldRole> = new Set([
+// Required roles that apply to every application.
+const ALWAYS_APPLIES_ROLES: ReadonlySet<FieldRole> = new Set([
   'propertyAddress',
   'propertyZip',
   'workDescription',
   'estimatedCost',
   'signatureDate',
 ])
+
+// Whether an empty required field is missing without asking if it applies: the
+// form marks that field itself, or Jev is sure of a role every application needs.
+// A guessed role alone never is, as a table's "Covered patio" cell can read like a
+// description of work. Jev is asked about any other empty required field.
+export function isAlwaysMissing({
+  markedOnField,
+  role,
+  roleProbability,
+}: {
+  markedOnField: boolean
+  role: FieldRole | null
+  roleProbability: number | null
+}) {
+  return (
+    markedOnField ||
+    (role !== null &&
+      ALWAYS_APPLIES_ROLES.has(role) &&
+      (roleProbability ?? 0) >= YES_THRESHOLD)
+  )
+}
 
 export type IssueSeverity = 'error' | 'review' | 'missing'
 

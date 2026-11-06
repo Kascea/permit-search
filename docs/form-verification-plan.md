@@ -9,7 +9,7 @@ Built in `src/lib/forms/`, `src/components/FormCheckPanel.tsx` and the editor.
 Where the build differs from the plan below:
 
 - **Project as state.** When the form is in a project (or one was chosen in
-  the fill menu), the project's filled details go to Jev as `project`.
+  the Autofill tab), the project's filled details go to Jev as `project`.
   `matchesProject` applies to every text field: code skips the question when
   a role's project value is the same, and Jev judges the rest, so "Dr" and
   "Drive" match but a different phone number doesn't.
@@ -18,25 +18,23 @@ Where the build differs from the plan below:
 - **Fields the user places** are named from the stored page text and get
   `valueFitsLabel` and `matchesProject`. Their roles aren't saved on the
   draft yet.
-- **The section question** runs only for the owner, applicant and contractor
-  roles (`SECTION_DEPENDENT_ROLES`); other required fields are missing when
-  empty. It also sees the boxes the user checked, such as "Owner and
-  occupant".
 - **`descriptionSpecific`** flags a description when Jev puts at least 0.5 of
   its probability on the vaguest level. The expected score sat near 1 for
   descriptions with one detail, which aren't vague.
-- **Required fields.** A field is required when its role is one every form
-  needs (see `CHECKS_BY_ROLE`), the PDF flags it as required, Jev reads a
-  marker beside its label, or its heading carries one ("Property owner
-  *REQUIRED*"). Headings are asked about once each. Unit numbers are never
-  made required by a heading. Except for roles in `ALWAYS_APPLIES_ROLES`, an
-  empty required field under a heading is reported only when Jev is
-  confident its section applies; an unsure answer is silent.
+- **Required fields.** A field gets the required check when its role is one
+  every form needs (see `CHECKS_BY_ROLE`), the PDF flags it as required, Jev reads
+  a marker beside its label, or its heading carries one ("Property owner
+  *REQUIRED*"). Unit numbers are never made required by a heading. An empty one
+  is reported straight away only if the form marks that field itself, or Jev is
+  at least 0.7 sure of a role in `ALWAYS_APPLIES_ROLES`. Otherwise Jev is asked
+  whether that box applies to this application, and an unsure answer is silent.
+  A role alone isn't enough: a table's "Covered patio" cell can read like a
+  description of work.
 - **Dates.** The `dateCurrent` check flags a signature date more than 7 days
   old or in the future, including dates the user places.
 - **Autofill doesn't use roles.** It matches in code from field names and
   printed labels; see [autofill.ts](../src/lib/projects/autofill.ts). The plan
-  to improve it is in [form-labeling-plan.md](form-labeling-plan.md).
+  to improve it is in [autofill-plan.md](autofill-plan.md).
 - **Dropdowns, lists and radio buttons** get only the required check.
 - **Labels are read on the server** with the pdf.js legacy build, which adds
   about 0.5 MB gzipped to the Worker (2.6 MB in all).
@@ -173,7 +171,7 @@ export interface FormFieldSchema {
 | `required` | Code | An empty field the applicant must fill. Uses `officeUse` and whether the field's section applies. |
 | `signed` | Code | An empty signature line. |
 | `valueFitsLabel` | Jev Noul, per filled field | A value in the wrong box, such as autofill putting the owner's name in the contractor box. "Does `value` answer the form field labeled `label`?" |
-| `sectionApplies` (input to `required`) | Jev Noul, per section | A section that doesn't apply, such as the contractor section for an owner-builder. |
+| `boxApplies` (input to `required`) | Jev Noul, per empty box | A box that doesn't apply, such as a contractor box for an owner-builder or a unit the project doesn't have. |
 | `workTypeMatchesDescription` | Jev Noul, per checked option | "Deck" ticked on a fence permit. "Does `option` describe the work in `project.workDescription`?" |
 | `descriptionSpecific` | Jev Score | A vague description of work. Levels range from "names the structure only" to "gives size, materials and location". Cities send applications back for these. |
 

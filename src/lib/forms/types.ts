@@ -4,7 +4,7 @@ import type { FieldRole } from '#/lib/forms/roles'
 // Bump when the roles, the ingest questions, or how labels are read change.
 // Stored schemas from an older version are rebuilt the next time they're
 // needed.
-export const FORM_SCHEMA_VERSION = 2
+export const FORM_SCHEMA_VERSION = 3
 
 // A box on a page, in PDF points from the page's bottom-left corner.
 export interface PageRect {
@@ -37,8 +37,12 @@ export interface FormFieldSchema {
   // The printed line the field is on, with the field marked, such as
   // "Name: [this field] Email: ___".
   line: string
+  // Printed text just above or over the box, often what names a table's cell.
+  textAbove: string
   // What the field asks for. Null for checkboxes, and when Jev wasn't sure.
   role: FieldRole | null
+  // How sure Jev was of the role, from 0 to 1. Null when there's no role.
+  roleProbability: number | null
   // Checkboxes only: whether the box names a kind of work, such as "Deck".
   workType: boolean
   // For city staff to fill in, such as "Permit number" or "Fee".
@@ -47,6 +51,9 @@ export interface FormFieldSchema {
   // required, or Jev reads a marker such as "*" or "(required)" on its
   // line or heading.
   markedRequired: boolean
+  // The marking is on the field itself: the PDF's flag or a marker beside it,
+  // not just its heading, which may be for a section that doesn't apply.
+  markedOnField: boolean
   // Derived from the role and kind in code; stored so a schema can be audited.
   checks: Array<CheckId>
 }

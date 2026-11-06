@@ -21,10 +21,13 @@ import { AccountMenu } from '#/components/AccountMenu'
 import { SidebarBrand } from '#/components/AppSidebar'
 import { Breadcrumbs, OriginCrumb } from '#/components/Breadcrumbs'
 import { DraftSidebar } from '#/components/DraftSidebar'
+import { AutofillPanel } from '#/components/AutofillPanel'
+import type { AutofillFill, AutofillState } from '#/components/AutofillPanel'
 import { FormCheckPanel } from '#/components/FormCheckPanel'
 import type { FormCheckState } from '#/components/FormCheckPanel'
+import { FormPanel } from '#/components/FormPanel'
+import type { FormPanelTab } from '#/components/FormPanel'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
-import { ProjectFillMenu } from '#/components/ProjectFillMenu'
 import { SignInButton } from '#/components/SignInDialog'
 import { useAuth } from '#/lib/auth/use-auth'
 import { deleteAccountDraft } from '#/lib/drafts/drafts'
@@ -43,8 +46,12 @@ import {
 } from '#/lib/drafts/use-draft-autosave'
 import type { DraftStatus } from '#/lib/drafts/use-draft-autosave'
 import type { FieldIssue, IssueSeverity } from '#/lib/forms/checks'
-import { checkFormDraft, prepareFormSchema } from '#/lib/forms/forms'
-import { projectFills } from '#/lib/projects/autofill'
+import {
+  checkFormDraft,
+  findPageBoxes,
+  prepareFormSchema,
+} from '#/lib/forms/forms'
+import { boxValue, codeMatches, fillOptions } from '#/lib/projects/autofill'
 import type { Project } from '#/lib/projects/types'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 import { parseOrigin, searchLabel } from '#/lib/navigation/origin'
@@ -177,29 +184,24 @@ function PdfEditor({
   // The drafts drawer on small screens; the sidebar is always shown on large.
   const [isDraftsOpen, setIsDraftsOpen] = useState(false)
   const { projects } = useAccountProjects(signedIn)
-  // The project chosen in the fill menu, or the one the editor was opened from.
+  // The project chosen in the Autofill tab, or the one the editor was opened from.
   const [fillProjectId, setFillProjectId] = useState(projectId)
   // Each field's printed label, by field name, once the server has read the
   // form; autofill reads them along with the field names.
   const [formLabels, setFormLabels] = useState<Record<string, string>>({})
+  // The last Autofill: what it filled and what it couldn't.
+  const [autofill, setAutofill] = useState<AutofillState>()
   // The last form check, and the entries it checked, to tell when it's out
   // of date.
   const [formCheck, setFormCheck] = useState<FormCheckState>()
   const [checkedContent, setCheckedContent] = useState<string>()
-  const [isCheckOpen, setIsCheckOpen] = useState(false)
+  // The side panel's open tab, if it's open.
+  const [panelTab, setPanelTab] = useState<FormPanelTab>()
   const scrollRef = useRef<HTMLElement>(null)
   // Page 1's width at scale 1, for fitting the page to the window.
   const pageWidthRef = useRef(612)
 
-  const fieldCounts = useMemo(
-    () => ({
-      total: nativeFields.length,
-      filled: nativeFields.filter(isFilled).length,
-    }),
-    [nativeFields],
-  )
-
-  // The project Autofill fills from: the one chosen in its menu (or opened
+  // The project Autofill fills from: the one chosen in its tab (or opened
   // from), else the one holding this PDF. None when the PDF isn't in a
   // project, so Autofill asks which to use instead of guessing.
   const fillProject =
@@ -219,24 +221,13 @@ function PdfEditor({
                 name: field.name,
                 label: formLabels[field.name] ?? '',
                 width: field.widgets[0].width,
+                pageIndex: field.widgets[0].pageIndex,
                 isEmpty: !field.value.trim(),
               },
             ]
           : [],
       ),
     [nativeFields, formLabels],
-  )
-
-  // How many empty fields each project can fill, by public ID.
-  const fillCounts = useMemo(
-    () =>
-      new Map(
-        (projects ?? []).map((project) => [
-          project.publicId,
-          projectFills(textFields, project).size,
-        ]),
-      ),
-    [projects, textFields],
   )
 
   const draftContent = useMemo<DraftContent>(
@@ -281,7 +272,7 @@ function PdfEditor({
   }, [url, sourceHash, hasNativeFields])
 
   // The project the form is checked against: the one it's in, else the one
-  // chosen in the fill menu or opened from.
+  // chosen in the Autofill tab or opened from.
   const checkProject =
     projects?.find((project) =>
       project.items.some((item) => item.sourceUrl === url),
@@ -324,7 +315,7 @@ function PdfEditor({
   async function checkForm() {
     if (!sourceHash) return
 
-    setIsCheckOpen(true)
+    setPanelTab('check')
     setFormCheck({ status: 'checking' })
     const checked = contentKey
 
@@ -348,17 +339,12 @@ function PdfEditor({
     }
   }
 
-  // Scrolls to the field a finding is about and focuses it.
-  function showIssue(issue: FieldIssue) {
-    setIsCheckOpen(window.matchMedia('(min-width: 64rem)').matches)
-    const { target } = issue
-
-    const fieldId =
-      target.kind === 'native'
-        ? nativeFields.find((field) => field.name === target.name)?.id
-        : target.kind === 'placed'
-          ? target.id
-          : undefined
+  // Scrolls to a field and focuses it. Small screens close the panel, which
+  // would otherwise cover it.
+  function showField(fieldId: string | undefined, pageIndex: number) {
+    if (!window.matchMedia('(min-width: 64rem)').matches) {
+      setPanelTab(undefined)
+    }
 
     const element = fieldId
       ? scrollRef.current?.querySelector<HTMLElement>(
@@ -367,13 +353,32 @@ function PdfEditor({
       : null
 
     if (!element) {
-      scrollToPage(issue.pageIndex + 1)
+      scrollToPage(pageIndex + 1)
 
       return
     }
 
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
     element.focus({ preventScroll: true })
+  }
+
+  // Opens a tab of the side panel, or closes the panel if it's already showing.
+  function togglePanel(tab: FormPanelTab) {
+    setPanelTab((current) => (current === tab ? undefined : tab))
+  }
+
+  // Goes to the field a finding is about.
+  function showIssue(issue: FieldIssue) {
+    const { target } = issue
+
+    showField(
+      target.kind === 'native'
+        ? nativeFields.find((field) => field.name === target.name)?.id
+        : target.kind === 'placed'
+          ? target.id
+          : undefined,
+      issue.pageIndex,
+    )
   }
 
   useEffect(() => {
@@ -535,52 +540,6 @@ function PdfEditor({
     )
   }
 
-  // Scrolls to and focuses the first empty form field after the focused one,
-  // in reading order, wrapping to the start.
-  function focusNextEmptyField() {
-    const container = scrollRef.current
-
-    if (!container) return
-
-    const ordered = nativeFieldsRef.current
-      .filter((field) => field.widgets.length > 0)
-      .sort((a, b) => {
-        const [wa, wb] = [a.widgets[0], b.widgets[0]]
-
-        return (
-          wa.pageIndex - wb.pageIndex ||
-          wb.y + wb.height - (wa.y + wa.height) ||
-          wa.x - wb.x
-        )
-      })
-
-    const focused = document.activeElement
-
-    const focusedId =
-      focused instanceof HTMLElement ? focused.dataset.fieldId : undefined
-
-    const start = ordered.findIndex((field) => field.id === focusedId) + 1
-
-    const next = [...ordered.slice(start), ...ordered.slice(0, start)].find(
-      (field) => !isFilled(field),
-    )
-
-    const element = next
-      ? container.querySelector<HTMLElement>(
-          `[data-field-id="${CSS.escape(next.id)}"]`,
-        )
-      : null
-
-    element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    element?.focus({ preventScroll: true })
-  }
-
-  // The shortcut handler is attached once, so it reads fields from a ref.
-  const nativeFieldsRef = useRef(nativeFields)
-  nativeFieldsRef.current = nativeFields
-  const focusNextRef = useRef(focusNextEmptyField)
-  focusNextRef.current = focusNextEmptyField
-
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -613,8 +572,6 @@ function PdfEditor({
         zoom(1)
       } else if (key === '-') {
         zoom(-1)
-      } else if (key === 'n') {
-        focusNextRef.current()
       } else {
         return
       }
@@ -672,53 +629,196 @@ function PdfEditor({
     )
   }
 
-  // Fills the empty fields the project matches. Undo clears only the fields
-  // still holding the filled value, so later typing is kept.
-  function fillFromProject(project: Project) {
-    setFillProjectId(project.publicId)
-    const filled = projectFills(textFields, project)
-
-    if (filled.size === 0) {
-      toast(`“${project.name}” has nothing to fill in the empty fields.`)
-
-      return
-    }
-
-    const isFilledByProject = (field: NativeField) =>
-      field.kind === 'text' && filled.get(field.id) === field.value
+  function fillEmptyFields(fills: Array<AutofillFill>) {
+    const values = new Map(fills.map((fill) => [fill.fieldId, fill.value]))
 
     setNativeFields((current) =>
       current.map((field) =>
-        field.kind === 'text' && !field.value.trim() && filled.has(field.id)
-          ? { ...field, value: filled.get(field.id) ?? '' }
+        field.kind === 'text' && !field.value.trim() && values.has(field.id)
+          ? { ...field, value: values.get(field.id) ?? '' }
           : field,
       ),
     )
-    toast.success(
-      `Filled ${filled.size} ${filled.size === 1 ? 'field' : 'fields'} from “${project.name}”.`,
-      {
-        action: {
-          label: 'Undo',
-          onClick: () =>
-            setNativeFields((current) =>
-              current.map((field) =>
-                isFilledByProject(field) ? { ...field, value: '' } : field,
-              ),
-            ),
-        },
-      },
-    )
   }
 
-  // Deletes the saved draft and puts back the PDF's own values.
-  async function discardDraft() {
+  // Asks Jev, a page at a time, for the boxes of the values code couldn't place.
+  async function findBoxesWithJev(
+    project: Project,
+    optionIds: Array<string>,
+    boxes: typeof textFields,
+  ) {
+    const filled: Array<AutofillFill> = []
+    const foundOptionIds = new Set<string>()
+    const failedPages: Array<number> = []
+
+    if (!pdf || !sourceHash) {
+      return { filled, foundOptionIds, failedPages, skippedPages: [] }
+    }
+
+    const options = new Map(
+      fillOptions(project).map((option) => [option.id, option]),
+    )
+
+    const boxesByName = new Map(boxes.map((box) => [box.name, box]))
+
+    const allPages = [...new Set(boxes.map((box) => box.pageIndex))].sort(
+      (a, b) => a - b,
+    )
+
+    const pages = allPages.slice(0, AUTOFILL_MAX_PAGES)
+
+    for (
+      let start = 0;
+      start < pages.length;
+      start += AUTOFILL_PAGES_AT_ONCE
+    ) {
+      await Promise.all(
+        pages
+          .slice(start, start + AUTOFILL_PAGES_AT_ONCE)
+          .map(async (pageIndex) => {
+            try {
+              const { matches } = await findPageBoxes({
+                data: {
+                  sourceUrl: url,
+                  sourceHash,
+                  projectId: project.publicId,
+                  pageIndex,
+                  pageImage: await renderPageImage(pdf, pageIndex),
+                  fieldNames: boxes.flatMap((box) =>
+                    box.pageIndex === pageIndex ? [box.name] : [],
+                  ),
+                  optionIds,
+                },
+              })
+
+              const pageFills = matches.flatMap(({ boxName, optionId }) => {
+                const box = boxesByName.get(boxName)
+                const option = options.get(optionId)
+
+                if (!box || !option) return []
+
+                foundOptionIds.add(optionId)
+
+                return [
+                  {
+                    fieldId: box.id,
+                    pageIndex,
+                    label: option.label,
+                    value: boxValue(option, box.width),
+                  },
+                ]
+              })
+
+              console.info(`[autofill] page ${pageIndex + 1}`, { matches })
+
+              fillEmptyFields(pageFills)
+              filled.push(...pageFills)
+            } catch (cause) {
+              console.error(`[autofill] page ${pageIndex + 1} failed`, cause)
+              failedPages.push(pageIndex + 1)
+            }
+          }),
+      )
+    }
+
+    return {
+      filled,
+      foundOptionIds,
+      failedPages: failedPages.sort((a, b) => a - b),
+      skippedPages: allPages
+        .slice(AUTOFILL_MAX_PAGES)
+        .map((pageIndex) => pageIndex + 1),
+    }
+  }
+
+  // Autofill: fills what code can place, then asks Jev where the rest goes, and
+  // shows the results in the side panel.
+  async function fillFromProject(project: Project) {
+    if (autofill?.status === 'filling') return
+
+    const code = codeMatches(textFields, project)
+
+    const codeFills = textFields.flatMap((field) => {
+      const fill = code.fills.get(field.id)
+
+      return fill
+        ? [{ fieldId: field.id, pageIndex: field.pageIndex, ...fill }]
+        : []
+    })
+
+    fillEmptyFields(codeFills)
+
+    const remaining = fillOptions(project).filter(
+      ({ id }) => !code.placedOptionIds.has(id),
+    )
+
+    const boxes = textFields.filter(
+      (field) => field.isEmpty && !code.fills.has(field.id),
+    )
+
+    console.info('[autofill] code matched', {
+      filled: codeFills.length,
+      leftForJev: remaining.map(({ label }) => label),
+      emptyBoxes: boxes.length,
+    })
+
+    const projectName = project.name
+
+    setAutofill({ status: 'filling', projectName })
+
+    const jev =
+      remaining.length > 0 && boxes.length > 0
+        ? await findBoxesWithJev(
+            project,
+            remaining.map(({ id }) => id),
+            boxes,
+          )
+        : undefined
+
+    setAutofill({
+      status: 'done',
+      projectName,
+      filled: [...codeFills, ...(jev?.filled ?? [])].sort(
+        (a, b) => a.pageIndex - b.pageIndex,
+      ),
+      notFound: remaining
+        .filter(({ id }) => !jev?.foundOptionIds.has(id))
+        .map(({ label }) => label),
+      failedPages: jev?.failedPages ?? [],
+      skippedPages: jev?.skippedPages ?? [],
+    })
+  }
+
+  // Clears only the fields still holding the filled value, so later typing is
+  // kept.
+  function undoAutofill() {
+    if (autofill?.status !== 'done') return
+
+    const values = new Map(
+      autofill.filled.map((fill) => [fill.fieldId, fill.value]),
+    )
+
+    setNativeFields((current) =>
+      current.map((field) =>
+        field.kind === 'text' && values.get(field.id) === field.value
+          ? { ...field, value: '' }
+          : field,
+      ),
+    )
+    setAutofill(undefined)
+  }
+
+  // Clears everything entered: deletes the saved draft and puts back the PDF's
+  // own values.
+  async function clearForm() {
     if (!sourceBytes) return
 
     if (
       !(await confirm({
-        title: 'Discard your saved entries for this form?',
-        message: 'The form goes back to its original values.',
-        confirmLabel: 'Discard entries',
+        title: 'Clear this form?',
+        message:
+          'This removes everything you’ve entered and any fields you’ve added. It can’t be undone.',
+        confirmLabel: 'Clear form',
         isDestructive: true,
       }))
     ) {
@@ -742,10 +842,10 @@ function PdfEditor({
       setPlacedFields([])
       setDraftNotice('')
       setDraftStatus('idle')
-    } catch (discardError) {
-      toast.error(
-        errorMessage(discardError, 'The draft couldn’t be discarded.'),
-      )
+      setAutofill(undefined)
+      setFormCheck(undefined)
+    } catch (clearError) {
+      toast.error(errorMessage(clearError, 'The form couldn’t be cleared.'))
     }
   }
 
@@ -906,27 +1006,39 @@ function PdfEditor({
               {pdf && (
                 <>
                   {signedIn && (
-                    <ProjectFillMenu
-                      projects={projects}
-                      project={fillProject}
-                      fillCounts={fillCounts}
-                      onFill={fillFromProject}
-                      item={{ sourceUrl: url, title: draftTitle(url) }}
-                    />
+                    <button
+                      aria-expanded={panelTab === 'autofill'}
+                      aria-label="Autofill"
+                      className={`flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition sm:pr-3 ${
+                        panelTab === 'autofill'
+                          ? 'border-blueprint bg-blueprint/10 text-blueprint'
+                          : 'border-ink/35 text-ink hover:border-ink'
+                      }`}
+                      onClick={() => togglePanel('autofill')}
+                      title="Show Autofill"
+                      type="button"
+                    >
+                      <Icon path="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                      <span className="hidden sm:inline">Autofill</span>
+                    </button>
                   )}
                   <div className="hidden sm:block">
                     <DraftStatusLabel
-                      onDiscard={() => void discardDraft()}
+                      onDiscard={() => void clearForm()}
                       signedIn={signedIn}
                       status={draftStatus}
                     />
                   </div>
                   <button
-                    aria-expanded={isCheckOpen}
-                    className="flex h-8 items-center gap-1.5 rounded-full border border-ink/35 pr-3 pl-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:opacity-50"
-                    disabled={!sourceHash || formCheck?.status === 'checking'}
-                    onClick={() => void checkForm()}
-                    title="Check your entries for mistakes"
+                    aria-expanded={panelTab === 'check'}
+                    className={`flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-2.5 text-xs font-medium transition disabled:opacity-50 ${
+                      panelTab === 'check'
+                        ? 'border-blueprint bg-blueprint/10 text-blueprint'
+                        : 'border-ink/35 text-ink hover:border-ink'
+                    }`}
+                    disabled={!sourceHash}
+                    onClick={() => togglePanel('check')}
+                    title="Show the form check"
                     type="button"
                   >
                     <Icon path="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -1043,42 +1155,15 @@ function PdfEditor({
                   </SegmentGroup>
                 )}
 
-                {fieldCounts.total > 0 && (
-                  <button
-                    className="group flex h-8 shrink-0 items-center gap-2 rounded-xs border border-ink/30 px-2.5 text-xs font-medium text-ink transition hover:border-ink disabled:cursor-default disabled:hover:border-ink/30"
-                    disabled={fieldCounts.filled === fieldCounts.total}
-                    onClick={focusNextEmptyField}
-                    title="Go to the next empty field (N)"
-                    type="button"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="h-1.5 w-12 overflow-hidden rounded-full bg-ink/15"
-                    >
-                      <span
-                        className={`block h-full transition-[width] ${
-                          fieldCounts.filled === fieldCounts.total
-                            ? 'bg-success'
-                            : 'bg-blueprint'
-                        }`}
-                        style={{
-                          width: `${(fieldCounts.filled / fieldCounts.total) * 100}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="whitespace-nowrap tabular-nums">
-                      {fieldCounts.filled}/{fieldCounts.total}
-                    </span>
-                    <span className="hidden whitespace-nowrap text-ink/70 group-enabled:group-hover:text-ink sm:inline">
-                      {fieldCounts.filled === fieldCounts.total
-                        ? 'All filled'
-                        : 'Next empty'}
-                    </span>
-                    {fieldCounts.filled < fieldCounts.total && (
-                      <Icon path="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                    )}
-                  </button>
-                )}
+                <button
+                  className="flex h-8 shrink-0 items-center gap-1.5 rounded-xs border border-ink/30 px-2.5 text-xs font-medium whitespace-nowrap text-ink transition hover:border-redline hover:text-redline disabled:opacity-50"
+                  disabled={!sourceBytes || autofill?.status === 'filling'}
+                  onClick={() => void clearForm()}
+                  title="Clear everything you’ve entered on this form"
+                  type="button"
+                >
+                  Clear form
+                </button>
               </div>
             )}
 
@@ -1181,21 +1266,45 @@ function PdfEditor({
         </section>
       </div>
 
-      {isCheckOpen && shownCheck && (
+      {panelTab && (
         <>
           <button
-            aria-label="Close form check"
+            aria-label="Close panel"
             className="fixed inset-0 z-[60] bg-ink/40 lg:hidden"
-            onClick={() => setIsCheckOpen(false)}
+            onClick={() => setPanelTab(undefined)}
             type="button"
           />
           <aside className="fixed inset-y-0 right-0 z-[60] flex w-80 max-w-[85vw] flex-col border-l border-ink bg-paper lg:static lg:z-auto lg:max-w-none lg:shrink-0">
-            <FormCheckPanel
-              state={shownCheck}
-              onCheck={() => void checkForm()}
-              onClose={() => setIsCheckOpen(false)}
-              onSelect={showIssue}
-            />
+            <FormPanel
+              tab={panelTab}
+              hasAutofill={signedIn}
+              onTab={setPanelTab}
+              onClose={() => setPanelTab(undefined)}
+            >
+              {panelTab === 'autofill' ? (
+                <AutofillPanel
+                  state={autofill}
+                  emptyBoxes={
+                    textFields.filter((field) => field.isEmpty).length
+                  }
+                  projects={projects}
+                  project={fillProject}
+                  item={{ sourceUrl: url, title: draftTitle(url) }}
+                  onChoose={setFillProjectId}
+                  onFill={() => {
+                    if (fillProject) void fillFromProject(fillProject)
+                  }}
+                  onUndo={undoAutofill}
+                  onSelect={(fill) => showField(fill.fieldId, fill.pageIndex)}
+                />
+              ) : (
+                <FormCheckPanel
+                  state={shownCheck}
+                  onCheck={() => void checkForm()}
+                  onSelect={showIssue}
+                />
+              )}
+            </FormPanel>
           </aside>
         </>
       )}
@@ -1737,6 +1846,40 @@ function applyNativeValues(
 // The PDF proxy's error response.
 const pdfErrorSchema = z.object({ error: z.string() })
 
+// Pages autofill sends to Jev per press, and how many at a time.
+const AUTOFILL_MAX_PAGES = 12
+const AUTOFILL_PAGES_AT_ONCE = 3
+
+// Jev rejects images with a side over this many pixels.
+const MAX_PAGE_IMAGE_SIDE = 1568
+
+// A page as a base64 JPEG for Jev. Rendered without form fields, so it shows the
+// blank form and none of the values typed into it.
+async function renderPageImage(pdf: PDFDocumentProxy, pageIndex: number) {
+  const page = await pdf.getPage(pageIndex + 1)
+  const { width, height } = page.getViewport({ scale: 1 })
+
+  const viewport = page.getViewport({
+    scale: MAX_PAGE_IMAGE_SIDE / Math.max(width, height),
+  })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.floor(viewport.width)
+  canvas.height = Math.floor(viewport.height)
+  const context = canvas.getContext('2d')
+
+  if (!context) throw new UserError('This page couldn’t be read.')
+
+  await page.render({
+    canvas,
+    canvasContext: context,
+    viewport,
+    annotationMode: 0,
+  }).promise
+
+  return canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? ''
+}
+
 async function fetchPdfBytes(url: string) {
   const response = await fetch(pdfProxyUrl(url))
 
@@ -1964,14 +2107,6 @@ function fitWidthScale(container: HTMLElement | null, pageWidth: number) {
   const fitted = Math.round((available / pageWidth) * 20) / 20
 
   return Math.min(Math.max(fitted, ZOOM_STEPS[0]), 1.75)
-}
-
-function isFilled(field: NativeField) {
-  if (field.kind === 'checkbox') return field.checked
-
-  if (field.kind === 'multiple') return field.values.length > 0
-
-  return field.value.trim() !== ''
 }
 
 function hostname(url: string) {

@@ -169,6 +169,29 @@ function textAbove(rect: PageRect, lines: Array<TextLine>) {
     .at(0)?.text
 }
 
+// Printed text just above a box or across its top half, nearest last. A table
+// cell or large box is often named here while unrelated text shares its row.
+export function textOverBox(rect: PageRect, lines: Array<TextLine>) {
+  const top = rect.y + rect.height
+
+  return tidy(
+    lines
+      .filter(
+        (line) =>
+          line.pageIndex === rect.pageIndex &&
+          line.x < rect.x + rect.width &&
+          line.x + line.width > rect.x &&
+          line.y >= rect.y + rect.height * 0.5 &&
+          line.y <= top + 24 &&
+          !line.text.includes('__'),
+      )
+      .sort((a, b) => b.y - a.y)
+      .slice(-2)
+      .map(({ text }) => text)
+      .join(' '),
+  )
+}
+
 // The label printed beside a field. Text fields are labeled on their left
 // ("Phone: ____"); checkboxes on their right ("☐ Furnace").
 export function fieldLabel(
