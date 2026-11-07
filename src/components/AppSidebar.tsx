@@ -280,13 +280,12 @@ function VisitorFoot({ isCollapsed }: { isCollapsed: boolean }) {
           <SignInButton
             ariaLabel="Sign in"
             title="Sign in"
-            className="grid size-8 place-items-center rounded-full border border-ink text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
+            className="grid size-8 place-items-center rounded-full bg-blueprint text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint"
           >
             <SidebarIcon path="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
           </SignInButton>
         ) : (
-          // Outlined: a page's own sign-in prompt is its one primary button.
-          <SignInButton className="w-full rounded-full border border-ink px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint" />
+          <SignInButton className="w-full rounded-full bg-blueprint px-5 py-2.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint" />
         )}
       </div>
     </>

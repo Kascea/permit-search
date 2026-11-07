@@ -45,7 +45,8 @@ function subscribe(listener: () => void) {
 
 // Whether AppSidebar is beside this page, from lg up. Everyone gets it, so
 // signing in doesn't move anything. The exceptions: the editor has its own file
-// panel, and the signed-out home page stands alone, as the site's front door.
+// panel, and the signed-out home page has its own top bar, as the site's front
+// door.
 export function useHasAppSidebar() {
   const { user } = rootRoute.useLoaderData()
 

@@ -38,7 +38,7 @@ export function SignInDialog({ isOpen, onClose, ...options }: SignInDialogProps)
 
 // A button that opens the sign-in dialog. Pass a className to restyle it.
 export function SignInButton({
-  className = 'shrink-0 rounded-full border border-ink px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint',
+  className = 'shrink-0 rounded-full bg-blueprint px-3 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blueprint',
   children = 'Sign in',
   title,
   ariaLabel,

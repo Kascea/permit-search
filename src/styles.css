@@ -7,9 +7,6 @@
   --color-blueprint: #1968b4;
   --color-blueprint-deep: #145390;
   --color-redline: #953012;
-  /* Helpers for the blue footer and success states. */
-  --color-blueprint-pale: #d1e1f0;
-  --color-coral: #ff8a7a;
   --color-success: #2e7d32;
   /* Solid paper tinted 10% toward success or redline, for notices and toasts
      that sit over other content and so can't be see-through. */

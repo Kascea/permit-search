@@ -17,8 +17,7 @@ classes (`text-ink`, `bg-paper`, `border-blueprint`), never raw hex values.
   group. Avoid floating cards and rounded panels. Only the modal casts a
   shadow, because it really does sit above the page.
 - **One accent.** Blueprint blue marks what you can act on and the small labels
-  above headings. Its one large surface is the footer. Redline is only for
-  errors and warnings.
+  above headings. Redline is only for errors and warnings.
 - **Flat and quiet.** No gradients, no glows, no white surfaces, and no colors
   outside the palette.
 
@@ -29,13 +28,11 @@ The palette is taken from The American Housing Corporation's site
 
 | Token            | Value     | Use                                                       |
 | ---------------- | --------- | --------------------------------------------------------- |
-| `paper`          | `#fdfff1` | Page background, headers, text on blue                    |
+| `paper`          | `#fdfff1` | Page background, headers, text on blue or ink fills       |
 | `ink`            | `#302d2d` | Text, rules, field borders                                |
 | `blueprint`      | `#1968b4` | Primary buttons, links, small labels, focus, selection    |
 | `blueprint-deep` | `#145390` | Hover state for blueprint fills                           |
 | `redline`        | `#953012` | Errors, destructive actions, the PDF badge                |
-| `blueprint-pale` | `#d1e1f0` | Rules, outlines and hover tints on a blue surface         |
-| `coral`          | `#ff8a7a` | Error text on a blue surface, where redline can't be read |
 | `success`        | `#2e7d32` | Success: the "Saved." chip, a fully filled form           |
 
 Use `success` like the other accents: `bg-success/10 text-success` for a
@@ -104,7 +101,7 @@ names the sheet ("Permit sources", "City permit office").
 **Primary button.**
 `rounded-full bg-blueprint text-paper hover:bg-blueprint-deep`, with a
 blueprint focus outline (`focus-visible:outline-2 outline-offset-2`). Use at
-most one per view.
+most one per view, apart from "Sign in", which is always blue for a visitor.
 
 **Secondary chip** (such as "Detect my city"). `rounded-full border
 border-ink/40 text-xs`. On hover it inverts to `bg-ink text-paper`.
@@ -177,8 +174,8 @@ arrives.
 
 **App frame.** `AppSidebar` sits beside every page from lg up, signed in or not
 (`useHasAppSidebar`), so signing in fills it in rather than moving anything. The
-exceptions are the editor and the signed-out home page, which stands alone with
-no header or sidebar. Visitors see the same rows, with a lock on the ones that
+exceptions are the editor and the signed-out home page, which has its own top
+bar and no sidebar. Visitors see the same rows, with a lock on the ones that
 need an account, and "Sign in" where the account row sits.
 
 **Sign-in gates.** An account-only page shows `<SignInGate>` with one line on
@@ -194,6 +191,10 @@ with a pin and a blue search button shows the current city (or "Search for a
 permit") and opens the search modal, which `SiteHeader` owns. Below lg, the
 account menu holds the page links, for visitors too.
 
+**Home page top bar.** The signed-out home page swaps `SiteHeader` for a bar of
+the same height and rule: the logo on the left, then "Your drafts" and a primary
+"Sign in" button on the right.
+
 **Editor tool row.** In the PDF editor, the field tools, zoom and pages sit on
 plain paper in `border-ink/30` groups. Only the field tool icons are
 blueprint, and the selected tool fills solid blueprint. Don't tint the row.
@@ -205,12 +206,10 @@ It fades and rises in over 180ms. Draw the panel with `modalPanelClass`, and
 put a header row with the title on the left and `ModalCloseButton` on the
 right.
 
-**Footer.** `SiteFooter` on every page except the editor, and below lg wherever
-`AppSidebar` is: a slim
-`bg-blueprint` strip, one line of `text-xs` paper text. On the left, a small
-logo with the copyright and disclaimer (`text-paper/70`). On the right,
-"About" and "Contact us" in `font-medium`, fading on hover. Keep it compact so
-the blue stays an accent. The contact address lives in `src/lib/site.ts`.
+**No footer.** Pages end with their content. About and Contact us live in
+`AppSidebar` and the account menu, and the "confirm with your permitting office"
+reminder sits with the content it applies to. The contact address lives in
+`src/lib/site.ts`.
 
 **One way to do each thing.** Don't add a second link or button for an action
 the page already offers. Reporting incorrect results, for example, lives only

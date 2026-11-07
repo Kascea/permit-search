@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
 
-import { SiteFooter } from '#/components/SiteFooter'
 import { SiteHeader } from '#/components/SiteHeader'
 import { useHasAppSidebar } from '#/lib/navigation/sidebar'
 
@@ -8,8 +7,8 @@ type AppPageProps = ComponentProps<typeof SiteHeader> & {
   // Full page width, such as results with their sidebar, instead of one
   // reading column.
   wide?: boolean
-  // For the signed-out home page, which stands alone.
-  hideHeader?: boolean
+  // In place of SiteHeader, for the signed-out home page's own top bar.
+  topBar?: ReactNode
   children: ReactNode
 }
 
@@ -23,11 +22,11 @@ const GRID_MAIN = 'lg:mx-0 lg:max-w-none lg:px-8'
 const GRID_COLUMN = 'lg:sheet-column'
 const GRID_WIDE_COLUMN = 'lg:sheet-column-wide'
 
-// Every page's frame but the editor's: header, content column and footer.
-// Beside AppSidebar, from lg up, it replaces the header's logo and the footer.
+// Every page's frame but the editor's: header and content column. Beside
+// AppSidebar, from lg up, the sidebar replaces the header's logo.
 export function AppPage({
   wide = false,
-  hideHeader = false,
+  topBar,
   children,
   ...header
 }: AppPageProps) {
@@ -39,7 +38,7 @@ export function AppPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      {!hideHeader && <SiteHeader {...header} />}
+      {topBar ?? <SiteHeader {...header} />}
 
       <main
         className={`mx-auto w-full max-w-280 flex-1 px-4 pt-8 sm:px-6 ${
@@ -48,8 +47,6 @@ export function AppPage({
       >
         <div className={`py-8 ${columnClass}`}>{children}</div>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }

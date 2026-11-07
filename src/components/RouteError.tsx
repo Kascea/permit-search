@@ -3,7 +3,6 @@ import type { ErrorComponentProps } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
-import { SiteFooter } from '#/components/SiteFooter'
 import { errorMessage } from '#/lib/errors'
 
 // Shown when a page fails to load. Server errors arrive already made generic
@@ -107,8 +106,6 @@ function ErrorPage({
           </div>
         </section>
       </main>
-
-      <SiteFooter />
     </div>
   )
 }

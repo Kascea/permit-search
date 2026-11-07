@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { HowItWorks, SupportedPortals } from '#/components/AboutSections'
 import { AppPage } from '#/components/AppPage'
 import { AddToProjectDialog } from '#/components/AddToProjectDialog'
-import { rowPrimaryButtonClass } from '#/components/buttons'
+import { primaryButtonClass, rowPrimaryButtonClass } from '#/components/buttons'
 import { EditedDate } from '#/components/EditedDate'
 import { PermitSearchForm } from '#/components/PermitSearchForm'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
@@ -25,7 +25,7 @@ import type { Project } from '#/lib/projects/types'
 import { formatProjectAddress } from '#/lib/projects/types'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
 import { searchPageTarget } from '#/lib/search/pending-search'
-import { SITE_URL } from '#/lib/site'
+import { CONTACT_EMAIL, SITE_URL } from '#/lib/site'
 
 const HOME_TITLE = 'Permit Search | Find local permit requirements'
 
@@ -61,6 +61,21 @@ function Home() {
   return dashboard ? <DashboardPage dashboard={dashboard} /> : <Landing />
 }
 
+const AUDIENCES = [
+  {
+    title: 'Homeowners',
+    body: 'Planning a deck, a new roof or a remodel? See which permit pages and forms cover the work, without digging through your city’s website.',
+  },
+  {
+    title: 'Contractors and builders',
+    body: 'Working in more than one city? Find each city’s forms in one place, and enter a job’s details once to autofill them.',
+  },
+]
+
+// Shown when signing in or creating an account from the home page. The dialog
+// switches between the two, so it has to read right for both.
+const SIGN_IN_REASON = 'Keep your projects, forms and permits in one place.'
+
 // What a visitor can do straight away, and what an account adds. The second
 // list is what's gated, so keep it in step with the sign-in checks.
 const WITHOUT_ACCOUNT = [
@@ -78,27 +93,50 @@ const WITH_ACCOUNT = [
   'Keep your drafts in your account and open them anywhere',
 ]
 
+// The signed-out home page's header: the logo, and the way in for people who
+// already use the site.
+function LandingTopBar() {
+  return (
+    <header className="sticky top-0 z-40 bg-sheet px-4 rule-b sm:px-6">
+      <div className="mx-auto flex h-14 max-w-280 items-center gap-4">
+        <p className="mr-auto flex items-center gap-2.5 text-sm font-medium tracking-tight text-ink">
+          <PermitSearchLogo className="size-7" />
+          <span className="hidden min-[24rem]:block">Permit Search</span>
+        </p>
+        <Link
+          to="/drafts"
+          className="shrink-0 text-sm font-medium text-ink underline-offset-2 hover:text-blueprint hover:underline"
+        >
+          Your drafts
+        </Link>
+        <SignInButton
+          className={primaryButtonClass}
+          reason={SIGN_IN_REASON}
+        />
+      </div>
+    </header>
+  )
+}
+
 // For visitors who aren't signed in: the search form first, since searching is
-// why most come, then what the site is. It stands alone, with no header or
-// sidebar, so its logo and sign-in link are its own. Rendered on the server, so
-// search engines read all of it. Signed-in users search from the header's
-// search pill.
+// why most come, then who the site is for and what it does. Rendered on the
+// server, so search engines read all of it. Signed-in users search from the
+// header's search pill.
 function Landing() {
   const navigate = useNavigate()
 
   return (
-    <AppPage hideHeader>
+    <AppPage topBar={<LandingTopBar />}>
       <div className="mb-10 text-center">
-        <p className="mb-8 inline-flex items-center gap-2.5 text-sm font-medium tracking-tight text-ink">
-          <PermitSearchLogo className="size-8" />
-          Permit Search
+        <p className="mb-4 text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
+          For homeowners and contractors
         </p>
         <h1 className="text-[clamp(3rem,9vw,5.5rem)] leading-[1] font-medium tracking-[-0.04em] text-ink">
           Find your city permit.
         </h1>
-        <p className="mx-auto mt-6 max-w-lg text-lg leading-6 font-medium text-ink">
-          Select your city and describe the work you’re planning. We’ll find
-          the official pages and forms.
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-6 font-medium text-ink">
+          Tell us your city and the work you’re planning. We’ll find the
+          official pages and forms, then help you fill them out.
         </p>
       </div>
 
@@ -113,18 +151,22 @@ function Landing() {
         }
       />
 
-      {/* The way in for people who already use the site. A div, as the button
-          brings its dialog, which can't sit in a paragraph. */}
-      <div className="mt-4 text-center text-sm text-ink/70">
-        Already have an account?{' '}
-        <SignInButton className="font-medium text-blueprint underline-offset-2 hover:underline" />
-        {' · '}
-        <Link
-          to="/drafts"
-          className="font-medium text-blueprint underline-offset-2 hover:underline"
-        >
-          Your drafts
-        </Link>
+      <p className="mt-4 text-center text-sm text-ink/70">
+        No account needed to search.
+      </p>
+
+      <h2 className="mt-10 border-t border-ink pt-5 text-xs font-medium tracking-[0.16em] text-ink/70 uppercase">
+        Who it’s for
+      </h2>
+      <div className="mt-4 grid gap-6 sm:grid-cols-2 sm:gap-8">
+        {AUDIENCES.map((audience) => (
+          <div key={audience.title}>
+            <h3 className="font-medium text-ink">{audience.title}</h3>
+            <p className="mt-1 text-base leading-6 text-ink/70">
+              {audience.body}
+            </p>
+          </div>
+        ))}
       </div>
 
       <HowItWorks />
@@ -141,6 +183,7 @@ function Landing() {
           <SignInButton
             className={`mt-5 ${rowPrimaryButtonClass}`}
             initialMode="sign-up"
+            reason={SIGN_IN_REASON}
           >
             Create an account
           </SignInButton>
@@ -152,7 +195,21 @@ function Landing() {
       <p className="mt-8 border-t border-ink pt-5 text-base leading-6 text-ink/70">
         Permit Search points you to official sources but isn’t one. Requirements
         change, so always confirm with your local permitting office before you
-        start work.
+        start work. Questions?{' '}
+        <Link
+          to="/about"
+          className="font-medium text-blueprint underline-offset-2 hover:underline"
+        >
+          Read more about us
+        </Link>{' '}
+        or{' '}
+        <a
+          href={`mailto:${CONTACT_EMAIL}`}
+          className="font-medium text-blueprint underline-offset-2 hover:underline"
+        >
+          email us
+        </a>
+        .
       </p>
     </AppPage>
   )

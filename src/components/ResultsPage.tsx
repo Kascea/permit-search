@@ -99,7 +99,6 @@ export function ResultsPage({
 
           <div className="lg:col-start-1 lg:row-start-2">
             {children}
-            {/* Was in SiteFooter, which isn't beside AppSidebar. */}
             <p className="mt-2 border-t border-ink/20 pt-4 text-sm text-ink/70">
               Always confirm requirements with your local permitting office.
               {searchSlug && (
