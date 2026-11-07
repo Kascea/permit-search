@@ -1,9 +1,11 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
 import type { Database } from '#/lib/db/client.server'
 import {
   cities,
+  pdfDrafts,
   portalPermitTypes,
   projectItems,
   projects,
@@ -109,6 +111,7 @@ interface ItemRow {
   kind: 'pdf' | 'online'
   sourceUrl: string
   title: string
+  filedAt: string | null
   typeId: number | null
   typeProvider: string | null
   typeJurisdiction: string | null
@@ -135,6 +138,7 @@ function itemFromRow(row: ItemRow): ProjectItem {
     kind: row.kind,
     sourceUrl: row.sourceUrl,
     title: row.title,
+    filedAt: row.filedAt ?? undefined,
     search: searchLinkFromColumns(row),
     permit: trackedPermitFromRow(row),
     online: portalTypeFromRow(row),
@@ -262,6 +266,7 @@ export async function listProjects(
             'kind', item.kind,
             'sourceUrl', item.source_url,
             'title', item.title,
+            'filedAt', item.filed_at,
             'searchSlug', search.slug,
             'permit', search.permit_query,
             'cityName', city.name,
@@ -337,15 +342,57 @@ export async function createProject(
   }
 
   await db.execute(sql`
-    with project as (${insert.returning({ id: projects.id }).getSQL()})
-    insert into ${projectItems}
-      (project_id, kind, source_url, title, search_id, portal_permit_type_id)
-    select id, ${input.item.kind}, ${input.item.sourceUrl}, ${input.item.title},
-      ${searchRunColumn(searches.id, input.item.searchSlug)}, ${input.item.portalPermitTypeId}
-    from project
+    with project as (${insert.returning({ id: projects.id }).getSQL()}),
+    item as (
+      insert into ${projectItems}
+        (project_id, kind, source_url, title, search_id, portal_permit_type_id)
+      select id, ${input.item.kind}, ${input.item.sourceUrl}, ${input.item.title},
+        ${searchRunColumn(searches.id, input.item.searchSlug)}, ${input.item.portalPermitTypeId}
+      from project
+      returning id
+    )
+    ${adoptLooseDraft(userId, input.item.sourceUrl)}
   `)
 
   return publicId
+}
+
+// Moves the user's draft of a form outside any project to the form just added
+// (the "item" row of the statement this ends), so "Add to project" brings their
+// answers along. There's only one such draft, so at most one project gets it,
+// and the next project starts blank.
+function adoptLooseDraft(userId: string, sourceUrl: string) {
+  return sql`
+    update ${pdfDrafts} set project_item_id = item.id
+    from item
+    where ${pdfDrafts.userId} = ${userId}
+      and ${pdfDrafts.sourceUrl} = ${sourceUrl}
+      and ${pdfDrafts.projectItemId} is null
+  `
+}
+
+// Clears the way for the given items to be deleted. Their drafts stay, moving
+// outside a project, but a user has only one draft of a URL there. So when one
+// is already there, the older of the two goes. Runs inside the statement that
+// deletes the items: database rules that move the drafts run when it ends.
+function dropOlderDrafts(items: SQL) {
+  return sql`
+    dropped as (
+      delete from ${pdfDrafts}
+      where ${pdfDrafts.id} in (
+        select case
+          when attached.updated_at > loose.updated_at then loose.id
+          else attached.id
+        end
+        from ${pdfDrafts} as attached
+        join ${pdfDrafts} as loose
+          on loose.user_id = attached.user_id
+          and loose.source_url = attached.source_url
+          and loose.project_item_id is null
+        where attached.project_item_id in (${items})
+      )
+    )
+  `
 }
 
 // Replaces the project's name, city, details and extra fields.
@@ -361,13 +408,20 @@ export async function updateProject(
     .where(ownedBy(userId, publicId))
 }
 
-// Its items go with it.
+// Its items go with it; their drafts stay, outside a project.
 export async function deleteProject(
   db: Database,
   userId: string,
   publicId: string,
 ) {
-  await db.delete(projects).where(ownedBy(userId, publicId))
+  await db.execute(sql`
+    with ${dropOlderDrafts(sql`
+      select item.id from ${projectItems} as item
+      join ${projects} on ${projects.id} = item.project_id
+      where ${ownedBy(userId, publicId)}
+    `)}
+    delete from ${projects} where ${ownedBy(userId, publicId)}
+  `)
 }
 
 // Moves the project to the top of the list and adds the item, unless it's
@@ -383,24 +437,51 @@ export async function addProjectItem(
       update ${projects} set updated_at = now()
       where ${ownedBy(userId, publicId)}
       returning id
+    ),
+    item as (
+      insert into ${projectItems}
+        (project_id, kind, source_url, title, search_id, portal_permit_type_id)
+      select id, ${item.kind}, ${item.sourceUrl}, ${item.title},
+        ${searchRunColumn(searches.id, item.searchSlug)}, ${item.portalPermitTypeId}
+      from project
+      on conflict do nothing
+      returning id
     )
-    insert into ${projectItems}
-      (project_id, kind, source_url, title, search_id, portal_permit_type_id)
-    select id, ${item.kind}, ${item.sourceUrl}, ${item.title},
-      ${searchRunColumn(searches.id, item.searchSlug)}, ${item.portalPermitTypeId}
-    from project
-    on conflict do nothing
+    ${adoptLooseDraft(userId, item.sourceUrl)}
   `)
 }
 
+// Its draft stays, outside a project.
 export async function removeProjectItem(
   db: Database,
   userId: string,
   publicId: string,
   sourceUrl: string,
 ) {
+  const item = sql`
+    select ${projectItems.id} from ${projectItems}
+    join ${projects} on ${projects.id} = ${projectItems.projectId}
+    where ${projectItems.sourceUrl} = ${sourceUrl}
+      and ${ownedBy(userId, publicId)}
+  `
+
+  await db.execute(sql`
+    with ${dropOlderDrafts(item)}
+    delete from ${projectItems} where ${projectItems.id} in (${item})
+  `)
+}
+
+// Marks a form as filed with the city, or not.
+export async function setProjectItemFiled(
+  db: Database,
+  userId: string,
+  publicId: string,
+  sourceUrl: string,
+  filed: boolean,
+) {
   await db
-    .delete(projectItems)
+    .update(projectItems)
+    .set({ filedAt: filed ? new Date() : null })
     .where(
       and(
         eq(projectItems.sourceUrl, sourceUrl),

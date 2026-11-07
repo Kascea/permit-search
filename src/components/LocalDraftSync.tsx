@@ -20,7 +20,7 @@ export function LocalDraftSync() {
     importAccountDrafts({ data: { drafts: drafts.slice(0, 100) } })
       .then(() => {
         for (const draft of drafts.slice(0, 100)) {
-          deleteLocalDraft(draft.sourceUrl)
+          deleteLocalDraft(draft.sourceUrl, draft.projectId)
         }
 
         // The page may have loaded the account's drafts before these joined.

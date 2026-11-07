@@ -41,6 +41,7 @@ export function AutofillPanel({
   project,
   item,
   onChoose,
+  onAdded,
   onFill,
   onUndo,
   onSelect,
@@ -56,6 +57,8 @@ export function AutofillPanel({
   // The open PDF, so it can be added to the project.
   item: { sourceUrl: string; title: string }
   onChoose: (publicId: string) => void
+  // The open PDF joined this project.
+  onAdded: (publicId: string) => void
   onFill: () => void
   onUndo: () => void
   onSelect: (fill: AutofillFill) => void
@@ -70,6 +73,7 @@ export function AutofillPanel({
         item={item}
         disabled={isFilling}
         onChoose={onChoose}
+        onAdded={onAdded}
       />
       {isFilling ? (
         <p className="flex items-center gap-3 px-4 py-6 text-sm text-ink/70">
@@ -120,12 +124,14 @@ function ProjectPicker({
   item,
   disabled,
   onChoose,
+  onAdded,
 }: {
   projects: Array<Project> | undefined
   project: Project | undefined
   item: { sourceUrl: string; title: string }
   disabled: boolean
   onChoose: (publicId: string) => void
+  onAdded: (publicId: string) => void
 }) {
   const [isAdding, setIsAdding] = useState(false)
 
@@ -138,6 +144,7 @@ function ProjectPicker({
           data: { publicId: target.publicId, item },
         }),
       )
+      onAdded(target.publicId)
     } catch {
       toast.error('This form couldn’t be added to the project. Try again.')
     } finally {

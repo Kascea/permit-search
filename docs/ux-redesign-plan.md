@@ -179,8 +179,24 @@ it a second, separate project form.
 
 ### 2b. Keeping saved forms current
 
-Cities replace their forms without notice. For now the library only shows
-how old each stored copy is:
+Cities replace and remove their forms without notice. The city's link is the
+source, so a form the city stops posting doesn't quietly keep being filled out.
+A stored copy in R2 only stands in for work already started, and is kept once a
+signed-in user's draft is saved, not on every open. Each open, in `openForm`:
+
+| City's link returns | New form | Draft | Filed form |
+|---|---|---|---|
+| The draft's version | Opens | Opens | Opens the stored version |
+| A newer version | Opens the newest | Stays on its version, with a warning and a link to update | Opens the stored version |
+| 404 or 410 | Won't open, and says why | Opens the stored version, with a warning | Opens the stored version |
+| A timeout, a block or a page that isn't a PDF | Won't open | Opens the stored version, with a warning | Opens the stored version |
+
+Updating moves answers by field name, and only asks first when an answer has no
+box on the new version or the user placed boxes of their own. A draft with no
+stored copy of its version opens on what the city has now, as a draft saved
+before this was built can.
+
+The library also shows how old each stored copy is:
 
 1. Each permit shows when it was saved and when its copy was last updated
    from the city (`version_saved_at`, the save time for now).
@@ -637,9 +653,15 @@ Done. Every later phase adds its section to the sidebar (My permits in step
 
 **Phase 3: Drafts per project**
 
-12. Add `project_forms.public_id`, `status` and `pdf_drafts.project_form_id`,
-    and change the draft unique index. Existing drafts attach to the project
-    form with the same URL, if there's exactly one.
+12. ✅ Each form in a project has its own draft (`pdf_drafts.project_item_id`,
+    migration 0020), and a user has one draft of a URL outside a project.
+    Existing drafts joined the project form with the same URL, if there was
+    exactly one. Built on `project_items`, without the rename to
+    `project_forms`. Status is `filed_at` plus the tracked permit's phase, not
+    a `status` column, until checks add "needs fixes" and "ready". A form
+    leaving its project moves its draft to Drafts; if one's already there, the
+    newer of the two is kept. Adding a form to a project brings the Drafts copy
+    along. The dashboard's next steps run through to the final inspection.
 13. Add the `/projects/$id/forms/$formId` route and `getProjectForm`. The
     editor loads from the stored blank PDF.
 14. Split the project page into Overview, Forms and Details tabs, with status

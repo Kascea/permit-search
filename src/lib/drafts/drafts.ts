@@ -14,7 +14,9 @@ import {
 } from '#/lib/drafts/drafts.server'
 import { MAX_DRAFT_NAME_LENGTH, draftSchema } from '#/lib/drafts/types'
 import { UserError, parseUserInput } from '#/lib/errors'
+import { keepBlankCopy } from '#/lib/pdf/blank-pdf.server'
 import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
+import { rateLimited } from '#/lib/rate-limit'
 
 // Drafts belong to the signed-in user; the browser never sends a user ID.
 // The session check and the work share one database connection.
@@ -28,8 +30,12 @@ function withDraftUser<T>(work: (db: Database, userId: string) => Promise<T>) {
   )
 }
 
-const parseSourceUrl = parseUserInput(
-  z.object({ sourceUrl: projectSourceUrlSchema }),
+// A form's draft: its URL, and the project whose copy it is, if any.
+const parseDraftForm = parseUserInput(
+  z.object({
+    sourceUrl: projectSourceUrlSchema,
+    projectId: publicIdSchema().optional(),
+  }),
 )
 
 const parseDraftPublicId = parseUserInput(
@@ -39,9 +45,28 @@ const parseDraftPublicId = parseUserInput(
 const tooManyDrafts = 'Too many drafts to import at once.'
 
 export const getAccountDraft = createServerFn({ method: 'GET' })
-  .validator(parseSourceUrl)
+  .validator(parseDraftForm)
   .handler(({ data }) =>
-    withDraftUser((db, userId) => loadDraft(db, userId, data.sourceUrl)),
+    withDraftUser((db, userId) =>
+      loadDraft(db, userId, data.sourceUrl, data.projectId),
+    ),
+  )
+
+// Keeps the version of the form a draft is filled against; see keepBlankCopy.
+export const keepDraftFormCopy = createServerFn({ method: 'POST' })
+  .middleware([rateLimited])
+  .validator(
+    parseUserInput(
+      z.object({
+        sourceUrl: projectSourceUrlSchema,
+        sourceHash: draftSchema.shape.sourceHash,
+      }),
+    ),
+  )
+  .handler(({ data }) =>
+    withDraftUser((db) =>
+      keepBlankCopy(db, data.sourceUrl, data.sourceHash),
+    ),
   )
 
 export const saveAccountDraft = createServerFn({ method: 'POST' })
@@ -97,8 +122,9 @@ export const renameAccountDraft = createServerFn({ method: 'POST' })
   )
 
 export const deleteAccountDraft = createServerFn({ method: 'POST' })
-  .validator((input: { publicId: string } | { sourceUrl: string }) =>
-    'publicId' in input ? parseDraftPublicId(input) : parseSourceUrl(input),
+  .validator(
+    (input: { publicId: string } | { sourceUrl: string; projectId?: string }) =>
+      'publicId' in input ? parseDraftPublicId(input) : parseDraftForm(input),
   )
   .handler(({ data }) =>
     withDraftUser((db, userId) => deleteDraft(db, userId, data)),

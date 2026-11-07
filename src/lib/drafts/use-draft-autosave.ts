@@ -12,35 +12,57 @@ const SAVE_DELAY_MS = 1_200
 
 // The newest saved copy of a PDF's draft: the account's when signed in, or this
 // browser's. A local copy newer than the account's is synced on sign-in, so it
-// wins here too.
+// wins here too. projectId is the project whose copy to open; the result's is
+// the one it turned out to be, which is none when the project doesn't hold the
+// form. Signed out, only drafts outside a project exist.
 export async function loadNewestDraft(
   sourceUrl: string,
+  projectId: string | undefined,
   signedIn: boolean,
-): Promise<{ draft: Draft; status: DraftStatus } | null> {
-  const local = getLocalDraft(sourceUrl)
-
+): Promise<{
+  projectId: string | undefined
+  isFiled: boolean
+  saved: { draft: Draft; status: DraftStatus } | null
+}> {
   // Fails rather than opening a blank form, whose first autosave would
   // replace the account's draft.
-  const account = signedIn
-    ? await getAccountDraft({ data: { sourceUrl } }).catch(() => {
+  const loaded = signedIn
+    ? await getAccountDraft({ data: { sourceUrl, projectId } }).catch(() => {
         throw new UserError(
           'Your saved draft couldn’t be loaded. Reload to try again.',
         )
       })
     : null
 
+  const account = loaded?.draft ?? null
+  const scope = loaded?.projectId
+  const isFiled = loaded?.isFiled ?? false
+  const local = getLocalDraft(sourceUrl, scope)
+
   if (account && (!local || account.updatedAt >= local.updatedAt)) {
-    return { draft: account, status: 'saved' }
+    return {
+      projectId: scope,
+      isFiled,
+      saved: { draft: account, status: 'saved' },
+    }
   }
 
-  // The name is kept only in the account.
-  return local
-    ? { draft: { ...local, name: account?.name }, status: 'local' }
-    : null
+  return {
+    projectId: scope,
+    isFiled,
+    // The name is kept only in the account.
+    saved: local
+      ? { draft: { ...local, name: account?.name }, status: 'local' }
+      : null,
+  }
 }
 
 interface DraftAutosaveOptions {
   sourceUrl: string
+  // The project whose copy of the form this is, if any. It can change while
+  // the editor is open, when the form joins a project; edits waiting to save
+  // go with it.
+  projectId: string | undefined
   // Unset until the PDF has loaded; nothing saves before then.
   sourceHash: string | undefined
   content: DraftContent
@@ -54,6 +76,7 @@ interface DraftAutosaveOptions {
 // loads is the baseline and isn't saved.
 export function useDraftAutosave({
   sourceUrl,
+  projectId,
   sourceHash,
   content,
   signedIn,
@@ -65,6 +88,8 @@ export function useDraftAutosave({
   const pendingRef = useRef<Draft | null>(null)
   const signedInRef = useRef(signedIn)
   signedInRef.current = signedIn
+  const projectIdRef = useRef(projectId)
+  projectIdRef.current = projectId
   const json = JSON.stringify(content)
 
   // Reads only refs, so the copy captured at mount still works at unmount.
@@ -74,6 +99,8 @@ export function useDraftAutosave({
     if (!draft) return
     pendingRef.current = null
     baselineRef.current = JSON.stringify(draft.content)
+
+    if (projectIdRef.current) draft.projectId = projectIdRef.current
 
     if (!signedInRef.current) {
       setStatus(saveLocalDraft(draft) ? 'local' : 'error')
@@ -148,6 +175,11 @@ export function useDraftAutosave({
     resetBaseline: (next: DraftContent) => {
       pendingRef.current = null
       baselineRef.current = JSON.stringify(next)
+    },
+    // Saves even if the answers are the same, for a change of sourceHash when
+    // the draft moves to a newer version of the form.
+    saveAfterVersionChange: () => {
+      baselineRef.current = ''
     },
   }
 }

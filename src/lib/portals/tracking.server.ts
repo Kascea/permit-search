@@ -34,7 +34,8 @@ function ownedItemIds(
 }
 
 // Adds or replaces the form's permit. A different number clears the status
-// read for the old one.
+// read for the old one. A permit number means the form was filed, so this marks
+// it filed if it wasn't already.
 export async function setItemPermit(
   db: Database,
   userId: string,
@@ -43,10 +44,15 @@ export async function setItemPermit(
   permit: TrackedPermitInput,
 ) {
   const result = await db.execute(sql`
+    with item as (${ownedItemIds(db, userId, publicId, sourceUrl)}),
+    filed as (
+      update ${projectItems} set filed_at = coalesce(filed_at, now())
+      where ${projectItems.id} in (select id from item)
+    )
     insert into ${trackedPermits}
       (project_item_id, provider, jurisdiction, permit_number)
     select id, ${permit.provider}, ${permit.jurisdiction}, ${permit.permitNumber}
-    from (${ownedItemIds(db, userId, publicId, sourceUrl)}) as item
+    from item
     on conflict (project_item_id) do update set
       provider = excluded.provider,
       jurisdiction = excluded.jurisdiction,

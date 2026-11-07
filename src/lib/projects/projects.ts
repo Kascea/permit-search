@@ -12,6 +12,7 @@ import {
   listProjects,
   removeProjectItem,
   resolveProjectItem,
+  setProjectItemFiled,
   updateProject,
 } from '#/lib/projects/projects.server'
 import {
@@ -125,5 +126,27 @@ export const removeFromAccountProject = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     changeProjects((db, userId) =>
       removeProjectItem(db, userId, data.publicId, data.sourceUrl),
+    ),
+  )
+
+export const setAccountProjectItemFiled = createServerFn({ method: 'POST' })
+  .validator(
+    parseUserInput(
+      z.object({
+        publicId: publicIdSchema(),
+        sourceUrl: projectSourceUrlSchema,
+        filed: z.boolean(),
+      }),
+    ),
+  )
+  .handler(({ data }) =>
+    changeProjects((db, userId) =>
+      setProjectItemFiled(
+        db,
+        userId,
+        data.publicId,
+        data.sourceUrl,
+        data.filed,
+      ),
     ),
   )

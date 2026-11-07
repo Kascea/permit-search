@@ -19,6 +19,19 @@ function isPdf(result: PermitSearchResult) {
   return result.isPdf ?? isPdfUrl(result.url)
 }
 
+// The project to open a PDF in: the one holding it. With none or several,
+// it opens on its own, outside a project, rather than guessing.
+function onlyProjectHolding(
+  sourceUrl: string,
+  projects: Array<Project> | undefined,
+) {
+  const holding = (projects ?? []).filter((project) =>
+    project.items.some((item) => item.sourceUrl === sourceUrl),
+  )
+
+  return holding.length === 1 ? holding[0].publicId : undefined
+}
+
 export function SearchResultsList({
   response,
   city,
@@ -142,6 +155,7 @@ export function SearchResultsList({
                     className={`mr-2 ${rowPrimaryButtonClass}`}
                     search={{
                       url: searchResult.url,
+                      project: onlyProjectHolding(searchResult.url, projects),
                       from: originParam({ kind: 'search', slug: searchSlug }),
                     }}
                     to="/editor"

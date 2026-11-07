@@ -34,6 +34,9 @@ export interface DraftContent {
 
 export interface Draft {
   sourceUrl: string
+  // The project whose copy of the form this is. Missing outside a project, and
+  // read that way when the project doesn't hold the form.
+  projectId?: string
   sourceHash: string
   content: DraftContent
   // The slug of the search the editor was opened from. Stored only when the
@@ -55,8 +58,15 @@ export interface DraftSummary {
   // until they rename it.
   name?: string
   sourceUrl: string
+  // The project whose copy of the form this is; missing outside a project.
+  projectId?: string
   updatedAt: string
   search?: SearchLink
+}
+
+// A form's draft is named by its URL and the project it's in, if any.
+export function draftKey(sourceUrl: string, projectId: string | undefined) {
+  return `${projectId ?? ''}|${sourceUrl}`
 }
 
 export const MAX_DRAFT_NAME_LENGTH = 120
@@ -128,6 +138,7 @@ const urlError = 'The draft has an invalid PDF URL.'
 const hashError = 'The draft has an invalid PDF hash.'
 const dateError = 'The draft has an invalid date.'
 const searchError = 'The draft has an invalid search.'
+const projectError = 'The draft has an invalid project.'
 
 // A draft sent by the browser, or read back from its storage. Each issue's
 // message is written for people.
@@ -137,6 +148,10 @@ export const draftSchema = z.object(
       .string({ error: urlError })
       .max(MAX_URL_LENGTH, urlError)
       .regex(/^https?:\/\//, urlError),
+    projectId: z
+      .string({ error: projectError })
+      .regex(/^[A-Za-z0-9]{8,16}$/, projectError)
+      .optional(),
     sourceHash: z.string({ error: hashError }).regex(/^[0-9a-f]{64}$/, hashError),
     updatedAt: z
       .string({ error: dateError })

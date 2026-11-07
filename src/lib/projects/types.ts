@@ -14,6 +14,9 @@ export interface ProjectItem {
   searchSlug?: string
   // Read back: that search, for linking to it.
   search?: SearchLink
+  // Read back: when the user filed it with the city. Adding a permit number
+  // sets it too, and it stays if they later stop tracking the permit.
+  filedAt?: string
   // Read back: the city permit filed for it, once its number is added.
   permit?: TrackedPermit
   // Sent when adding an online application: its permit type's ID. The

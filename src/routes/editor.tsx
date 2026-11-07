@@ -32,8 +32,11 @@ import { SignInButton } from '#/components/SignInDialog'
 import { useResumeAfterSignIn } from '#/lib/auth/resume'
 import { useAuth } from '#/lib/auth/use-auth'
 import { deleteAccountDraft } from '#/lib/drafts/drafts'
+import { keepDraftFormCopy } from '#/lib/drafts/drafts'
 import { deleteLocalDraft } from '#/lib/drafts/local'
-import { draftTitle } from '#/lib/drafts/types'
+import { openForm, sha256Hex } from '#/lib/pdf/open-form'
+import type { NewerVersion } from '#/lib/pdf/open-form'
+import { draftKey, draftTitle } from '#/lib/drafts/types'
 import type {
   DraftContent,
   EditorTool,
@@ -131,7 +134,7 @@ export const Route = createFileRoute('/editor')({
   component: EditorRoute,
 })
 
-// Keyed by URL so opening another draft starts with fresh state, and the
+// Keyed by form so opening another draft starts with fresh state, and the
 // closing editor saves any pending edit.
 function EditorRoute() {
   const { url, project, from, page } = Route.useSearch()
@@ -146,7 +149,7 @@ function EditorRoute() {
 
   return (
     <PdfEditor
-      key={url}
+      key={draftKey(url, projectId)}
       url={url}
       projectId={projectId}
       origin={origin}
@@ -184,8 +187,10 @@ function PdfEditor({
   const signedIn = Boolean(user)
   // SHA-256 of the PDF; set once it loads, which starts autosaving.
   const [sourceHash, setSourceHash] = useState<string>()
-  // Shown when the restored draft was made on an older copy of the PDF.
+  // What the user should know about the copy of the PDF that's open.
   const [draftNotice, setDraftNotice] = useState('')
+  // A newer version the city has posted, while the draft stays on its own.
+  const [newerVersion, setNewerVersion] = useState<NewerVersion>()
   // The user's name for the draft, shown in place of the form's file name.
   const [draftName, setDraftName] = useState<string>()
   // PDF.js render scale; 1 is the PDF's size at 72 DPI.
@@ -197,6 +202,10 @@ function PdfEditor({
   const { projects } = useAccountProjects(signedIn)
   // The project chosen in the Autofill tab, or the one the editor was opened from.
   const [fillProjectId, setFillProjectId] = useState(projectId)
+  // The project whose copy of the form is open, which is where it saves. None
+  // until it's loaded, when the form is outside a project, or when the project
+  // named in the URL doesn't hold it.
+  const [draftProjectId, setDraftProjectId] = useState<string>()
   // Each field's printed label, by field name, once the server has read the
   // form; autofill reads them along with the field names.
   const [formLabels, setFormLabels] = useState<Record<string, string>>({})
@@ -216,13 +225,15 @@ function PdfEditor({
   const pageWidthRef = useRef(612)
 
   // The project Autofill fills from: the one chosen in its tab (or opened
-  // from), else the one holding this PDF. None when the PDF isn't in a
-  // project, so Autofill asks which to use instead of guessing.
+  // from), else the one project holding this PDF. None when no single project
+  // holds it, so Autofill asks which to use instead of guessing.
+  const projectsHolding = projects?.filter((project) =>
+    project.items.some((item) => item.sourceUrl === url),
+  )
+
   const fillProject =
     projects?.find((project) => project.publicId === fillProjectId) ??
-    projects?.find((project) =>
-      project.items.some((item) => item.sourceUrl === url),
-    )
+    (projectsHolding?.length === 1 ? projectsHolding[0] : undefined)
 
   // The text fields, which a project can fill when they're empty.
   const textFields = useMemo(
@@ -257,13 +268,35 @@ function PdfEditor({
     status: draftStatus,
     setStatus: setDraftStatus,
     resetBaseline,
+    saveAfterVersionChange,
   } = useDraftAutosave({
     sourceUrl: url,
+    projectId: draftProjectId,
     sourceHash,
     content: draftContent,
     signedIn,
     searchSlug: origin.kind === 'search' ? origin.slug : undefined,
   })
+
+  // Once there's a draft in the account, keeps the version of the form it's
+  // filled against. Just opening a form stores nothing. A failure only means
+  // this version is missing if the city later replaces it.
+  const keptHashRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (
+      !signedIn ||
+      !sourceHash ||
+      draftStatus !== 'saved' ||
+      keptHashRef.current === sourceHash
+    ) {
+      return
+    }
+
+    keptHashRef.current = sourceHash
+    keepDraftFormCopy({ data: { sourceUrl: url, sourceHash } }).catch(
+      () => undefined,
+    )
+  }, [signedIn, sourceHash, draftStatus, url])
 
   // Signed out, Autofill and Check ask for sign-in; this opens the one they
   // chose once they have. It opens rather than runs, so they see the panel's
@@ -295,12 +328,9 @@ function PdfEditor({
     }
   }, [signedIn, url, sourceHash, hasNativeFields])
 
-  // The project the form is checked against: the one it's in, else the one
-  // chosen in the Autofill tab or opened from.
-  const checkProject =
-    projects?.find((project) =>
-      project.items.some((item) => item.sourceUrl === url),
-    ) ?? projects?.find((project) => project.publicId === fillProjectId)
+  // The form is checked against the project it fills from, so a form in two
+  // projects is compared with the job it's open for.
+  const checkProject = fillProject
 
   const contentKey = useMemo(() => JSON.stringify(draftContent), [draftContent])
 
@@ -440,24 +470,29 @@ function PdfEditor({
       }
 
       try {
-        // The PDF, pdf.js, and the saved draft download side by side. The
-        // draft is restored before the fields first render, so typing can't
-        // race it. It's read once per PDF: signing out mid-edit keeps the
-        // fields on screen and later saves go to this browser.
+        // pdf.js and the saved draft download side by side, then the PDF,
+        // since the draft says which version to open. The draft is restored
+        // before the fields first render, so typing can't race it. It's read
+        // once per PDF: signing out mid-edit keeps the fields on screen and
+        // later saves go to this browser.
         const [
-          bytes,
           [{ getDocument, GlobalWorkerOptions }, workerModule],
-          saved,
+          { projectId: openProjectId, isFiled, saved },
         ] = await Promise.all([
-          fetchPdfBytes(url),
           Promise.all([
             import('pdfjs-dist'),
             import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
           ]),
-          loadNewestDraft(url, signedIn),
+          loadNewestDraft(url, projectId, signedIn),
         ])
 
         GlobalWorkerOptions.workerSrc = workerModule.default
+
+        const { bytes, newerVersion: newer, notice } = await openForm(
+          url,
+          saved?.draft.sourceHash,
+          isFiled,
+        )
 
         const [pdfDocument, fields, hash] = await Promise.all([
           getDocument({ data: new Uint8Array(bytes.slice(0)) }).promise,
@@ -473,8 +508,11 @@ function PdfEditor({
           setScale(fitWidthScale(scrollRef.current, pageWidthRef.current))
           setSourceBytes(bytes)
           setPdf(pdfDocument)
+          setDraftProjectId(openProjectId)
           setSourceHash(hash)
           setDraftName(saved?.draft.name)
+          setNewerVersion(newer)
+          setDraftNotice(notice ?? '')
 
           if (saved) {
             setNativeFields(
@@ -482,12 +520,6 @@ function PdfEditor({
             )
             setPlacedFields(saved.draft.content.placedFields)
             setDraftStatus(saved.status)
-
-            if (saved.draft.sourceHash !== hash) {
-              setDraftNotice(
-                'This form has changed since your draft was saved. Check your entries before downloading.',
-              )
-            }
           } else {
             setNativeFields(fields)
           }
@@ -508,7 +540,7 @@ function PdfEditor({
 
       if (loadedPdf) void loadedPdf.cleanup()
     }
-  }, [url])
+  }, [url, projectId])
 
   // Tracks the page nearest the top of the view for the page indicator.
   useEffect(() => {
@@ -854,6 +886,66 @@ function PdfEditor({
     setAutofill(undefined)
   }
 
+  // Moves the draft to the newer version the city has posted. Answers move by
+  // field name. Only asks first when something might not carry over.
+  async function updateToNewerVersion() {
+    if (!newerVersion) return
+
+    try {
+      const fields = await readNativeFields(newerVersion.bytes)
+      const newNames = new Set(fields.map(({ name }) => name))
+      const answers = nativeValuesOf(nativeFields)
+
+      const lostCount = Object.entries(answers).filter(
+        ([name, value]) => !newNames.has(name) && hasAnswer(value),
+      ).length
+
+      if (
+        (lostCount > 0 || placedFields.length > 0) &&
+        !(await confirm({
+          title: 'Update to the new version?',
+          message: [
+            lostCount > 0 &&
+              `${lostCount} of your answers ${
+                lostCount === 1 ? 'has' : 'have'
+              } no matching box on the new version and will be removed.`,
+            placedFields.length > 0 &&
+              'Boxes you added stay where they are, and may need moving.',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          confirmLabel: 'Update form',
+        }))
+      ) {
+        return
+      }
+
+      const { getDocument } = await import('pdfjs-dist')
+
+      const document = await getDocument({
+        data: new Uint8Array(newerVersion.bytes.slice(0)),
+      }).promise
+
+      saveAfterVersionChange()
+      setSourceBytes(newerVersion.bytes)
+      setPdf(document)
+      setSourceHash(newerVersion.hash)
+      setNativeFields(applyNativeValues(fields, answers))
+      setNewerVersion(undefined)
+      setDraftNotice('')
+      setAutofill(undefined)
+      setFormCheck(undefined)
+      setIsCheckNudged(false)
+      toast.success('Updated to the city’s newest version.', {
+        description: 'Check your entries before you file it.',
+      })
+    } catch (updateError) {
+      toast.error(
+        errorMessage(updateError, 'The form couldn’t be updated. Try again.'),
+      )
+    }
+  }
+
   // Clears everything entered: deletes the saved draft and puts back the PDF's
   // own values.
   async function clearForm() {
@@ -872,11 +964,14 @@ function PdfEditor({
     }
 
     try {
-      deleteLocalDraft(url)
+      deleteLocalDraft(url, draftProjectId)
 
       const [fields] = await Promise.all([
         readNativeFields(sourceBytes),
-        signedIn && deleteAccountDraft({ data: { sourceUrl: url } }),
+        signedIn &&
+          deleteAccountDraft({
+            data: { sourceUrl: url, projectId: draftProjectId },
+          }),
       ])
 
       resetBaseline({
@@ -920,13 +1015,13 @@ function PdfEditor({
 
       // The download is the app's last step, so say what comes next: the
       // user files with the city; adding the permit number only tracks it.
-      const holdingProject = projects?.find((project) =>
-        project.items.some((item) => item.sourceUrl === url),
+      const holdingProject = projects?.find(
+        (project) => project.publicId === draftProjectId,
       )
 
       toast('Next, submit this form to the city yourself.', {
         description: holdingProject
-          ? 'File it on the city’s permit portal, by email or in person. Then add the permit number the city gives you to the project to track its status.'
+          ? 'File it on the city’s permit portal, by email or in person. Then mark it as filed in the project, and add the permit number the city gives you to track its status.'
           : 'File it on the city’s permit portal, by email or in person. To track the permit’s status, add this form to a project, then add the permit number the city gives you.',
         duration: 12_000,
         action: holdingProject && {
@@ -960,6 +1055,7 @@ function PdfEditor({
         <SidebarBrand isCollapsed={isCollapsed} />
         <DraftSidebar
           currentUrl={url}
+          currentProjectId={draftProjectId}
           signedIn={signedIn}
           refreshKey={draftStatus}
           onNavigate={() => setIsDraftsOpen(false)}
@@ -1271,6 +1367,23 @@ function PdfEditor({
               </p>
             )}
 
+            {newerVersion && (
+              <p
+                className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xs border border-redline bg-paper px-4 py-2 text-center text-sm text-redline"
+                role="status"
+              >
+                The city has posted a newer version of this form. Your draft is
+                still on the version you started.
+                <button
+                  className="font-medium underline underline-offset-2"
+                  onClick={() => void updateToNewerVersion()}
+                  type="button"
+                >
+                  Update to the new version
+                </button>
+              </p>
+            )}
+
             {draftNotice && (
               <p
                 className="pointer-events-auto flex items-center justify-center gap-3 rounded-xs border border-blueprint bg-paper px-4 py-2 text-center text-sm text-blueprint"
@@ -1327,12 +1440,22 @@ function PdfEditor({
                   This PDF could not be opened
                 </h2>
                 <p className="mt-3 text-base leading-6 text-ink/70">{error}</p>
-                <a
-                  className="mt-6 inline-flex rounded-full bg-blueprint px-5 py-3 text-sm font-medium text-paper"
-                  href="/"
-                >
-                  Return to search
-                </a>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
+                  <a
+                    className="inline-flex rounded-full bg-blueprint px-5 py-3 text-sm font-medium text-paper"
+                    href="/"
+                  >
+                    Return to search
+                  </a>
+                  <a
+                    className="text-sm font-medium text-blueprint underline-offset-2 hover:underline"
+                    href={`https://${hostname(url)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Go to {hostname(url)} <span aria-hidden="true">↗</span>
+                  </a>
+                </div>
               </section>
             </div>
           ) : (
@@ -1388,6 +1511,18 @@ function PdfEditor({
                   project={fillProject}
                   item={{ sourceUrl: url, title: draftTitle(url) }}
                   onChoose={setFillProjectId}
+                  onAdded={(publicId) => {
+                    // The server moved the draft to the project, so saves go
+                    // there now. The URL names it too, so a reload finds it.
+                    setDraftProjectId(publicId)
+                    void navigate({
+                      search: (previous) => ({
+                        ...previous,
+                        project: publicId,
+                      }),
+                      replace: true,
+                    })
+                  }}
                   onFill={() => {
                     if (fillProject) void fillFromProject(fillProject)
                   }}
@@ -1960,8 +2095,9 @@ function applyNativeValues(
   })
 }
 
-// The PDF proxy's error response.
-const pdfErrorSchema = z.object({ error: z.string() })
+function hasAnswer(value: NativeValue) {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value)
+}
 
 // Pages autofill sends to Jev per press, and how many at a time.
 const AUTOFILL_MAX_PAGES = 12
@@ -1995,30 +2131,6 @@ async function renderPageImage(pdf: PDFDocumentProxy, pageIndex: number) {
   }).promise
 
   return canvas.toDataURL('image/jpeg', 0.85).split(',')[1] ?? ''
-}
-
-async function fetchPdfBytes(url: string) {
-  const response = await fetch(pdfProxyUrl(url))
-
-  if (!response.ok) {
-    const payload = pdfErrorSchema.safeParse(
-      await response.json().catch(() => null),
-    )
-
-    throw new UserError(
-      (payload.success && payload.data.error) || 'The PDF could not be opened.',
-    )
-  }
-
-  return response.arrayBuffer()
-}
-
-async function sha256Hex(bytes: ArrayBuffer) {
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('')
 }
 
 async function readNativeFields(bytes: ArrayBuffer) {
@@ -2250,10 +2362,6 @@ function hostname(url: string) {
   } catch {
     return url
   }
-}
-
-function pdfProxyUrl(sourceUrl: string) {
-  return `/api/pdf?url=${encodeURIComponent(sourceUrl)}`
 }
 
 function localDateValue() {

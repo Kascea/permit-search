@@ -5,6 +5,7 @@ import { PDFDocument } from 'pdf-lib'
 import type { Database } from '#/lib/db/client.server'
 import { blankPdfs } from '#/lib/db/schema'
 import { UserError } from '#/lib/errors'
+import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
 
 const SOURCE_HASH = /^[0-9a-f]{64}$/
 
@@ -49,6 +50,27 @@ export async function storeBlankPdf(db: Database, bytes: ArrayBuffer) {
     .onConflictDoNothing()
 
   return sourceHash
+}
+
+// Keeps the version a user's draft is filled against, once they've started one:
+// it's needed to open their work after the city changes or removes the form.
+// Read from the city rather than taken from the browser, as stored copies are
+// shared. If the city has already moved on, there's nothing to keep.
+export async function keepBlankCopy(
+  db: Database,
+  sourceUrl: string,
+  sourceHash: string,
+) {
+  const [existing] = await db
+    .select({ sourceHash: blankPdfs.sourceHash })
+    .from(blankPdfs)
+    .where(eq(blankPdfs.sourceHash, sourceHash))
+
+  if (existing) return
+
+  const bytes = await fetchPdfBytes(sourceUrl)
+
+  if ((await sha256Hex(bytes)) === sourceHash) await storeBlankPdf(db, bytes)
 }
 
 // The stored bytes, or null when there are none for this hash.

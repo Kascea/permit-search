@@ -22,7 +22,7 @@ import {
 import type { FormQuestion } from '#/lib/forms/questions'
 import { FORM_SCHEMA_VERSION } from '#/lib/forms/types'
 import type { FormFieldSchema, FormSchema } from '#/lib/forms/types'
-import { sha256Hex } from '#/lib/pdf/blank-pdf.server'
+import { readBlankPdf, sha256Hex } from '#/lib/pdf/blank-pdf.server'
 import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
 import { createTypeSafeClient } from '#/lib/search/typesafe.server'
 
@@ -32,9 +32,10 @@ type FormAnswer = NoulResponse | ChoiceResponse | ScoreResponse
 // context limit.
 const FIELDS_PER_REQUEST = 30
 
-// The stored schema for this version of the form, or a new one. The PDF is
-// downloaded again here rather than taken from the browser, as the schema is
-// shared by everyone who opens this version.
+// The stored schema for this version of the form, or a new one. The PDF is read
+// again here rather than taken from the browser, as the schema is shared by
+// everyone who opens this version: from the stored copy, since a draft can be on
+// a version the city has replaced, or else from the city.
 export async function loadFormSchema(
   sourceUrl: string,
   sourceHash: string,
@@ -54,7 +55,8 @@ export async function loadFormSchema(
 
   if (stored) return stored
 
-  const bytes = await fetchPdfBytes(sourceUrl)
+  const bytes =
+    (await readBlankPdf(sourceHash)) ?? (await fetchPdfBytes(sourceUrl))
 
   if ((await sha256Hex(bytes)) !== sourceHash) {
     throw new UserError(

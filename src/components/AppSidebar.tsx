@@ -529,7 +529,7 @@ function SidebarMenu({
     if (
       !(await confirm({
         title: `Delete the project “${target.name}”?`,
-        message: 'Your drafts stay in Drafts.',
+        message: 'Your drafts of its forms move to Drafts.',
         confirmLabel: 'Delete project',
         isDestructive: true,
       }))

@@ -6,13 +6,15 @@ import { SidebarToggle } from '#/components/AppSidebar'
 import { SignInButton } from '#/components/SignInDialog'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { listLocalDrafts } from '#/lib/drafts/local'
-import { draftTitle } from '#/lib/drafts/types'
+import { draftKey, draftTitle } from '#/lib/drafts/types'
 import { originParam } from '#/lib/navigation/origin'
 import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { useAccountProjects } from '#/lib/projects/use-account-projects'
 
 interface SidebarDraft {
   sourceUrl: string
+  // The project whose copy of the form this is; see DraftSummary.
+  projectId?: string
   title: string
   // The user's name for it, from the account; see DraftSummary.
   name?: string
@@ -32,33 +34,37 @@ const folderChoices = new Map<string, boolean>()
 async function loadDrafts(signedIn: boolean): Promise<Array<SidebarDraft>> {
   const local: Array<SidebarDraft> = listLocalDrafts().map((draft) => ({
     sourceUrl: draft.sourceUrl,
+    projectId: draft.projectId,
     title: draftTitle(draft.sourceUrl),
     updatedAt: draft.updatedAt,
   }))
 
   const account = signedIn ? ((await listAccountDrafts()) ?? []) : []
 
-  const byUrl = new Map<string, SidebarDraft>()
+  const byForm = new Map<string, SidebarDraft>()
 
   for (const draft of [...account, ...local]) {
-    const existing = byUrl.get(draft.sourceUrl)
+    const key = draftKey(draft.sourceUrl, draft.projectId)
+    const existing = byForm.get(key)
 
     if (!existing || existing.updatedAt < draft.updatedAt) {
       // A newer copy in this browser keeps the account's name for it.
-      byUrl.set(draft.sourceUrl, {
+      byForm.set(key, {
         ...draft,
         name: draft.name ?? existing?.name,
       })
     }
   }
 
-  return [...byUrl.values()].sort((a, b) =>
+  return [...byForm.values()].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   )
 }
 
 interface DraftSidebarProps {
   currentUrl: string
+  // The project whose copy of the open PDF this is, if any.
+  currentProjectId: string | undefined
   signedIn: boolean
   // Changes when the current draft saves, so the list picks it up.
   refreshKey: string
@@ -71,6 +77,7 @@ interface DraftSidebarProps {
 
 export function DraftSidebar({
   currentUrl,
+  currentProjectId,
   signedIn,
   refreshKey,
   onNavigate,
@@ -102,7 +109,9 @@ export function DraftSidebar({
     }
   }, [signedIn, refreshKey])
 
-  const draftsByUrl = new Map(drafts?.map((draft) => [draft.sourceUrl, draft]))
+  const draftsByForm = new Map(
+    drafts?.map((draft) => [draftKey(draft.sourceUrl, draft.projectId), draft]),
+  )
 
   // The editor fills PDFs, so online applications in a project aren't
   // listed here; they're on the project page.
@@ -111,16 +120,15 @@ export function DraftSidebar({
     items: project.items.filter(({ kind }) => kind !== 'online'),
   }))
 
-  const projectUrls = new Set(
-    pdfProjects?.flatMap(({ items }) => items.map(({ sourceUrl }) => sourceUrl)),
-  )
-
-  // PDFs in a project are listed there, so drafts only lists the rest.
-  const otherDrafts = drafts?.filter(
-    ({ sourceUrl }) => !projectUrls.has(sourceUrl),
-  )
+  // A project's copies are listed there, so drafts only lists the rest. A
+  // project's copy that the sidebar hasn't heard of yet stays out of both.
+  const otherDrafts = drafts?.filter(({ projectId }) => !projectId)
 
   const hasProjects = projects !== undefined && projects.length > 0
+
+  // Whether this project holds the open copy of the PDF.
+  const holdsOpenForm = (project: { publicId: string }) =>
+    project.publicId === currentProjectId
 
   if (isCollapsed) {
     return (
@@ -130,16 +138,15 @@ export function DraftSidebar({
           ...(signedIn && pdfProjects ? pdfProjects : []).map((project) => ({
             key: `project:${project.publicId}`,
             name: project.name,
-            holdsCurrent: project.items.some(
-              ({ sourceUrl }) => sourceUrl === currentUrl,
-            ),
+            holdsCurrent: holdsOpenForm(project),
           })),
           {
             key: 'drafts',
             name: hasProjects ? 'Drafts' : 'Your drafts',
             holdsCurrent:
-              otherDrafts?.some(({ sourceUrl }) => sourceUrl === currentUrl) ??
-              false,
+              !currentProjectId &&
+              (otherDrafts?.some(({ sourceUrl }) => sourceUrl === currentUrl) ??
+                false),
           },
         ]}
       />
@@ -202,27 +209,31 @@ export function DraftSidebar({
                       : undefined
                   }
                   count={project.items.length}
-                  holdsCurrent={project.items.some(
-                    ({ sourceUrl }) => sourceUrl === currentUrl,
-                  )}
-                  startsOpen={index === 0 && !projectUrls.has(currentUrl)}
+                  holdsCurrent={holdsOpenForm(project)}
+                  startsOpen={index === 0 && !currentProjectId}
                 >
-                  {project.items.map((item) => (
+                  {project.items.map((item) => {
+                    const draft = draftsByForm.get(
+                      draftKey(item.sourceUrl, project.publicId),
+                    )
+
+                    return (
                     <FileLink
                       key={item.sourceUrl}
                       sourceUrl={item.sourceUrl}
-                      title={
-                        draftsByUrl.get(item.sourceUrl)?.name ?? item.title
+                      title={draft?.name ?? item.title}
+                      editedAt={draft?.updatedAt}
+                      isCurrent={
+                        item.sourceUrl === currentUrl && holdsOpenForm(project)
                       }
-                      editedAt={draftsByUrl.get(item.sourceUrl)?.updatedAt}
-                      isCurrent={item.sourceUrl === currentUrl}
                       from={originParam({
                         kind: 'project',
                         id: project.publicId,
                       })}
                       onNavigate={onNavigate}
                     />
-                  ))}
+                    )
+                  })}
                 </Folder>
               ))
             ))}
@@ -246,7 +257,9 @@ export function DraftSidebar({
                   sourceUrl={draft.sourceUrl}
                   title={draft.name ?? draft.title}
                   editedAt={draft.updatedAt}
-                  isCurrent={draft.sourceUrl === currentUrl}
+                  isCurrent={
+                    !currentProjectId && draft.sourceUrl === currentUrl
+                  }
                   from="drafts"
                   onNavigate={onNavigate}
                 />

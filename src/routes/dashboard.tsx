@@ -9,9 +9,9 @@ import { SignInGate } from '#/components/SignInGate'
 import { getDashboard } from '#/lib/dashboard/dashboard'
 import type { Dashboard } from '#/lib/dashboard/dashboard'
 import {
-  draftsByUrl,
+  draftToContinue,
+  draftsByForm,
   loneDrafts,
-  projectHolding,
   projectProgress,
 } from '#/lib/dashboard/next-steps'
 import type { NextStep, ProjectProgress } from '#/lib/dashboard/next-steps'
@@ -64,9 +64,9 @@ const seeAllClass =
 
 function DashboardPage({ dashboard }: { dashboard: Dashboard }) {
   const { projects, drafts } = dashboard
-  const byUrl = draftsByUrl(drafts)
-  const lone = loneDrafts(drafts, projects)
-  const latest = drafts.at(0)
+  const byForm = draftsByForm(drafts)
+  const lone = loneDrafts(drafts)
+  const latest = draftToContinue(drafts, projects)
   // The header owns the search modal; next steps that need a search open it.
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const openSearch = () => setIsSearchOpen(true)
@@ -94,12 +94,14 @@ function DashboardPage({ dashboard }: { dashboard: Dashboard }) {
           {latest && (
             <ContinueSection
               draft={latest}
-              project={projectHolding(latest.sourceUrl, projects)}
+              project={projects.find(
+                ({ publicId }) => publicId === latest.projectId,
+              )}
             />
           )}
           <ProjectsSection
             progress={projects.map((project) =>
-              projectProgress(project, byUrl),
+              projectProgress(project, byForm),
             )}
             onSearch={openSearch}
           />
@@ -224,7 +226,7 @@ function ProjectRow({
   progress: ProjectProgress
   onSearch: () => void
 }) {
-  const { project, startedCount, next } = progress
+  const { project, filedCount, next } = progress
   const formCount = project.items.length
   const place = formatProjectAddress(project) || 'No address yet'
 
@@ -241,9 +243,9 @@ function ProjectRow({
         <p className="mt-0.5 truncate text-sm text-ink/60">
           {place}
           {formCount > 0 &&
-            ` · ${startedCount} of ${formCount} ${
+            ` · ${filedCount} of ${formCount} ${
               formCount === 1 ? 'form' : 'forms'
-            } started`}
+            } filed`}
         </p>
         {formCount > 0 && (
           <span
@@ -252,7 +254,7 @@ function ProjectRow({
           >
             <span
               className="block h-full bg-blueprint"
-              style={{ width: `${(startedCount / formCount) * 100}%` }}
+              style={{ width: `${(filedCount / formCount) * 100}%` }}
             />
           </span>
         )}
@@ -290,16 +292,19 @@ function NextStepLink({
     </svg>
   )
 
-  if (next.kind === 'add-address') {
+  if (next.kind === 'apply-online') {
+    const { online, sourceUrl } = next.item
+
     return (
-      <Link
-        to="/projects/$projectId"
-        params={{ projectId: project.publicId }}
+      <a
+        href={online?.applyUrl ?? online?.pageUrl ?? sourceUrl}
+        target="_blank"
+        rel="noreferrer"
         className={stepLinkClass}
       >
         {label}
         {arrow}
-      </Link>
+      </a>
     )
   }
 
@@ -328,14 +333,27 @@ function NextStepLink({
     )
   }
 
+  if (next.kind === 'start-form' || next.kind === 'continue-form') {
+    return (
+      <Link
+        to="/editor"
+        search={{
+          url: next.item.sourceUrl,
+          project: project.publicId,
+          from: originParam({ kind: 'project', id: project.publicId }),
+        }}
+        className={stepLinkClass}
+      >
+        {label}
+        {arrow}
+      </Link>
+    )
+  }
+
   return (
     <Link
-      to="/editor"
-      search={{
-        url: next.item.sourceUrl,
-        project: project.publicId,
-        from: originParam({ kind: 'project', id: project.publicId }),
-      }}
+      to="/projects/$projectId"
+      params={{ projectId: project.publicId }}
       className={stepLinkClass}
     >
       {label}
@@ -352,8 +370,20 @@ function stepLabel(next: NextStep) {
       return 'Find a permit'
     case 'start-form':
       return `Start ${next.item.title}`
+    case 'apply-online':
+      return `Apply for ${next.item.title}`
     case 'continue-form':
-      return `Keep filling ${next.item.title}`
+      return `Finish and file ${next.item.title}`
+    case 'review-permit':
+      return `Review permit ${next.item.permit?.permitNumber}`
+    case 'add-permit-number':
+      return `Add the permit number for ${next.item.title}`
+    case 'follow-permit':
+      return `Check permit ${next.item.permit?.permitNumber}`
+    case 'filed':
+      return 'Filed with the city'
+    case 'finished':
+      return 'Finished'
   }
 }
 

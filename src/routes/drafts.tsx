@@ -155,10 +155,12 @@ function LocalDraftList({ onStartSearch }: { onStartSearch: () => void }) {
   )
 }
 
+// A project's copy left in this browser goes to the account on the next
+// sign-in; signed out there's no project to open it in.
 function readLocalDrafts() {
-  return listLocalDrafts().sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt),
-  )
+  return listLocalDrafts()
+    .filter((draft) => !draft.projectId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
 function DraftList({
@@ -217,10 +219,10 @@ function DraftList({
     <>
       <ul className="mt-6 divide-y divide-ink/20 border-t border-b border-ink">
         {drafts.map((draft) => {
-          // The first project holding this PDF; it opens with that project's
-          // details ready to fill in.
-          const project = projects.find((each) =>
-            each.items.some((item) => item.sourceUrl === draft.sourceUrl),
+          // The project whose copy of the form this is, if any; it opens with
+          // that project's details ready to fill in.
+          const project = projects.find(
+            (each) => each.publicId === draft.projectId,
           )
 
           return (

@@ -293,7 +293,9 @@ export const rateLimits = pgTable('rate_limits', {
   lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
 })
 
-// A signed-in user's saved progress on one PDF form; see DraftContent.
+// A signed-in user's saved progress on one PDF form; see DraftContent. Each
+// form in a project has its own, so the same city form can be filled for two
+// jobs. A draft outside a project is the only one for its URL.
 export const pdfDrafts = pgTable(
   'pdf_drafts',
   {
@@ -308,6 +310,13 @@ export const pdfDrafts = pgTable(
 
     // The PDF's original URL, as passed to /editor?url=.
     sourceUrl: varchar('source_url', { length: 2048 }).notNull(),
+    // The form in a project this draft fills; null outside a project. When
+    // the form leaves its project the draft stays, and moves to Drafts; see
+    // removeProjectItem for a URL that already has a draft there.
+    projectItemId: bigint('project_item_id', { mode: 'number' }).references(
+      (): AnyPgColumn => projectItems.id,
+      { onDelete: 'set null' },
+    ),
     // SHA-256 of the PDF bytes, so the editor can tell the city replaced it.
     sourceHash: char('source_hash', { length: 64 }).notNull(),
     title: varchar('title', { length: 200 }).notNull(),
@@ -325,7 +334,10 @@ export const pdfDrafts = pgTable(
   },
   (table) => [
     uniqueIndex('pdf_drafts_public_id').on(table.publicId),
-    uniqueIndex('pdf_drafts_user_source').on(table.userId, table.sourceUrl),
+    uniqueIndex('pdf_drafts_user_source_loose')
+      .on(table.userId, table.sourceUrl)
+      .where(sql`${table.projectItemId} is null`),
+    uniqueIndex('pdf_drafts_project_item').on(table.projectItemId),
     index('pdf_drafts_user_updated_at').on(table.userId, table.updatedAt),
   ],
 )
@@ -388,8 +400,8 @@ export const projects = pgTable(
   ],
 )
 
-// A PDF in a project. Drafts are matched to it by source URL, so a PDF can sit
-// in a project before anyone starts filling it out.
+// A PDF or online application in a project. A PDF can sit in a project before
+// anyone starts filling it out; its draft points back here once they do.
 export const projectItems = pgTable(
   'project_items',
   {
@@ -425,6 +437,9 @@ export const projectItems = pgTable(
       (): AnyPgColumn => projectItems.id,
       { onDelete: 'cascade' },
     ),
+    // When the user filed it with the city, by saying so or by adding the
+    // permit number the city gave them. Null until then.
+    filedAt: timestamp('filed_at', { withTimezone: true }),
 
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

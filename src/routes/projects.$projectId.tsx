@@ -20,13 +20,16 @@ import { PermitNumberDialog } from '#/components/PermitNumberDialog'
 import { ProjectForm } from '#/components/ProjectForm'
 import { SearchLinkText } from '#/components/SearchLinkText'
 import { SignInGate } from '#/components/SignInGate'
+import { isFiled } from '#/lib/dashboard/next-steps'
 import { listAccountDrafts } from '#/lib/drafts/drafts'
 import { originParam } from '#/lib/navigation/origin'
+import { draftKey } from '#/lib/drafts/types'
 import type { DraftSummary } from '#/lib/drafts/types'
 import {
   deleteAccountProject,
   getAccountProject,
   removeFromAccountProject,
+  setAccountProjectItemFiled,
   updateAccountProject,
 } from '#/lib/projects/projects'
 import {
@@ -130,7 +133,7 @@ function ProjectPage() {
     if (
       !(await confirm({
         title: `Delete the project “${current.name}”?`,
-        message: 'Your drafts stay in Drafts.',
+        message: 'Your drafts of its forms move to Drafts.',
         confirmLabel: 'Delete project',
         isDestructive: true,
       }))
@@ -360,9 +363,45 @@ function FormsSection({
   // The form whose permit number dialog is open.
   const [permitItem, setPermitItem] = useState<ProjectItem>()
   const [checkingUrl, setCheckingUrl] = useState<string>()
-  const draftsByUrl = new Map(drafts.map((draft) => [draft.sourceUrl, draft]))
+  const [filingUrl, setFilingUrl] = useState<string>()
+
+  // This project's copies of its forms.
+  const draftOf = (sourceUrl: string) =>
+    drafts.find(
+      (draft) =>
+        draftKey(draft.sourceUrl, draft.projectId) ===
+        draftKey(sourceUrl, project.publicId),
+    )
+
+  async function setFiled(item: ProjectItem, filed: boolean) {
+    setFilingUrl(item.sourceUrl)
+
+    try {
+      setAccountProjects(
+        await setAccountProjectItemFiled({
+          data: {
+            publicId: project.publicId,
+            sourceUrl: item.sourceUrl,
+            filed,
+          },
+        }),
+      )
+      await router.invalidate()
+      toast.success(
+        filed
+          ? `Marked ${item.title} as filed.`
+          : `Marked ${item.title} as not filed.`,
+      )
+    } catch {
+      toast.error('That form couldn’t be updated. Try again.')
+    } finally {
+      setFilingUrl(undefined)
+    }
+  }
 
   async function removeItem(sourceUrl: string) {
+    const hadDraft = draftOf(sourceUrl) !== undefined
+
     setRemovingUrl(sourceUrl)
 
     try {
@@ -370,7 +409,11 @@ function FormsSection({
         data: { publicId: project.publicId, sourceUrl },
       })
       await router.invalidate()
-      toast.success('Form removed from the project.')
+      toast.success(
+        hadDraft
+          ? 'Form removed from the project. Your draft is in Drafts.'
+          : 'Form removed from the project.',
+      )
     } catch {
       toast.error('That form couldn’t be removed. Try again.')
     } finally {
@@ -453,11 +496,16 @@ function FormsSection({
           {project.items.map((item) => {
             // Online applications are filed on the city's portal, so they
             // have no draft.
-            const draft = item.online
-              ? undefined
-              : draftsByUrl.get(item.sourceUrl)
-
+            const draft = item.online ? undefined : draftOf(item.sourceUrl)
+            const filed = isFiled(item)
             const isRemoving = removingUrl === item.sourceUrl
+
+            // Filed forms have nothing left to do, so their link steps back.
+            const openClass = `shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              filed
+                ? 'border border-ink/35 text-ink hover:bg-ink hover:text-paper'
+                : 'bg-blueprint text-paper hover:bg-blueprint-deep'
+            }`
 
             return (
               <li
@@ -507,9 +555,10 @@ function FormsSection({
                       href={item.online.applyUrl ?? item.online.pageUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
+                      className={openClass}
                     >
-                      Apply online <span aria-hidden="true">↗</span>
+                      {filed ? 'Open portal' : 'Apply online'}{' '}
+                      <span aria-hidden="true">↗</span>
                     </a>
                   ) : (
                   <Link
@@ -521,9 +570,9 @@ function FormsSection({
                         id: project.publicId,
                       }),
                     }}
-                    className="shrink-0 rounded-full bg-blueprint px-4 py-1.5 text-sm font-medium text-paper transition hover:bg-blueprint-deep"
+                    className={openClass}
                   >
-                    {draft ? 'Continue' : 'Fill out'}
+                    {filed ? 'Open form' : draft ? 'Continue' : 'Fill out'}
                   </Link>
                   )}
                   <button
@@ -540,7 +589,10 @@ function FormsSection({
                 </div>
                 <PermitSection
                   permit={item.permit}
+                  filedAt={item.filedAt}
                   isChecking={checkingUrl === item.sourceUrl}
+                  isFiling={filingUrl === item.sourceUrl}
+                  onFiled={(next) => void setFiled(item, next)}
                   onAdd={() => setPermitItem(item)}
                   onCheck={() => void checkPermit(item)}
                   onEdit={() => setPermitItem(item)}
@@ -635,17 +687,24 @@ const PERMIT_DATE_LABELS = [
 // The city permit filed for a form, as an indented line under it so a long
 // list of forms stays short. Collapsed it shows the number and status, and a
 // failed check in red; opened, the permit's dates and actions. Before a
-// number is added, just the way to add one.
+// number is added, whether it's been filed and the way to add one: not every
+// city's permits can be tracked, so filing is its own step.
 function PermitSection({
   permit,
+  filedAt,
   isChecking,
+  isFiling,
+  onFiled,
   onAdd,
   onCheck,
   onEdit,
   onRemove,
 }: {
   permit: TrackedPermit | undefined
+  filedAt: string | undefined
   isChecking: boolean
+  isFiling: boolean
+  onFiled: (filed: boolean) => void
   onAdd: () => void
   onCheck: () => void
   onEdit: () => void
@@ -654,13 +713,38 @@ function PermitSection({
   const indentClass = 'mt-2 ml-1 border-l border-ink/20 pl-3'
 
   if (!permit) {
+    const actionClass =
+      'text-sm font-medium text-blueprint underline-offset-2 hover:underline disabled:cursor-wait disabled:opacity-60'
+
     return (
-      <div className={indentClass}>
-        <button
-          type="button"
-          className="text-sm font-medium text-blueprint underline-offset-2 hover:underline"
-          onClick={onAdd}
-        >
+      <div
+        className={`${indentClass} flex flex-wrap items-center gap-x-4 gap-y-1`}
+      >
+        {filedAt ? (
+          <>
+            <span className="text-sm text-success">
+              Filed <EditedDate iso={filedAt} />
+            </span>
+            <button
+              type="button"
+              disabled={isFiling}
+              className="text-sm text-ink/60 underline-offset-2 hover:underline disabled:cursor-wait"
+              onClick={() => onFiled(false)}
+            >
+              Not filed yet
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            disabled={isFiling}
+            className={actionClass}
+            onClick={() => onFiled(true)}
+          >
+            Mark as filed
+          </button>
+        )}
+        <button type="button" className={actionClass} onClick={onAdd}>
           + Add permit number
         </button>
       </div>

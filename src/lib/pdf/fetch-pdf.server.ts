@@ -4,12 +4,23 @@ const PDF_FETCH_TIMEOUT_MS = 10_000
 const MAX_PDF_BYTES = 12 * 1024 * 1024
 const MAX_REDIRECTS = 5
 
+// The city's site says the file isn't there. A blocked request or a page that
+// isn't a PDF doesn't count: those say nothing about whether the form still
+// exists.
+export class PdfGoneError extends UserError {}
+
 export async function fetchPdfBytes(value: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), PDF_FETCH_TIMEOUT_MS)
 
   try {
     const response = await fetchFollowingRedirects(value, controller.signal)
+
+    if (response.status === 404 || response.status === 410) {
+      throw new PdfGoneError(
+        'The city no longer posts this form at this link. Check the city’s website for its current form.',
+      )
+    }
 
     if (!response.ok) {
       throw new UserError('The PDF couldn’t be downloaded from its website.')

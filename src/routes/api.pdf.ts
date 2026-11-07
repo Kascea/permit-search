@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { errorMessage, isUserError } from '#/lib/errors'
 import { readBlankPdf } from '#/lib/pdf/blank-pdf.server'
-import { fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
+import { PdfGoneError, fetchPdfBytes } from '#/lib/pdf/fetch-pdf.server'
 import { limitRequest } from '#/lib/rate-limit.server'
 
 // A saved blank form's stored copy. The hash names the bytes, so it never
@@ -76,7 +76,9 @@ export const Route = createFileRoute('/api/pdf')({
 
           return Response.json(
             { error: errorMessage(error, 'The PDF could not be opened.') },
-            { status: 502 },
+            // The editor treats a form the city removed differently from one
+            // it couldn't reach; see openForm.
+            { status: error instanceof PdfGoneError ? 404 : 502 },
           )
         }
       },
