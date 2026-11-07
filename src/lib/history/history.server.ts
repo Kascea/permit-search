@@ -4,7 +4,7 @@ import type { Database } from '#/lib/db/client.server'
 import { cities, searchRequests, searches } from '#/lib/db/schema'
 
 export interface HistoryItem {
-  publicId: string
+  slug: string
   permit: string
   city: { name: string; region: string }
   resultCount: number
@@ -13,7 +13,8 @@ export interface HistoryItem {
   lastSearchedAt: string
 }
 
-// The user's searches, one row per saved search, most recent first.
+// The user's searches, one row per search however often it ran, showing its
+// newest run, most recent first.
 // Takes the request's open connection (see withUserDatabase).
 export async function listHistory(
   db: Database,
@@ -23,9 +24,9 @@ export async function listHistory(
 
   const rows = await db
     .select({
-      publicId: searches.publicId,
-      permit: searches.permitQuery,
-      resultCount: searches.resultCount,
+      slug: searches.slug,
+      permit: sql<string>`(array_agg(${searches.permitQuery} order by ${searches.createdAt} desc))[1]`,
+      resultCount: sql<number>`(array_agg(${searches.resultCount} order by ${searches.createdAt} desc))[1]`,
       cityName: cities.name,
       region: cities.region,
       timesSearched: sql<number>`count(*)::int`,
@@ -35,12 +36,12 @@ export async function listHistory(
     .innerJoin(searches, eq(searchRequests.searchId, searches.id))
     .innerJoin(cities, eq(searches.cityId, cities.id))
     .where(eq(searchRequests.userId, userId))
-    .groupBy(searches.id, cities.id)
+    .groupBy(searches.slug, cities.id)
     .orderBy(desc(lastSearchedAt))
     .limit(200)
 
   return rows.map((row) => ({
-    publicId: row.publicId,
+    slug: row.slug,
     permit: row.permit,
     city: { name: row.cityName, region: row.region },
     resultCount: row.resultCount,
@@ -54,7 +55,7 @@ export async function listHistory(
 export async function removeHistory(
   db: Database,
   userId: string,
-  publicId?: string,
+  slug?: string,
 ) {
   await db
     .update(searchRequests)
@@ -62,13 +63,13 @@ export async function removeHistory(
     .where(
       and(
         eq(searchRequests.userId, userId),
-        publicId
+        slug
           ? inArray(
               searchRequests.searchId,
               db
                 .select({ id: searches.id })
                 .from(searches)
-                .where(eq(searches.publicId, publicId)),
+                .where(eq(searches.slug, slug)),
             )
           : undefined,
       ),

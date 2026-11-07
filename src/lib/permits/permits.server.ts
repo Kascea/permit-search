@@ -12,6 +12,7 @@ import {
 } from '#/lib/db/schema'
 import { UserError } from '#/lib/errors'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
+import { searchRunColumn } from '#/lib/saved-searches/search-run.server'
 import { storeBlankPdf } from '#/lib/pdf/blank-pdf.server'
 import {
   findPortalPermitType,
@@ -72,7 +73,7 @@ export async function listSavedPermits(
         where project.user_id = ${savedPermits.userId}
           and item.source_url = ${savedPermits.sourceUrl}
       )`,
-      searchId: searches.publicId,
+      searchSlug: searches.slug,
       permit: searches.permitQuery,
       searchCityName: cities.name,
       region: cities.region,
@@ -202,8 +203,6 @@ export async function savePermit(
     ? null
     : await storeBlankPdf(db, await fetchPdfBytes(sourceUrl))
 
-  const fromSearch = sql`from ${searches} where ${searches.publicId} = ${input.searchId ?? null}`
-
   await db
     .insert(savedPermits)
     .values({
@@ -215,8 +214,8 @@ export async function savePermit(
       title: online?.name.slice(0, MAX_PERMIT_TITLE_LENGTH) ?? input.title,
       cityName: online?.city.name ?? input.city.name,
       cityRegion: online?.city.region ?? input.city.region,
-      permitTypes: sql`coalesce((select ${searches.permitTypes} ${fromSearch}), '[]'::jsonb)`,
-      searchId: sql`(select ${searches.id} ${fromSearch})`,
+      permitTypes: sql`coalesce(${searchRunColumn(searches.permitTypes, input.searchSlug)}, '[]'::jsonb)`,
+      searchId: searchRunColumn(searches.id, input.searchSlug),
     })
     // Saved meanwhile from another tab: that one stands.
     .onConflictDoNothing()

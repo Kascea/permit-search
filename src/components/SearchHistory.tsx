@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { HistoryItem } from '#/lib/history/history.server'
 import { removeSearchHistory } from '#/lib/history/history'
 import { formatCity } from '#/lib/location/format'
+import { searchRouteParams } from '#/lib/navigation/origin'
 import { confirm } from '#/components/ConfirmDialog'
 
 // The signed-in user's searches, each removable, on /history.
@@ -12,9 +13,9 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
   const router = useRouter()
   const [busyId, setBusyId] = useState<string>()
 
-  async function remove(publicId?: string) {
+  async function remove(slug?: string) {
     if (
-      !publicId &&
+      !slug &&
       !(await confirm({
         title: 'Clear your whole search history?',
         message: 'This can’t be undone.',
@@ -25,12 +26,12 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
       return
     }
 
-    setBusyId(publicId ?? 'all')
+    setBusyId(slug ?? 'all')
 
     try {
-      await removeSearchHistory({ data: { publicId } })
+      await removeSearchHistory({ data: { slug } })
       await router.invalidate()
-      toast.success(publicId ? 'Search removed.' : 'History cleared.')
+      toast.success(slug ? 'Search removed.' : 'History cleared.')
     } catch {
       toast.error('Your history couldn’t be updated. Try again.')
     } finally {
@@ -65,7 +66,7 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
       <ul className="mt-3 divide-y divide-ink/20 border-t border-b border-ink">
         {history.map((item) => (
           <li
-            key={item.publicId}
+            key={item.slug}
             className="flex items-start gap-4 py-4"
           >
             <SearchHistoryLink item={item} />
@@ -74,7 +75,7 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
               aria-label={`Remove “${item.permit}” from history`}
               disabled={busyId !== undefined}
               className="shrink-0 text-sm text-ink/60 underline-offset-2 hover:text-redline hover:underline disabled:opacity-50"
-              onClick={() => void remove(item.publicId)}
+              onClick={() => void remove(item.slug)}
             >
               Remove
             </button>
@@ -89,8 +90,8 @@ export function SearchHistory({ history }: { history: Array<HistoryItem> }) {
 function SearchHistoryLink({ item }: { item: HistoryItem }) {
   return (
     <Link
-      to="/search/results/$searchId"
-      params={{ searchId: item.publicId }}
+      to="/results/$citySlug/$querySlug"
+      params={searchRouteParams(item.slug)}
       className="group min-w-0 flex-1"
     >
       <p className="truncate font-medium text-ink group-hover:text-blueprint">

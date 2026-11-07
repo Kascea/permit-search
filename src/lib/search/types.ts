@@ -13,6 +13,9 @@ export interface PermitSearchResult {
   description: string
   score: number
   isGovernmentSource: boolean
+  // From a state agency rather than the city, such as Minnesota's electrical
+  // permits. Missing on searches saved before these could appear.
+  isStateSource?: boolean
   // Whether the link opened a PDF when the search checked it. Missing on
   // searches saved before links were checked.
   isPdf?: boolean

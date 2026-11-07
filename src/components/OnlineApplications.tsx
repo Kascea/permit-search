@@ -10,15 +10,15 @@ const badgeClass =
 // A search in a city on a supported permit portal opens with the city's own
 // online permit types that the project needs, before the web results. See
 // docs/search-flow-plan.md. It also shows while the web search is still
-// running, before the search is saved; it has no searchId then.
+// running, before the search is saved; it has no searchSlug then.
 export function OnlineApplications({
   response,
   city,
-  searchId,
+  searchSlug,
 }: {
   response: Partial<OnlineApplicationsPreview>
   city: { name: string; region: string }
-  searchId?: string
+  searchSlug?: string
 }) {
   const { portal, onlineApplications = [] } = response
 
@@ -50,7 +50,7 @@ export function OnlineApplications({
               key={match.id}
               match={match}
               city={city}
-              searchId={searchId}
+              searchSlug={searchSlug}
             />
           ))}
         </ol>
@@ -62,11 +62,11 @@ export function OnlineApplications({
 function OnlineApplication({
   match,
   city,
-  searchId,
+  searchSlug,
 }: {
   match: OnlineApplicationMatch
   city: { name: string; region: string }
-  searchId?: string
+  searchSlug?: string
 }) {
   const documents = match.requirements?.documents ?? []
 
@@ -123,13 +123,13 @@ function OnlineApplication({
         )}
         {/* Not before the search is saved: the page moves to the saved
             results then, which would close a dialog mid-use. */}
-        {searchId && (
+        {searchSlug && (
           <>
             <SavePermitButton
               sourceUrl={match.pageUrl}
               title={match.name}
               city={city}
-              searchId={searchId}
+              searchSlug={searchSlug}
               portalPermitTypeId={match.id}
             />
             <AddToProjectButton
@@ -137,7 +137,7 @@ function OnlineApplication({
               item={{
                 sourceUrl: match.pageUrl,
                 title: match.name,
-                searchId,
+                searchSlug,
                 portalPermitTypeId: match.id,
               }}
             />

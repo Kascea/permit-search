@@ -79,7 +79,8 @@ copy. Do not add proprietary reference-site fonts.
 - `src/routes/index.tsx` — signed-in dashboard, or the home page when signed
   out
 - `src/routes/history.tsx` — past searches
-- `src/routes/search.results.*.tsx` — running and showing a search
+- `src/routes/results.$citySlug.$querySlug.tsx` — a search's page, which
+  also runs it when opened from a search
 - `src/components/CityCombobox.tsx` — accessible city autocomplete
 - `src/lib/location/places.ts` — in-browser city search over the place list
 - `src/lib/location/census.server.ts` — server-only Census reverse geocoding

@@ -7,13 +7,13 @@ import { Notice } from '#/components/Notice'
 
 interface ReportDialogProps {
   isOpen: boolean
-  searchId: string
+  searchSlug: string
   onClose: () => void
 }
 
 // Lets a visitor tell us a saved search's results are wrong. The message is
 // stored against the search's public ID.
-export function ReportDialog({ isOpen, searchId, onClose }: ReportDialogProps) {
+export function ReportDialog({ isOpen, searchSlug, onClose }: ReportDialogProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -21,12 +21,12 @@ export function ReportDialog({ isOpen, searchId, onClose }: ReportDialogProps) {
       widthClass="max-w-110"
       onClose={onClose}
     >
-      <ReportForm searchId={searchId} onClose={onClose} />
+      <ReportForm searchSlug={searchSlug} onClose={onClose} />
     </Modal>
   )
 }
 
-function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
+function ReportForm({ searchSlug, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
   const messageId = useId()
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -48,7 +48,7 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
     setStatus('sending')
 
     try {
-      await reportResults({ data: { publicId: searchId, message } })
+      await reportResults({ data: { slug: searchSlug, message } })
       setStatus('sent')
     } catch (reportError) {
       setStatus('editing')
@@ -108,7 +108,7 @@ function ReportForm({ searchId, onClose }: Omit<ReportDialogProps, 'isOpen'>) {
 
       <div className="mt-4 flex items-center justify-between gap-4">
         <span className="text-xs tracking-[0.08em] text-ink/60 uppercase">
-          Search {searchId}
+          Search {searchSlug}
         </span>
         <button
           type="submit"

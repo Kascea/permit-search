@@ -129,18 +129,18 @@ export const searches = pgTable(
     id: bigint('id', { mode: 'number' })
       .primaryKey()
       .generatedAlwaysAsIdentity(),
-    // Random ID used in URLs, such as /search/results/k7Qm2xPz9aB4, so saved
-    // searches can't be found by counting up.
-    publicId: varchar('public_id', { length: 16 }).notNull(),
+    // The search's address under /results, such as "edina-mn/a-fence-permit",
+    // shared by every run of it. The page shows the newest.
+    slug: varchar('slug', { length: 500 }).notNull(),
 
     cityId: bigint('city_id', { mode: 'number' })
       .notNull()
       .references(() => cities.id, { onDelete: 'cascade' }),
     // As typed, such as "Bathroom remodel!".
     permitQuery: varchar('permit_query', { length: 240 }).notNull(),
-    // Lowercase, punctuation removed: "bathroom remodel".
+    // The wording part of the slug: "bathroom-remodel".
     normalizedQuery: varchar('normalized_query', { length: 240 }).notNull(),
-    // City key, normalized query, and pipeline version; see searchKey().
+    // Slug and pipeline version; see searchKey().
     queryKey: varchar('query_key', { length: 500 }).notNull(),
     // Bumped when the search flow changes so older results aren't reused.
     pipelineVersion: integer('pipeline_version').notNull(),
@@ -160,8 +160,8 @@ export const searches = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex('searches_public_id').on(table.publicId),
     index('searches_query_key_created_at').on(table.queryKey, table.createdAt),
+    index('searches_slug_created_at').on(table.slug, table.createdAt),
     index('searches_city_id').on(table.cityId),
   ],
 )

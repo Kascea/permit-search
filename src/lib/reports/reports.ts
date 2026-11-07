@@ -3,9 +3,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { saveResultReport } from '#/lib/reports/reports.server'
 import { UserError } from '#/lib/errors'
 import { rateLimited } from '#/lib/rate-limit'
+import { isSearchSlug } from '#/lib/saved-searches/search-key'
 
 interface ReportInput {
-  publicId: string
+  slug: string
   message: string
 }
 
@@ -14,7 +15,7 @@ export const reportResults = createServerFn({ method: 'POST' })
   .validator((input: ReportInput): ReportInput => {
     const message = input.message.trim()
 
-    if (!/^[A-Za-z0-9]{8,16}$/.test(input.publicId)) {
+    if (!isSearchSlug(input.slug)) {
       throw new UserError('That search link is not valid.')
     }
 
@@ -26,6 +27,6 @@ export const reportResults = createServerFn({ method: 'POST' })
       throw new UserError('Keep your message under 1,000 characters.')
     }
 
-    return { publicId: input.publicId, message }
+    return { slug: input.slug, message }
   })
   .handler(({ data }) => saveResultReport(data))

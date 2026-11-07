@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 
+import { searchRouteParams } from '#/lib/navigation/origin'
 import type { SearchLink } from '#/lib/navigation/origin'
 
 // "From Fence in Austin, Texas", linking to the saved search, in a row's
@@ -9,8 +10,8 @@ export function SearchLinkText({ search }: { search: SearchLink }) {
     <>
       From{' '}
       <Link
-        to="/search/results/$searchId"
-        params={{ searchId: search.publicId }}
+        to="/results/$citySlug/$querySlug"
+        params={searchRouteParams(search.slug)}
         className="text-blueprint underline-offset-2 hover:underline"
       >
         {search.label}

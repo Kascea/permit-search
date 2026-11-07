@@ -23,14 +23,14 @@ export function SavePermitButton({
   sourceUrl,
   title,
   city,
-  searchId,
+  searchSlug,
   portalPermitTypeId,
 }: {
   // For an online permit, its type's page URL.
   sourceUrl: string
   title: string
   city: { name: string; region: string }
-  searchId: string
+  searchSlug: string
   portalPermitTypeId?: number
 }) {
   const { user } = useAuth()
@@ -72,7 +72,7 @@ export function SavePermitButton({
 
     try {
       const permit = await saveAccountPermit({
-        data: { sourceUrl, title, city, searchId, portalPermitTypeId },
+        data: { sourceUrl, title, city, searchSlug, portalPermitTypeId },
       })
 
       putSavedPermit(permit)

@@ -126,6 +126,10 @@ then "Save permit" and "Add to project" as quiet actions
 (`quietActionClass`), then "Saved in" as plain text. Both classes live in
 `components/buttons.ts`.
 
+A state agency's page ("State of Minnesota" badge, `bg-blueprint/10
+text-blueprint`) comes after the city's results, at most three, with a line
+under its description saying some cities run the permit themselves.
+
 **Alert.** Use `<Notice tone="error">` (see Feedback below), not hand-written
 classes.
 

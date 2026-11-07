@@ -12,6 +12,7 @@ import {
 } from '#/lib/db/schema'
 import { UserError } from '#/lib/errors'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
+import { searchRunColumn } from '#/lib/saved-searches/search-run.server'
 import {
   EMPTY_PROJECT_DETAILS,
   PROJECT_TEXT_FIELDS,
@@ -117,7 +118,7 @@ interface ItemRow {
   typePageUrl: string | null
   typeApplyUrl: string | null
   typeRequirements: PermitRequirements | null
-  searchId: string | null
+  searchSlug: string | null
   permit: string | null
   cityName: string | null
   region: string | null
@@ -180,7 +181,7 @@ interface ItemToInsert {
   kind: 'pdf' | 'online'
   sourceUrl: string
   title: string
-  searchId?: string
+  searchSlug?: string
   portalPermitTypeId: number | null
 }
 
@@ -200,7 +201,7 @@ export async function resolveProjectItem(
     kind: 'online',
     sourceUrl: type.pageUrl,
     title: type.name,
-    searchId: item.searchId,
+    searchSlug: item.searchSlug,
     portalPermitTypeId: type.id,
   }
 }
@@ -236,11 +237,6 @@ function trackedPermitFromRow(row: ItemRow): TrackedPermit | undefined {
   }
 }
 
-// The searches row for a public ID, or null; for inserting an item's search.
-function searchRowId(publicId: string | undefined) {
-  return sql`(select ${searches.id} from ${searches} where ${searches.publicId} = ${publicId ?? null})`
-}
-
 // Most recently changed first. With a public ID, just that project (if it's
 // the user's).
 export async function listProjects(
@@ -266,7 +262,7 @@ export async function listProjects(
             'kind', item.kind,
             'sourceUrl', item.source_url,
             'title', item.title,
-            'searchId', search.public_id,
+            'searchSlug', search.slug,
             'permit', search.permit_query,
             'cityName', city.name,
             'region', city.region,
@@ -341,11 +337,11 @@ export async function createProject(
   }
 
   await db.execute(sql`
-    with project as (${insert.returning({ id: projects.id })})
+    with project as (${insert.returning({ id: projects.id }).getSQL()})
     insert into ${projectItems}
       (project_id, kind, source_url, title, search_id, portal_permit_type_id)
     select id, ${input.item.kind}, ${input.item.sourceUrl}, ${input.item.title},
-      ${searchRowId(input.item.searchId)}, ${input.item.portalPermitTypeId}
+      ${searchRunColumn(searches.id, input.item.searchSlug)}, ${input.item.portalPermitTypeId}
     from project
   `)
 
@@ -391,7 +387,7 @@ export async function addProjectItem(
     insert into ${projectItems}
       (project_id, kind, source_url, title, search_id, portal_permit_type_id)
     select id, ${item.kind}, ${item.sourceUrl}, ${item.title},
-      ${searchRowId(item.searchId)}, ${item.portalPermitTypeId}
+      ${searchRunColumn(searches.id, item.searchSlug)}, ${item.portalPermitTypeId}
     from project
     on conflict do nothing
   `)

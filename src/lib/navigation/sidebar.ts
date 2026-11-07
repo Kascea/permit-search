@@ -49,8 +49,11 @@ function subscribe(listener: () => void) {
 export function useHasAppSidebar() {
   const { user } = rootRoute.useLoaderData()
 
+  // The page on screen, not the one being loaded, so the layout changes along
+  // with the page rather than just before it.
   const pathname = useRouterState({
-    select: (state) => state.location.pathname,
+    select: (state) =>
+      (state.resolvedLocation ?? state.location).pathname,
   })
 
   if (pathname.startsWith('/editor')) return false

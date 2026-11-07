@@ -8,6 +8,7 @@ import { formatCity } from '#/lib/location/format'
 import { searchLabel } from '#/lib/navigation/origin'
 import { useHasAppSidebar } from '#/lib/navigation/sidebar'
 import type { City } from '#/lib/location/types'
+import { searchPageTarget } from '#/lib/search/pending-search'
 import {
   clearCurrentSearch,
   useCurrentSearch,
@@ -44,10 +45,12 @@ export function SiteHeader({
 
   function runSearch(city: City, permit: string) {
     setIsSearchOpen(false)
-    void navigate({
-      to: '/search/results',
-      search: { city: city.name, region: city.region ?? '', permit },
-    })
+    void navigate(
+      searchPageTarget({
+        city: { name: city.name, region: city.region ?? '' },
+        permit,
+      }),
+    )
   }
 
   return (

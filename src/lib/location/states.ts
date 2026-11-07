@@ -58,3 +58,12 @@ export type StateCode = keyof typeof STATE_NAMES
 export function isStateCode(code: string): code is StateCode {
   return Object.hasOwn(STATE_NAMES, code)
 }
+
+const STATE_CODES = new Map(
+  Object.entries(STATE_NAMES).map(([code, name]) => [name, code.toLowerCase()]),
+)
+
+// "mn" for "Minnesota"; undefined when the region isn't a state.
+export function stateCode(region: string) {
+  return STATE_CODES.get(region)
+}

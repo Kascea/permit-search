@@ -299,7 +299,7 @@ function DraftList({
         item={{
           sourceUrl: addingDraft?.sourceUrl ?? '',
           title: addingDraft?.title ?? '',
-          searchId: addingDraft?.search?.publicId,
+          searchSlug: addingDraft?.search?.slug,
         }}
         city={null}
         onClose={() => setAddingDraft(undefined)}

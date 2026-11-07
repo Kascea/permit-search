@@ -15,18 +15,15 @@ import { Route as DraftsRouteImport } from './routes/drafts'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
 import { Route as PermitsIndexRouteImport } from './routes/permits.index'
 import { Route as PermitsPermitIdRouteImport } from './routes/permits.$permitId'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
-import { Route as ResultsIndexRouteImport } from './routes/results.index'
-import { Route as ResultsSearchIdRouteImport } from './routes/results.$searchId'
-import { Route as SearchIndexRouteImport } from './routes/search.index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
-import { Route as SearchResultsIndexRouteImport } from './routes/search.results.index'
-import { Route as SearchResultsSearchIdRouteImport } from './routes/search.results.$searchId'
+import { Route as ResultsCitySlugQuerySlugRouteImport } from './routes/results.$citySlug.$querySlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,6 +53,11 @@ const HistoryRoute = HistoryRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPdfRoute = ApiPdfRouteImport.update({
@@ -88,36 +90,17 @@ const ProjectsNewRoute = ProjectsNewRouteImport.update({
   path: '/projects/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResultsIndexRoute = ResultsIndexRouteImport.update({
-  id: '/results/',
-  path: '/results/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResultsSearchIdRoute = ResultsSearchIdRouteImport.update({
-  id: '/results/$searchId',
-  path: '/results/$searchId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchIndexRoute = SearchIndexRouteImport.update({
-  id: '/search/',
-  path: '/search/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SearchResultsIndexRoute = SearchResultsIndexRouteImport.update({
-  id: '/search/results/',
-  path: '/search/results/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchResultsSearchIdRoute = SearchResultsSearchIdRouteImport.update({
-  id: '/search/results/$searchId',
-  path: '/search/results/$searchId',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ResultsCitySlugQuerySlugRoute =
+  ResultsCitySlugQuerySlugRouteImport.update({
+    id: '/results/$citySlug/$querySlug',
+    path: '/results/$citySlug/$querySlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -126,18 +109,15 @@ export interface FileRoutesByFullPath {
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
-  '/results/$searchId': typeof ResultsSearchIdRoute
   '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/results/': typeof ResultsIndexRoute
-  '/search/': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
-  '/search/results/': typeof SearchResultsIndexRoute
+  '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -146,18 +126,15 @@ export interface FileRoutesByTo {
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
-  '/results/$searchId': typeof ResultsSearchIdRoute
   '/permits': typeof PermitsIndexRoute
   '/projects': typeof ProjectsIndexRoute
-  '/results': typeof ResultsIndexRoute
-  '/search': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
-  '/search/results': typeof SearchResultsIndexRoute
+  '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,18 +144,15 @@ export interface FileRoutesById {
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
-  '/results/$searchId': typeof ResultsSearchIdRoute
   '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/results/': typeof ResultsIndexRoute
-  '/search/': typeof SearchIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/search/results/$searchId': typeof SearchResultsSearchIdRoute
-  '/search/results/': typeof SearchResultsIndexRoute
+  '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -189,18 +163,15 @@ export interface FileRouteTypes {
     | '/editor'
     | '/history'
     | '/settings'
+    | '/sitemap.xml'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
-    | '/results/$searchId'
     | '/permits/'
     | '/projects/'
-    | '/results/'
-    | '/search/'
     | '/api/auth/$'
-    | '/search/results/$searchId'
-    | '/search/results/'
+    | '/results/$citySlug/$querySlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -209,18 +180,15 @@ export interface FileRouteTypes {
     | '/editor'
     | '/history'
     | '/settings'
+    | '/sitemap.xml'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
-    | '/results/$searchId'
     | '/permits'
     | '/projects'
-    | '/results'
-    | '/search'
     | '/api/auth/$'
-    | '/search/results/$searchId'
-    | '/search/results'
+    | '/results/$citySlug/$querySlug'
   id:
     | '__root__'
     | '/'
@@ -229,18 +197,15 @@ export interface FileRouteTypes {
     | '/editor'
     | '/history'
     | '/settings'
+    | '/sitemap.xml'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
     | '/projects/new'
-    | '/results/$searchId'
     | '/permits/'
     | '/projects/'
-    | '/results/'
-    | '/search/'
     | '/api/auth/$'
-    | '/search/results/$searchId'
-    | '/search/results/'
+    | '/results/$citySlug/$querySlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -250,18 +215,15 @@ export interface RootRouteChildren {
   EditorRoute: typeof EditorRoute
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiPdfRoute: typeof ApiPdfRoute
   PermitsPermitIdRoute: typeof PermitsPermitIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
-  ResultsSearchIdRoute: typeof ResultsSearchIdRoute
   PermitsIndexRoute: typeof PermitsIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
-  ResultsIndexRoute: typeof ResultsIndexRoute
-  SearchIndexRoute: typeof SearchIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  SearchResultsSearchIdRoute: typeof SearchResultsSearchIdRoute
-  SearchResultsIndexRoute: typeof SearchResultsIndexRoute
+  ResultsCitySlugQuerySlugRoute: typeof ResultsCitySlugQuerySlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -308,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/pdf': {
       id: '/api/pdf'
       path: '/api/pdf'
@@ -350,27 +319,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/results/': {
-      id: '/results/'
-      path: '/results'
-      fullPath: '/results/'
-      preLoaderRoute: typeof ResultsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/results/$searchId': {
-      id: '/results/$searchId'
-      path: '/results/$searchId'
-      fullPath: '/results/$searchId'
-      preLoaderRoute: typeof ResultsSearchIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search/': {
-      id: '/search/'
-      path: '/search'
-      fullPath: '/search/'
-      preLoaderRoute: typeof SearchIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -378,18 +326,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/search/results/': {
-      id: '/search/results/'
-      path: '/search/results'
-      fullPath: '/search/results/'
-      preLoaderRoute: typeof SearchResultsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search/results/$searchId': {
-      id: '/search/results/$searchId'
-      path: '/search/results/$searchId'
-      fullPath: '/search/results/$searchId'
-      preLoaderRoute: typeof SearchResultsSearchIdRouteImport
+    '/results/$citySlug/$querySlug': {
+      id: '/results/$citySlug/$querySlug'
+      path: '/results/$citySlug/$querySlug'
+      fullPath: '/results/$citySlug/$querySlug'
+      preLoaderRoute: typeof ResultsCitySlugQuerySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -402,18 +343,15 @@ const rootRouteChildren: RootRouteChildren = {
   EditorRoute: EditorRoute,
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiPdfRoute: ApiPdfRoute,
   PermitsPermitIdRoute: PermitsPermitIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
-  ResultsSearchIdRoute: ResultsSearchIdRoute,
   PermitsIndexRoute: PermitsIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
-  ResultsIndexRoute: ResultsIndexRoute,
-  SearchIndexRoute: SearchIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  SearchResultsSearchIdRoute: SearchResultsSearchIdRoute,
-  SearchResultsIndexRoute: SearchResultsIndexRoute,
+  ResultsCitySlugQuerySlugRoute: ResultsCitySlugQuerySlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

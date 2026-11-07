@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { saveCityPermitsUrl } from '#/lib/contacts/store.server'
 import { isPdfUrl } from '#/lib/pdf/url'
 import { hasDatabase, withDatabase } from '#/lib/db/client.server'
+import { stateCode } from '#/lib/location/states'
 import { providerForCity } from '#/lib/portals/providers'
 import type { ReviewedLink } from '#/lib/search/link-review.server'
 
@@ -16,6 +17,7 @@ import {
   isGeneralPermitsPage,
   matchesSearchedProject,
 } from '#/lib/search/link-review'
+import { withoutRequestPhrase } from '#/lib/saved-searches/search-key'
 import { reviewPermitLinks } from '#/lib/search/link-review.server'
 import type { PermitType } from '#/lib/search/permit-types'
 import { identifyPermitTypes } from '#/lib/search/permit-types.server'
@@ -26,6 +28,13 @@ import { UserError } from '#/lib/errors'
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 const SEARCH_TIMEOUT_MS = 15_000
 const MAX_RESULTS = 10
+
+// Fewer than this from a search asking for 20 looks like a bad run.
+const MIN_TAVILY_RESULTS = 5
+
+// Enough for a state-run permit's page and form, without crowding out the
+// city's. Some cities run the same permits themselves, so these come last.
+const MAX_STATE_RESULTS = 3
 const MAX_OFFICIAL_PAGES_TO_EXTRACT = 4
 const MAX_GENERAL_FALLBACK_RESULTS = 3
 const MAX_LINKS_TO_VERIFY = 15
@@ -57,35 +66,34 @@ export async function searchPermitsWithTavily(
   const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS)
 
   try {
-    const response = await fetch(TAVILY_SEARCH_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.TAVILY_API_KEY.trim()}`,
-      },
-      body: JSON.stringify({
-        query,
-        search_depth: 'basic',
-        topic: 'general',
-        max_results: 20,
-        include_answer: false,
-        include_raw_content: false,
-        include_images: false,
-        include_favicon: false,
-        country: 'united states',
-      }),
-      signal: controller.signal,
-    })
+    let payload = await fetchTavilyResults(query, controller.signal)
 
-    if (!response.ok) {
-      throw new UserError(
-        response.status === 429
-          ? 'Permit search is busy. Please wait a moment and try again.'
-          : 'Permit search is temporarily unavailable.',
+    // The same query sometimes comes back nearly empty and then full moments
+    // later, and a thin list loses the official pages everything else builds
+    // on. One more try, keeping whichever found more.
+    if (payload.results.length < MIN_TAVILY_RESULTS) {
+      console.log(
+        JSON.stringify({
+          message: 'tavily returned few results, trying again',
+          query,
+          returned: payload.results.length,
+        }),
       )
+
+      const retried = await fetchTavilyResults(query, controller.signal).catch(
+        (cause: unknown) => {
+          // The first answer can still be used.
+          if (cause instanceof Error && cause.name === 'AbortError') throw cause
+
+          return null
+        },
+      )
+
+      if (retried && retried.results.length > payload.results.length) {
+        payload = retried
+      }
     }
 
-    const payload = tavilySearchResponseSchema.parse(await response.json())
     const tavilyResults = payload.results
 
     const results = tavilyResults.filter((result) => {
@@ -128,6 +136,9 @@ export async function searchPermitsWithTavily(
             result.isGovernmentSource &&
             isLikelyHtmlPage(result.url) &&
             !isPdfUrl(result.url) &&
+            // A state agency's pages link to everything it does, for everyone
+            // in the state; only the pages the search found itself are used.
+            !isStateAgency(new URL(result.url), input.city.region ?? '') &&
             result.url !== formsPage?.url,
         )
         .sort(
@@ -158,7 +169,11 @@ export async function searchPermitsWithTavily(
 
     const reviewedLinks = await reviewPermitLinks(
       input,
-      deduplicateResults([...extractedLinks, ...results]),
+      deduplicateResults([...extractedLinks, ...results]).map((link) =>
+        isStateAgency(new URL(link.url), input.city.region ?? '')
+          ? { ...link, isStateSource: true }
+          : link,
+      ),
       permitTypes,
     )
 
@@ -175,7 +190,10 @@ export async function searchPermitsWithTavily(
     const candidates = (
       isGeneralFallback
         ? reviewedLinks
-            .filter(({ review }) => isGeneralPermitsPage(review))
+            .filter(
+              ({ link, review }) =>
+                !link.isStateSource && isGeneralPermitsPage(review),
+            )
             .sort(
               (first, second) =>
                 second.review.generalPermitsPage -
@@ -191,13 +209,28 @@ export async function searchPermitsWithTavily(
     ).map(({ link }) => link)
 
     // More than are shown are checked, so dead links can be replaced by the
-    // next ones down.
-    const rankedResults = (
-      await verifyLinks(candidates.slice(0, MAX_LINKS_TO_VERIFY))
-    ).slice(
-      0,
-      isGeneralFallback ? MAX_GENERAL_FALLBACK_RESULTS : MAX_RESULTS,
-    )
+    // next ones down. State pages keep their own place below the city's.
+    const verified = await verifyLinks([
+      ...candidates
+        .filter((link) => !link.isStateSource)
+        .slice(0, MAX_LINKS_TO_VERIFY),
+      ...candidates
+        .filter((link) => link.isStateSource)
+        .slice(0, MAX_STATE_RESULTS),
+    ])
+
+    const stateResults = verified.filter((link) => link.isStateSource)
+
+    const rankedResults = [
+      ...verified
+        .filter((link) => !link.isStateSource)
+        .slice(
+          0,
+          (isGeneralFallback ? MAX_GENERAL_FALLBACK_RESULTS : MAX_RESULTS) -
+            stateResults.length,
+        ),
+      ...stateResults,
+    ]
 
     if (isGeneralFallback) {
       console.log(
@@ -244,6 +277,38 @@ function cityFormsPage({ city }: PermitSearchInput): PermitSearchResult | null {
   }
 }
 
+async function fetchTavilyResults(query: string, signal: AbortSignal) {
+  const response = await fetch(TAVILY_SEARCH_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.TAVILY_API_KEY.trim()}`,
+    },
+    body: JSON.stringify({
+      query,
+      search_depth: 'basic',
+      topic: 'general',
+      max_results: 20,
+      include_answer: false,
+      include_raw_content: false,
+      include_images: false,
+      include_favicon: false,
+      country: 'united states',
+    }),
+    signal,
+  })
+
+  if (!response.ok) {
+    throw new UserError(
+      response.status === 429
+        ? 'Permit search is busy. Please wait a moment and try again.'
+        : 'Permit search is temporarily unavailable.',
+    )
+  }
+
+  return tavilySearchResponseSchema.parse(await response.json())
+}
+
 // Saves the city's main permits page, after the response is sent, so contact
 // refreshes can start from it.
 function rememberPermitsPage(
@@ -251,7 +316,9 @@ function rememberPermitsPage(
   reviewedLinks: Array<ReviewedLink>,
 ) {
   const permitsPage = reviewedLinks
-    .filter(({ review }) => isGeneralPermitsPage(review))
+    .filter(
+      ({ link, review }) => !link.isStateSource && isGeneralPermitsPage(review),
+    )
     .sort(
       (first, second) =>
         second.review.generalPermitsPage - first.review.generalPermitsPage,
@@ -287,9 +354,28 @@ function buildSearchQuery(
       ? permitTypes.map(({ name }) => name).join(' ')
       : 'permit'
 
-  return `official City of "${city.name}" "${city.region}" ${permit} ${permits} application requirements`
+  return `official City of "${city.name}" "${city.region}" ${withoutRequestPhrase(permit)} ${permits} application requirements`
     .replace(/\s+/g, ' ')
     .slice(0, 400)
+}
+
+// A site run by the state the city is in, such as dli.mn.gov, oregon.gov or
+// www.state.mn.us.
+function isStateAgency(url: URL, region: string) {
+  const host = url.hostname.toLowerCase()
+  const name = region.toLowerCase().replace(/[^a-z]/g, '')
+  const code = stateCode(region)
+
+  if (!name) return false
+
+  return (
+    host === `${name}.gov` ||
+    host.endsWith(`.${name}.gov`) ||
+    (code !== undefined &&
+      (host === `${code}.gov` ||
+        host.endsWith(`.${code}.gov`) ||
+        host.endsWith(`.state.${code}.us`)))
+  )
 }
 
 function normalizeResult(
@@ -325,6 +411,8 @@ function matchesLocality(
 ) {
   // Only the city name is required: official pages often never name their
   // state, and Jev's jurisdiction question rejects same-named cities elsewhere.
+  // The state's own agencies pass too, since they never name the city; Jev's
+  // permit question still has to accept them.
   const cityName = normalizeText(city.name)
 
   const text = normalizeText(
@@ -334,7 +422,9 @@ function matchesLocality(
   const compactUrl = compactText(`${url.hostname}${url.pathname}`)
 
   return (
-    includesPhrase(text, cityName) || compactUrl.includes(compactText(cityName))
+    includesPhrase(text, cityName) ||
+    compactUrl.includes(compactText(cityName)) ||
+    isStateAgency(url, city.region ?? '')
   )
 }
 

@@ -1,4 +1,4 @@
-import { and, count, eq, gt } from 'drizzle-orm'
+import { and, count, desc, eq, gt, sql } from 'drizzle-orm'
 
 import { withDatabase } from '#/lib/db/client.server'
 import { resultReports, searches } from '#/lib/db/schema'
@@ -8,10 +8,10 @@ import { UserError } from '#/lib/errors'
 const MAX_REPORTS_PER_SEARCH_PER_DAY = 20
 
 export async function saveResultReport({
-  publicId,
+  slug,
   message,
 }: {
-  publicId: string
+  slug: string
   message: string
 }) {
   await withDatabase(async (db) => {
@@ -19,7 +19,8 @@ export async function saveResultReport({
       await db
         .select({ id: searches.id })
         .from(searches)
-        .where(eq(searches.publicId, publicId))
+        .where(eq(searches.slug, slug))
+        .orderBy(desc(sql`${searches.resultCount} > 0`), desc(searches.createdAt))
         .limit(1)
     ).at(0)
 
@@ -48,5 +49,5 @@ export async function saveResultReport({
     await db.insert(resultReports).values({ searchId: search.id, message })
   })
 
-  console.log(JSON.stringify({ message: 'results reported', publicId }))
+  console.log(JSON.stringify({ message: 'results reported', slug }))
 }

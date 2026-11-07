@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
 import type { PortalPermitType } from '#/lib/portals/types'
-import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
+import { projectSourceUrlSchema, publicIdSchema, searchSlugSchema } from '#/lib/projects/types'
 import type { ProjectItem } from '#/lib/projects/types'
 
 // A permit in the user's library: a blank PDF form, or an online permit on
@@ -52,7 +52,7 @@ export function savedPermitProjectItem(permit: SavedPermit): ProjectItem {
   return {
     sourceUrl: permit.sourceUrl,
     title: permit.title,
-    searchId: permit.search?.publicId,
+    searchSlug: permit.search?.slug,
     portalPermitTypeId: permit.kind === 'online' ? permit.online.id : undefined,
   }
 }
@@ -100,8 +100,8 @@ export const savePermitSchema = z.object({
       (title || 'PDF form').slice(0, MAX_PERMIT_TITLE_LENGTH),
     ),
   city: permitCitySchema,
-  // The saved search it was found in; its permit types are kept with it.
-  searchId: publicIdSchema('search').optional(),
+  // The search it was found in; its permit types are kept with it.
+  searchSlug: searchSlugSchema.optional(),
   // For an online permit: its permit type's ID. The server then takes the
   // URL, title and city from the catalog, and sourceUrl is ignored.
   portalPermitTypeId: z.number().int().positive().optional(),

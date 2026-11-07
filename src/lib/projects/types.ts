@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
+import { isSearchSlug } from '#/lib/saved-searches/search-key'
 import type { PortalPermitType, TrackedPermit } from '#/lib/portals/types'
 
 // A PDF form or an online application in a project.
@@ -9,8 +10,8 @@ export interface ProjectItem {
   kind?: 'pdf' | 'online'
   sourceUrl: string
   title: string
-  // Sent when adding: the public ID of the saved search it was found in.
-  searchId?: string
+  // Sent when adding: the slug of the search it was found in.
+  searchSlug?: string
   // Read back: that search, for linking to it.
   search?: SearchLink
   // Read back: the city permit filed for it, once its number is added.
@@ -281,6 +282,12 @@ export function publicIdSchema(what = 'project') {
   return z.string({ error: invalid }).regex(PUBLIC_ID, invalid)
 }
 
+const invalidSearch = 'That search is not valid.'
+
+export const searchSlugSchema = z
+  .string({ error: invalidSearch })
+  .refine(isSearchSlug, invalidSearch)
+
 const projectNameSchema = z
   .string({ error: 'Give the project a name.' })
   .trim()
@@ -393,7 +400,7 @@ export const projectItemSchema = z.object({
     .trim()
     .catch('')
     .transform((title) => (title || 'PDF form').slice(0, MAX_TITLE_LENGTH)),
-  searchId: publicIdSchema('search').optional(),
+  searchSlug: searchSlugSchema.optional(),
   portalPermitTypeId: z.number().int().positive().optional(),
 })
 

@@ -10,13 +10,13 @@ import { formatCity } from '#/lib/location/format'
 import { setCurrentSearch } from '#/lib/search/current-search'
 
 interface ResultsPageProps {
-  // Absent on /search/results with no search, which shows a prompt instead.
+  // Absent when there's no such search, which shows a prompt instead.
   search?: { city: { name: string; region: string }; permit: string }
   resultCount?: number
   // Shown under the heading, such as whether the results were reused.
   meta?: ReactNode
   // A saved search's public ID, so visitors can report it as incorrect.
-  searchId?: string
+  searchSlug?: string
   children?: ReactNode
 }
 
@@ -26,7 +26,7 @@ export function ResultsPage({
   search,
   resultCount,
   meta,
-  searchId,
+  searchSlug,
   children,
 }: ResultsPageProps) {
   const [isReportOpen, setIsReportOpen] = useState(false)
@@ -59,11 +59,12 @@ export function ResultsPage({
           </Link>
         </div>
       ) : (
-        // Always two columns on large screens, so the page doesn't shift
-        // when the contact card arrives.
+        // Always two columns on large screens, and the second row takes any
+        // height the contact card adds, so the page doesn't shift when it
+        // arrives.
         <section
           aria-live="polite"
-          className="bg-paper/50 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-x-10"
+          className="bg-paper/50 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-10"
         >
           <div className="flex items-end justify-between gap-4 lg:col-start-1 lg:row-start-1">
             <div>
@@ -79,11 +80,16 @@ export function ResultsPage({
                 </div>
               )}
             </div>
-            {resultCount !== undefined && (
-              <span className="shrink-0 text-sm text-ink/60">
-                {resultCount} {resultCount === 1 ? 'result' : 'results'}
-              </span>
-            )}
+            {/* Holds its room while searching, so a long heading wraps the
+                same before and after. */}
+            <span
+              aria-hidden={resultCount === undefined}
+              className={`shrink-0 text-sm text-ink/60 ${
+                resultCount === undefined ? 'invisible' : ''
+              }`}
+            >
+              {resultCount ?? 10} {resultCount === 1 ? 'result' : 'results'}
+            </span>
           </div>
 
           {/* Beside the results on large screens, under the heading on phones. */}
@@ -96,7 +102,7 @@ export function ResultsPage({
             {/* Was in SiteFooter, which isn't beside AppSidebar. */}
             <p className="mt-2 border-t border-ink/20 pt-4 text-sm text-ink/70">
               Always confirm requirements with your local permitting office.
-              {searchId && (
+              {searchSlug && (
                 <>
                   {' '}
                   Something look wrong?{' '}
@@ -114,10 +120,10 @@ export function ResultsPage({
         </section>
       )}
 
-      {searchId && (
+      {searchSlug && (
         <ReportDialog
           isOpen={isReportOpen}
-          searchId={searchId}
+          searchSlug={searchSlug}
           onClose={() => setIsReportOpen(false)}
         />
       )}

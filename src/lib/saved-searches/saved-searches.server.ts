@@ -7,9 +7,10 @@ import {
   SEARCH_PIPELINE_VERSION,
   SEARCH_REFRESH_HOURS,
   SEARCH_REUSE_DAYS,
-  newPublicId,
-  normalizeQuery,
+  isIndexableSearch,
+  normalizedQuery,
   searchKey,
+  searchSlug,
 } from '#/lib/saved-searches/search-key'
 import { PERMIT_PROVIDERS, providerForCity } from '#/lib/portals/providers'
 import type { OnlineApplicationMatch } from '#/lib/portals/types'
@@ -22,7 +23,7 @@ import type {
 } from '#/lib/search/types'
 
 export interface SavedSearch {
-  publicId: string
+  slug: string
   city: { name: string; region: string }
   permit: string
   response: PermitSearchResponse
@@ -30,6 +31,7 @@ export interface SavedSearch {
   // Measured on the server when loaded, so the server and browser render the
   // same "New" or "Saved" label.
   ageMinutes: number
+  isIndexable: boolean
 }
 
 // A search that runSavedSearch has started. The online applications come from
@@ -38,7 +40,7 @@ export interface SavedSearch {
 export interface StartedSearch {
   // Null when a saved search was reused, or the city has no permit portal.
   online: Promise<OnlineApplicationsPreview | null>
-  saved: Promise<{ publicId: string; wasReused: boolean }>
+  saved: Promise<{ slug: string; wasReused: boolean }>
 }
 
 // Reuses a matching search from the last SEARCH_REUSE_DAYS when there is one;
@@ -61,7 +63,8 @@ export async function runSavedSearch(
   userIdRequest.catch(() => {})
 
   const region = input.city.region ?? ''
-  const queryKey = searchKey(input.city.name, region, input.permit)
+  const slug = searchSlug(input.city.name, region, input.permit)
+  const queryKey = searchKey(slug)
   const refreshCutoff = new Date(Date.now() - SEARCH_REFRESH_HOURS * 3_600_000)
 
   const reused = await withDatabase(async (db) => {
@@ -69,15 +72,16 @@ export async function runSavedSearch(
     return db.transaction(async (tx) => {
       const match = (
         await tx
-          .select({ id: searches.id, publicId: searches.publicId })
+          .select({ id: searches.id })
           .from(searches)
           .where(
             and(
               eq(searches.queryKey, queryKey),
               gt(searches.reuseUntil, new Date()),
-              // An empty result is often a bad run of the search, not the
-              // city's answer, so it's tried again rather than reused.
-              gt(searches.resultCount, 0),
+              // No web results is often a bad run of the search, not the
+              // city's answer, so it's tried again rather than reused, even
+              // when the city's portal matched online permits.
+              sql`jsonb_array_length(${searches.response}->'results') > 0`,
               fresh ? gt(searches.createdAt, refreshCutoff) : undefined,
             ),
           )
@@ -102,7 +106,7 @@ export async function runSavedSearch(
         userId: await userIdRequest,
       })
 
-      return match.publicId
+      return true
     })
   })
 
@@ -111,13 +115,12 @@ export async function runSavedSearch(
       JSON.stringify({
         message: 'reused saved search',
         queryKey,
-        publicId: reused,
       }),
     )
 
     return {
       online: Promise.resolve(null),
-      saved: Promise.resolve({ publicId: reused, wasReused: true }),
+      saved: Promise.resolve({ slug, wasReused: true }),
     }
   }
 
@@ -125,6 +128,7 @@ export async function runSavedSearch(
 
   const saved = saveNewSearch(input, {
     fresh,
+    slug,
     queryKey,
     onlineApplications,
     userIdRequest,
@@ -145,16 +149,18 @@ async function saveNewSearch(
   input: PermitSearchInput,
   {
     fresh,
+    slug,
     queryKey,
     onlineApplications: onlineApplicationsRequest,
     userIdRequest,
   }: {
     fresh: boolean
+    slug: string
     queryKey: string
     onlineApplications: Promise<Array<OnlineApplicationMatch>>
     userIdRequest: Promise<string | null>
   },
-): Promise<{ publicId: string; wasReused: boolean }> {
+): Promise<{ slug: string; wasReused: boolean }> {
   const region = input.city.region ?? ''
 
   // The city row doesn't depend on the results, so it's saved during the
@@ -175,15 +181,15 @@ async function saveNewSearch(
   const reuseUntil = new Date()
   reuseUntil.setUTCDate(reuseUntil.getUTCDate() + SEARCH_REUSE_DAYS)
 
-  const publicId = await withDatabase((db) =>
+  await withDatabase((db) =>
     db.transaction(async (tx) => {
       const [saved] = await tx
         .insert(searches)
         .values({
-          publicId: newPublicId(),
+          slug,
           cityId: city.id,
           permitQuery: input.permit,
-          normalizedQuery: normalizeQuery(input.permit),
+          normalizedQuery: normalizedQuery(input.permit),
           queryKey,
           pipelineVersion: SEARCH_PIPELINE_VERSION,
           permitTypes: response.permitTypes,
@@ -193,21 +199,19 @@ async function saveNewSearch(
             (response.onlineApplications?.length ?? 0),
           reuseUntil,
         })
-        .returning({ id: searches.id, publicId: searches.publicId })
+        .returning({ id: searches.id })
 
       await tx
         .insert(searchRequests)
         .values({ searchId: saved.id, wasReused: false, userId })
-
-      return saved.publicId
     }),
   )
 
   console.log(
-    JSON.stringify({ message: 'saved new search', queryKey, publicId, fresh }),
+    JSON.stringify({ message: 'saved new search', queryKey, fresh }),
   )
 
-  return { publicId, wasReused: false }
+  return { slug, wasReused: false }
 }
 
 // The city's portal and its matched permit types, when it has a portal.
@@ -234,23 +238,31 @@ function withPortal(
   }
 }
 
+// The newest run of a search that found something, or the newest if none did.
 export async function loadSavedSearch(
-  publicId: string,
+  slug: string,
 ): Promise<SavedSearch | null> {
   const row = await withDatabase(async (db) =>
     (
       await db
         .select({
-          publicId: searches.publicId,
           permit: searches.permitQuery,
           response: searches.response,
+          resultCount: searches.resultCount,
           createdAt: searches.createdAt,
           cityName: cities.name,
           region: cities.region,
+          // Across every run, since each new run starts its own count.
+          timesServed: sql<number>`(
+            select coalesce(sum(run.times_served), 0)::int
+            from ${searches} as run
+            where run.slug = ${slug}
+          )`,
         })
         .from(searches)
         .innerJoin(cities, eq(searches.cityId, cities.id))
-        .where(eq(searches.publicId, publicId))
+        .where(eq(searches.slug, slug))
+        .orderBy(desc(sql`${searches.resultCount} > 0`), desc(searches.createdAt))
         .limit(1)
     ).at(0),
   )
@@ -260,38 +272,78 @@ export async function loadSavedSearch(
   }
 
   return {
-    publicId: row.publicId,
+    slug,
     city: { name: row.cityName, region: row.region },
     permit: row.permit,
     response: row.response,
     createdAt: row.createdAt.toISOString(),
     ageMinutes: Math.floor((Date.now() - row.createdAt.getTime()) / 60_000),
+    isIndexable: isIndexableSearch({
+      permit: row.permit,
+      resultCount: row.resultCount,
+      isGeneralFallback: row.response.isGeneralFallback,
+      timesServed: row.timesServed,
+    }),
   }
 }
 
-// Just what a breadcrumb or link names a search by, without its results.
+// Well under the 50,000 URLs a sitemap can hold; it only bounds the query.
+const MAX_SITEMAP_SEARCHES = 5_000
+
+// The searches search engines should list, for the sitemap: each one's newest
+// run, judged the same way as its page.
+export async function listIndexableSearches(): Promise<
+  Array<{ slug: string; lastModified: string }>
+> {
+  const rows = await withDatabase((db) =>
+    db
+      .selectDistinctOn([searches.slug], {
+        slug: searches.slug,
+        permit: searches.permitQuery,
+        resultCount: searches.resultCount,
+        isGeneralFallback: sql<boolean>`coalesce((${searches.response}->>'isGeneralFallback')::boolean, false)`,
+        createdAt: searches.createdAt,
+        timesServed: sql<number>`(sum(${searches.timesServed}) over (partition by ${searches.slug}))::int`,
+      })
+      .from(searches)
+      .orderBy(
+        searches.slug,
+        desc(sql`${searches.resultCount} > 0`),
+        desc(searches.createdAt),
+      )
+      .limit(MAX_SITEMAP_SEARCHES),
+  )
+
+  return rows.flatMap((row) =>
+    isIndexableSearch(row)
+      ? [{ slug: row.slug, lastModified: row.createdAt.toISOString() }]
+      : [],
+  )
+}
+
+// Just what a breadcrumb names a search by, without its results.
 export async function loadSearchSummary(
-  publicId: string,
-): Promise<Pick<SavedSearch, 'publicId' | 'city' | 'permit'> | null> {
+  slug: string,
+): Promise<Pick<SavedSearch, 'slug' | 'city' | 'permit'> | null> {
   const row = await withDatabase(async (db) =>
     (
       await db
         .select({
-          publicId: searches.publicId,
           permit: searches.permitQuery,
           cityName: cities.name,
           region: cities.region,
         })
         .from(searches)
         .innerJoin(cities, eq(searches.cityId, cities.id))
-        .where(eq(searches.publicId, publicId))
+        .where(eq(searches.slug, slug))
+        .orderBy(desc(sql`${searches.resultCount} > 0`), desc(searches.createdAt))
         .limit(1)
     ).at(0),
   )
 
   return row
     ? {
-        publicId: row.publicId,
+        slug,
         city: { name: row.cityName, region: row.region },
         permit: row.permit,
       }

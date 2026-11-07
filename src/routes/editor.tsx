@@ -123,7 +123,7 @@ export const Route = createFileRoute('/editor')({
     if (origin?.kind !== 'search') return { searchName: undefined }
 
     const summary = await getSearchSummary({
-      data: { publicId: origin.id },
+      data: { slug: origin.slug },
     }).catch(() => null)
 
     return { searchName: summary ? searchLabel(summary) : undefined }
@@ -262,7 +262,7 @@ function PdfEditor({
     sourceHash,
     content: draftContent,
     signedIn,
-    searchId: origin.kind === 'search' ? origin.id : undefined,
+    searchSlug: origin.kind === 'search' ? origin.slug : undefined,
   })
 
   // Signed out, Autofill and Check ask for sign-in; this opens the one they

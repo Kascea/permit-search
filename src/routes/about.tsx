@@ -42,8 +42,8 @@ function About() {
         </h2>
         <ul className="mt-3 space-y-3 text-base leading-6 text-ink/70">
           <li>
-            Results are saved, so a search link always shows the same results
-            and can be shared with a contractor or neighbor.
+            Every search has its own link, which always shows the newest
+            results and can be shared with a contractor or neighbor.
           </li>
           <li>
             Permit Search points you to official sources but isn’t one.

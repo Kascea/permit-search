@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Children } from 'react'
 import type { ReactNode } from 'react'
 
+import { searchRouteParams } from '#/lib/navigation/origin'
 import type { Origin } from '#/lib/navigation/origin'
 
 export const crumbLinkClass =
@@ -58,8 +59,8 @@ export function OriginCrumb({
   if (origin.kind === 'search') {
     return (
       <Link
-        to="/search/results/$searchId"
-        params={{ searchId: origin.id }}
+        to="/results/$citySlug/$querySlug"
+        params={searchRouteParams(origin.slug)}
         className={crumbLinkClass}
       >
         {label ?? 'Search results'}

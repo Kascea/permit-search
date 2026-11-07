@@ -290,7 +290,7 @@ On the signed-out home page, the column is centered.
 | -------------- | ------------------------------------------------------ | ------------------------------------ | -------------------------------------------------------------------------------------------- |
 | Dashboard      | `/`                                                    | `/`                                  | Signed in: the dashboard. Signed out: the landing page, the search form                      |
 | History        | `/history`                                             | same                                 | The user's past searches. Searching starts from the top bar                                  |
-| Search results | `/search/results`, `/search/results/$searchId`         | `/results`, `/results/$searchId`     | Today's results page, with Save permit on every result                                       |
+| Search results | `/results`, `/results/$citySlug/$querySlug`         | `/results`, `/results/$searchId`     | Today's results page, with Save permit on every result                                       |
 | My permits     | `/permits`                                             | none                                 | The user's library of blank permits, grouped and filtered by city                            |
 | Saved permit   | `/permits/$permitId`                                   | none                                 | The blank PDF, its city and types, its field mapping, and the projects using it              |
 | Projects       | `/projects`, `/projects/$id`                           | same                                 | Project list; a project page with tabs for Overview, Forms, and Details                      |

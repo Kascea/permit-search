@@ -22,11 +22,11 @@ function isPdf(result: PermitSearchResult) {
 export function SearchResultsList({
   response,
   city,
-  searchId,
+  searchSlug,
 }: {
   response: PermitSearchResponse
-  // The saved search's public ID, so the editor can link back to it.
-  searchId: string
+  // The search's slug, so the editor can link back to it.
+  searchSlug: string
   // The searched city, given to projects started from a result.
   city: { name: string; region: string }
 }) {
@@ -36,7 +36,7 @@ export function SearchResultsList({
 
   return (
     <>
-      <OnlineApplications response={response} city={city} searchId={searchId} />
+      <OnlineApplications response={response} city={city} searchSlug={searchSlug} />
 
       {/* In a city with a permit portal, the web results are the second
           part: forms and handouts, and PDFs as the alternative. */}
@@ -86,6 +86,11 @@ export function SearchResultsList({
                     <span className="sr-only">Official government website</span>
                   </span>
                 )}
+                {searchResult.isStateSource && (
+                  <span className="rounded-full bg-blueprint/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-blueprint uppercase">
+                    State of {city.region}
+                  </span>
+                )}
                 {isPdf(searchResult) && (
                   <span className="rounded-full bg-redline/10 px-2 py-0.5 text-[0.65rem] font-medium tracking-[0.08em] text-redline uppercase">
                     PDF
@@ -124,6 +129,12 @@ export function SearchResultsList({
               <p className="mt-2 line-clamp-3 text-base leading-6 text-ink/70">
                 {searchResult.description}
               </p>
+              {searchResult.isStateSource && (
+                <p className="mt-1 text-sm text-ink/60">
+                  This is a state page. Some cities run this permit themselves,
+                  so check with {city.name} before you apply.
+                </p>
+              )}
 
               {isPdf(searchResult) && (
                 <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-2">
@@ -131,7 +142,7 @@ export function SearchResultsList({
                     className={`mr-2 ${rowPrimaryButtonClass}`}
                     search={{
                       url: searchResult.url,
-                      from: originParam({ kind: 'search', id: searchId }),
+                      from: originParam({ kind: 'search', slug: searchSlug }),
                     }}
                     to="/editor"
                   >
@@ -155,14 +166,14 @@ export function SearchResultsList({
                     sourceUrl={searchResult.url}
                     title={searchResult.title}
                     city={city}
-                    searchId={searchId}
+                    searchSlug={searchSlug}
                   />
                   <AddToProjectButton
                     city={city}
                     item={{
                       sourceUrl: searchResult.url,
                       title: searchResult.title,
-                      searchId,
+                      searchSlug,
                     }}
                   />
                   <SavedIn
@@ -179,8 +190,9 @@ export function SearchResultsList({
         </ol>
       ) : (
         <p className="mt-6 border-t border-ink pt-5 text-base leading-6 text-ink/70">
-          No useful sources were found. Try a broader project description or
-          verify the city name.
+          {response.onlineApplications?.length
+            ? 'No other forms or pages turned up for this project. Start with the online permits above.'
+            : 'No forms or pages turned up for this project. Try describing it another way, or contact the city’s permit office.'}
         </p>
       )}
     </>

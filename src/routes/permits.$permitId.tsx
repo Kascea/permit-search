@@ -16,6 +16,7 @@ import { SignInGate } from '#/components/SignInGate'
 import { primaryButtonClass } from '#/components/buttons'
 import { errorMessage } from '#/lib/errors'
 import { formatCity } from '#/lib/location/format'
+import { searchRouteParams } from '#/lib/navigation/origin'
 import {
   getAccountPermit,
   removeAccountPermit,
@@ -220,8 +221,8 @@ function PermitDetails({
           {permit.search && (
             <Fact label="Found in">
               <Link
-                to="/search/results/$searchId"
-                params={{ searchId: permit.search.publicId }}
+                to="/results/$citySlug/$querySlug"
+                params={searchRouteParams(permit.search.slug)}
                 className="text-blueprint underline-offset-2 hover:underline"
               >
                 {permit.search.label}

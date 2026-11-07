@@ -24,6 +24,7 @@ import { originParam } from '#/lib/navigation/origin'
 import type { Project } from '#/lib/projects/types'
 import { formatProjectAddress } from '#/lib/projects/types'
 import { setAccountProjects } from '#/lib/projects/use-account-projects'
+import { searchPageTarget } from '#/lib/search/pending-search'
 import { SITE_URL } from '#/lib/site'
 
 const HOME_TITLE = 'Permit Search | Find local permit requirements'
@@ -103,10 +104,12 @@ function Landing() {
 
       <PermitSearchForm
         onSearch={(city, permit) =>
-          navigate({
-            to: '/search/results',
-            search: { city: city.name, region: city.region ?? '', permit },
-          })
+          navigate(
+            searchPageTarget({
+              city: { name: city.name, region: city.region ?? '' },
+              permit,
+            }),
+          )
         }
       />
 
@@ -435,8 +438,10 @@ function NextStepLink({
     // otherwise opens the search to ask.
     return city ? (
       <Link
-        to="/search/results"
-        search={{ city: city.name, region: city.region, permit }}
+        {...searchPageTarget({
+          city: { name: city.name, region: city.region },
+          permit,
+        })}
         className={stepLinkClass}
       >
         {label}
@@ -531,7 +536,7 @@ function LoneDraftsSection({ drafts }: { drafts: Array<DraftSummary> }) {
         item={{
           sourceUrl: adding?.sourceUrl ?? '',
           title: adding?.title ?? '',
-          searchId: adding?.search?.publicId,
+          searchSlug: adding?.search?.slug,
         }}
         city={null}
         onClose={() => setAdding(undefined)}

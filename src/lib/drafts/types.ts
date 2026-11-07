@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { SearchLink } from '#/lib/navigation/origin'
+import { isSearchSlug } from '#/lib/saved-searches/search-key'
 
 export type EditorTool = 'text' | 'check' | 'date' | 'signature'
 
@@ -35,9 +36,9 @@ export interface Draft {
   sourceUrl: string
   sourceHash: string
   content: DraftContent
-  // The public ID of the saved search the editor was opened from. Stored only
-  // when the draft has no search yet.
-  searchId?: string
+  // The slug of the search the editor was opened from. Stored only when the
+  // draft has no search yet.
+  searchSlug?: string
   // ISO time of the last edit, set by the browser that made it. The newer of
   // two copies wins.
   updatedAt: string
@@ -140,9 +141,9 @@ export const draftSchema = z.object(
     updatedAt: z
       .string({ error: dateError })
       .refine((date) => !Number.isNaN(Date.parse(date)), dateError),
-    searchId: z
+    searchSlug: z
       .string({ error: searchError })
-      .regex(/^[A-Za-z0-9]{8,16}$/, searchError)
+      .refine(isSearchSlug, searchError)
       .optional(),
     content: draftContentSchema,
   },

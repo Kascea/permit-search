@@ -5,6 +5,7 @@ import { cities, pdfDrafts, searches } from '#/lib/db/schema'
 import { draftTitle } from '#/lib/drafts/types'
 import type { Draft, DraftSummary } from '#/lib/drafts/types'
 import { searchLinkFromColumns } from '#/lib/navigation/origin'
+import { searchRunColumn } from '#/lib/saved-searches/search-run.server'
 import { newPublicId } from '#/lib/saved-searches/search-key'
 
 // Each function takes the request's open connection (see withUserDatabase), so
@@ -58,8 +59,8 @@ async function upsertDrafts(
         sourceHash: draft.sourceHash,
         title: draftTitle(draft.sourceUrl),
         content: draft.content,
-        // Null when no search has that ID.
-        searchId: sql`(select ${searches.id} from ${searches} where ${searches.publicId} = ${draft.searchId ?? null})`,
+        // Null when no search has that slug.
+        searchId: searchRunColumn(searches.id, draft.searchSlug),
         createdAt: updatedAt,
         updatedAt,
       })
@@ -100,7 +101,7 @@ export async function listDrafts(
       name: pdfDrafts.name,
       sourceUrl: pdfDrafts.sourceUrl,
       updatedAt: pdfDrafts.updatedAt,
-      searchId: searches.publicId,
+      searchSlug: searches.slug,
       permit: searches.permitQuery,
       cityName: cities.name,
       region: cities.region,

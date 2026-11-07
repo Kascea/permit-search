@@ -46,7 +46,7 @@ interface DraftAutosaveOptions {
   content: DraftContent
   signedIn: boolean
   // The saved search the editor was opened from, if any; see Draft.
-  searchId?: string
+  searchSlug?: string
 }
 
 // Saves the editor's fields shortly after each change, and right away when the
@@ -57,7 +57,7 @@ export function useDraftAutosave({
   sourceHash,
   content,
   signedIn,
-  searchId,
+  searchSlug,
 }: DraftAutosaveOptions) {
   const [status, setStatus] = useState<DraftStatus>('idle')
   const baselineRef = useRef<string | null>(null)
@@ -119,13 +119,13 @@ export function useDraftAutosave({
       updatedAt: new Date().toISOString(),
     }
 
-    if (searchId) draft.searchId = searchId
+    if (searchSlug) draft.searchSlug = searchSlug
 
     pendingRef.current = draft
     const timer = window.setTimeout(() => flush(), SAVE_DELAY_MS)
 
     return () => window.clearTimeout(timer)
-  }, [json, sourceHash, sourceUrl, searchId])
+  }, [json, sourceHash, sourceUrl, searchSlug])
 
   useEffect(() => {
     function saveOnHide() {
