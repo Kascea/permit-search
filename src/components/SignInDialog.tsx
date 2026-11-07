@@ -132,6 +132,11 @@ function SignInForm({
       onClose()
       // Reloads the root loader's sign-in state.
       await router.invalidate()
+
+      // Signing in from the home page opens the app; elsewhere it stays put.
+      if (window.location.pathname === '/') {
+        await router.navigate({ to: '/dashboard' })
+      }
     } catch {
       setError('Something went wrong. Try again.')
     } finally {
@@ -162,7 +167,9 @@ function SignInForm({
           if (resume) rememberResume(resume)
 
           void signInWithGoogle(
-            window.location.pathname + window.location.search,
+            window.location.pathname === '/'
+              ? '/dashboard'
+              : window.location.pathname + window.location.search,
           )
         }}
       >

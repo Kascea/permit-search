@@ -76,8 +76,8 @@ copy. Do not add proprietary reference-site fonts.
 
 ## Repository structure
 
-- `src/routes/index.tsx` — signed-in dashboard, or the home page when signed
-  out
+- `src/routes/index.tsx` — the home page, the same for everyone
+- `src/routes/dashboard.tsx` — the signed-in dashboard
 - `src/routes/history.tsx` — past searches
 - `src/routes/results.$citySlug.$querySlug.tsx` — a search's page, which
   also runs it when opened from a search

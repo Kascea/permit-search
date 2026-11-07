@@ -174,8 +174,8 @@ arrives.
 
 **App frame.** `AppSidebar` sits beside every page from lg up, signed in or not
 (`useHasAppSidebar`), so signing in fills it in rather than moving anything. The
-exceptions are the editor and the signed-out home page, which has its own top
-bar and no sidebar. Visitors see the same rows, with a lock on the ones that
+exceptions are the editor and the pages about the site (home and About), which
+have their own top bar and no sidebar. Visitors see the same rows, with a lock on the ones that
 need an account, and "Sign in" where the account row sits.
 
 **Sign-in gates.** An account-only page shows `<SignInGate>` with one line on
@@ -183,17 +183,26 @@ what the page is for. An account-only action stays visible and is a
 `SignInButton` with a `reason` and a `resume`, so sign-in says why it's asking
 and finishes the action. The server enforces every gate; these only explain it.
 
-**Header.** `SiteHeader`, on every page except the editor and the signed-out
-home page. A sticky 56px bar on
+**Header.** `SiteHeader`, on every page except the editor, the home page and
+About. A sticky 56px bar on
 `bg-paper` with a strong `border-b border-ink`, its contents as wide as the page
 content. On the left, below lg: the logo. On the right, a round search pill
 with a pin and a blue search button shows the current city (or "Search for a
 permit") and opens the search modal, which `SiteHeader` owns. Below lg, the
 account menu holds the page links, for visitors too.
 
-**Home page top bar.** The signed-out home page swaps `SiteHeader` for a bar of
-the same height and rule: the logo on the left, then "Your drafts" and a primary
-"Sign in" button on the right.
+**Site top bar.** The home page and About swap `SiteHeader` for `SiteTopBar`, a
+bar of the same height and rule: the logo on the left, then "About", "Your
+drafts" and a primary button on the right, "Sign in" for visitors and "Dashboard"
+when signed in.
+
+**Site pages.** The home page (`/`) stays simple: the hero and search form, Who
+it's for, How it works, a prompt to create an account, and a short note. About
+has the detail: What's built in, What else you can do, the supported portals and
+Good to know. Apart from "Create an account", nothing appears on
+both. Its hero links to home instead of repeating the search form. Sections live
+in `AboutSections.tsx`, and only the account prompt changes once signed in. The
+signed-in app starts at `/dashboard`.
 
 **Editor tool row.** In the PDF editor, the field tools, zoom and pages sit on
 plain paper in `border-ink/30` groups. Only the field tool icons are

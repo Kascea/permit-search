@@ -153,7 +153,7 @@ export function DraftSidebar({
     >
       <div className="min-h-0 flex-1 overflow-y-auto py-3">
         {canCollapse && <SidebarToggle expandedClassName={topRowClass} />}
-        <Link to="/" className={topRowClass}>
+        <Link to={signedIn ? '/dashboard' : '/'} className={topRowClass}>
           <Glyph path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           {signedIn ? 'Dashboard' : 'Home'}
         </Link>
@@ -309,7 +309,7 @@ function CollapsedFiles({
     >
       <SidebarToggle />
       <Link
-        to="/"
+        to={signedIn ? '/dashboard' : '/'}
         title={backLabel}
         className={`${COLLAPSED_ROW_CLASS} text-ink/70 hover:text-ink`}
       >

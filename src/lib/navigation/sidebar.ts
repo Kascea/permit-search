@@ -43,13 +43,15 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
+// The pages about the site, which have SiteTopBar instead of the app's frame.
+export function isSitePage(pathname: string) {
+  return pathname === '/' || pathname === '/about'
+}
+
 // Whether AppSidebar is beside this page, from lg up. Everyone gets it, so
 // signing in doesn't move anything. The exceptions: the editor has its own file
-// panel, and the signed-out home page has its own top bar, as the site's front
-// door.
+// panel, and the pages about the site have their own top bar.
 export function useHasAppSidebar() {
-  const { user } = rootRoute.useLoaderData()
-
   // The page on screen, not the one being loaded, so the layout changes along
   // with the page rather than just before it.
   const pathname = useRouterState({
@@ -59,7 +61,7 @@ export function useHasAppSidebar() {
 
   if (pathname.startsWith('/editor')) return false
 
-  return Boolean(user) || pathname !== '/'
+  return !isSitePage(pathname)
 }
 
 export function useSidebarCollapsed() {

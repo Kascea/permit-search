@@ -3,6 +3,7 @@ import type { ErrorComponentProps } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
+import { isSitePage } from '#/lib/navigation/sidebar'
 import { errorMessage } from '#/lib/errors'
 
 // Shown when a page fails to load. Server errors arrive already made generic
@@ -51,7 +52,7 @@ function ErrorPage({
   children?: ReactNode
 }) {
   // AppSidebar is beside the page once the root route has loaded, except on
-  // the signed-out home page; from lg up it has the logo, and this is the bare
+  // the pages about the site; from lg up it has the logo, and this is the bare
   // top bar beside it, as in SiteHeader. Read without throwing, for the same
   // reason.
   const besideSidebar = useRouterState({
@@ -59,9 +60,7 @@ function ErrorPage({
       const root = state.matches.at(0)?.loaderData
 
       return Boolean(
-        root &&
-          'user' in root &&
-          (root.user || state.location.pathname !== '/'),
+        root && 'user' in root && !isSitePage(state.location.pathname),
       )
     },
   })

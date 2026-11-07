@@ -7,12 +7,12 @@ type AppPageProps = ComponentProps<typeof SiteHeader> & {
   // Full page width, such as results with their sidebar, instead of one
   // reading column.
   wide?: boolean
-  // In place of SiteHeader, for the signed-out home page's own top bar.
+  // In place of SiteHeader, for SiteTopBar on the pages about the site.
   topBar?: ReactNode
   children: ReactNode
 }
 
-// Centered, on the signed-out home page and below lg.
+// Centered, on the pages about the site and below lg.
 const CENTERED_COLUMN = 'mx-auto max-w-3xl'
 
 // Beside AppSidebar from lg up: the column is centered on the page grid (see

@@ -39,7 +39,7 @@ const RECENT_PROJECT_COUNT = 5
 // them and asks them to sign in.
 const SECTIONS = [
   {
-    to: '/',
+    to: '/dashboard',
     label: 'Dashboard',
     accountOnly: false,
     icon: 'M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z',
@@ -195,12 +195,12 @@ export function AppSidebar() {
                 />
               ) : (
                 <Link
-                  to={section.to}
+                  to={!user && section.to === '/dashboard' ? '/' : section.to}
                   title={
                     isCollapsed ? sectionLabel(section, !user) : undefined
                   }
                   className={isCollapsed ? collapsedRowClass : rowClass}
-                  activeOptions={{ exact: section.to === '/' }}
+                  activeOptions={{ exact: section.to === '/dashboard' }}
                   activeProps={{ className: activeRowClass }}
                   inactiveProps={{ className: inactiveRowClass }}
                 >
@@ -230,7 +230,7 @@ export function AppSidebar() {
 
 // Without an account there's no dashboard; the same row goes to the home page.
 function sectionLabel(section: (typeof SECTIONS)[number], isVisitor: boolean) {
-  return isVisitor && section.to === '/' ? 'Home' : section.label
+  return isVisitor && section.to === '/dashboard' ? 'Home' : section.label
 }
 
 // Marks a row that needs an account, at the row's end.
