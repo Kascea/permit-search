@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Permit Search",
+  "description": "Fill a city's online permit application from your Permit Search project.",
+  "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq2+zFG0mVQphxpiDl4TcBXMLDRI4VXiiJpHjJIHZSxYHl/cFz8jPreFlqDohOIP24MjvnoHWcYlqgY4tYd6kntLpc3hofBeRCSLYdfFGNLr6YQ2ANk6h5YKt7WUSvnhhQsMZYwV7hQ42rPH1mrPwtAZaEh5DVIg/tAYMNf8HKdhmX82wNHRFaKfiEp7Wc/nsX4ZoENOKKeh1uYUEhtJEWILgKS9zI+Yv30he8vw7+RDyqpKZMya3gyz4Ps6bZyi2LyKu1TpayurjPh/wZRk9jFi6mmzeBK141pCsOTm1NUHa4J7wR87HeLA4ebOtJyDuIfZTi72W2QcEK6q5npqABwIDAQAB",
+  "minimum_chrome_version": "121",
+  "action": { "default_title": "Permit Search" },
+  "side_panel": { "default_path": "panel.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage"],
+  "host_permissions": ["https://permitsearch.app/*", "http://localhost:3000/*"],
+  "optional_host_permissions": ["https://*/*"]
+}

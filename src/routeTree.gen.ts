@@ -24,6 +24,9 @@ import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ApiExtensionFindFieldsRouteImport } from './routes/api.extension.find-fields'
+import { Route as ApiExtensionProjectsRouteImport } from './routes/api.extension.projects'
+import { Route as ApiExtensionSessionRouteImport } from './routes/api.extension.session'
 import { Route as ResultsCitySlugQuerySlugRouteImport } from './routes/results.$citySlug.$querySlug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -101,6 +104,21 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiExtensionFindFieldsRoute = ApiExtensionFindFieldsRouteImport.update({
+  id: '/api/extension/find-fields',
+  path: '/api/extension/find-fields',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExtensionProjectsRoute = ApiExtensionProjectsRouteImport.update({
+  id: '/api/extension/projects',
+  path: '/api/extension/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExtensionSessionRoute = ApiExtensionSessionRouteImport.update({
+  id: '/api/extension/session',
+  path: '/api/extension/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultsCitySlugQuerySlugRoute =
   ResultsCitySlugQuerySlugRouteImport.update({
     id: '/results/$citySlug/$querySlug',
@@ -124,6 +142,9 @@ export interface FileRoutesByFullPath {
   '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/extension/find-fields': typeof ApiExtensionFindFieldsRoute
+  '/api/extension/projects': typeof ApiExtensionProjectsRoute
+  '/api/extension/session': typeof ApiExtensionSessionRoute
   '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRoutesByTo {
@@ -142,6 +163,9 @@ export interface FileRoutesByTo {
   '/permits': typeof PermitsIndexRoute
   '/projects': typeof ProjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/extension/find-fields': typeof ApiExtensionFindFieldsRoute
+  '/api/extension/projects': typeof ApiExtensionProjectsRoute
+  '/api/extension/session': typeof ApiExtensionSessionRoute
   '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRoutesById {
@@ -161,6 +185,9 @@ export interface FileRoutesById {
   '/permits/': typeof PermitsIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/extension/find-fields': typeof ApiExtensionFindFieldsRoute
+  '/api/extension/projects': typeof ApiExtensionProjectsRoute
+  '/api/extension/session': typeof ApiExtensionSessionRoute
   '/results/$citySlug/$querySlug': typeof ResultsCitySlugQuerySlugRoute
 }
 export interface FileRouteTypes {
@@ -181,6 +208,9 @@ export interface FileRouteTypes {
     | '/permits/'
     | '/projects/'
     | '/api/auth/$'
+    | '/api/extension/find-fields'
+    | '/api/extension/projects'
+    | '/api/extension/session'
     | '/results/$citySlug/$querySlug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -199,6 +229,9 @@ export interface FileRouteTypes {
     | '/permits'
     | '/projects'
     | '/api/auth/$'
+    | '/api/extension/find-fields'
+    | '/api/extension/projects'
+    | '/api/extension/session'
     | '/results/$citySlug/$querySlug'
   id:
     | '__root__'
@@ -217,6 +250,9 @@ export interface FileRouteTypes {
     | '/permits/'
     | '/projects/'
     | '/api/auth/$'
+    | '/api/extension/find-fields'
+    | '/api/extension/projects'
+    | '/api/extension/session'
     | '/results/$citySlug/$querySlug'
   fileRoutesById: FileRoutesById
 }
@@ -236,6 +272,9 @@ export interface RootRouteChildren {
   PermitsIndexRoute: typeof PermitsIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiExtensionFindFieldsRoute: typeof ApiExtensionFindFieldsRoute
+  ApiExtensionProjectsRoute: typeof ApiExtensionProjectsRoute
+  ApiExtensionSessionRoute: typeof ApiExtensionSessionRoute
   ResultsCitySlugQuerySlugRoute: typeof ResultsCitySlugQuerySlugRoute
 }
 
@@ -346,6 +385,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/extension/find-fields': {
+      id: '/api/extension/find-fields'
+      path: '/api/extension/find-fields'
+      fullPath: '/api/extension/find-fields'
+      preLoaderRoute: typeof ApiExtensionFindFieldsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/extension/projects': {
+      id: '/api/extension/projects'
+      path: '/api/extension/projects'
+      fullPath: '/api/extension/projects'
+      preLoaderRoute: typeof ApiExtensionProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/extension/session': {
+      id: '/api/extension/session'
+      path: '/api/extension/session'
+      fullPath: '/api/extension/session'
+      preLoaderRoute: typeof ApiExtensionSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/results/$citySlug/$querySlug': {
       id: '/results/$citySlug/$querySlug'
       path: '/results/$citySlug/$querySlug'
@@ -372,6 +432,9 @@ const rootRouteChildren: RootRouteChildren = {
   PermitsIndexRoute: PermitsIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiExtensionFindFieldsRoute: ApiExtensionFindFieldsRoute,
+  ApiExtensionProjectsRoute: ApiExtensionProjectsRoute,
+  ApiExtensionSessionRoute: ApiExtensionSessionRoute,
   ResultsCitySlugQuerySlugRoute: ResultsCitySlugQuerySlugRoute,
 }
 export const routeTree = rootRouteImport

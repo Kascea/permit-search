@@ -106,17 +106,21 @@ const FIELD_NAMES: Partial<Record<FillKey, Array<string>>> = {
   cityStateZip: ['City state ZIP', 'City state ZIP code'],
 }
 
-// Words that say nothing about what a field holds.
+// Words that say nothing about what a field holds, including the control-type
+// prefixes web forms put on names, as "txt" in "txtOwnerPhone".
 const SMALL_WORDS = new Set([
   'a',
   'an',
   'and',
+  'cbo',
+  'ddl',
   'for',
   'in',
   'of',
   's',
   'the',
   'to',
+  'txt',
 ])
 
 // Short forms, so "bldg_height" and "Building height" read the same.
@@ -155,13 +159,14 @@ function normalized(text: string) {
 }
 
 // The last part of a field's name, without its path: "contractor_phone" from
-// "form.contractor_phone", and "Site_Address" from "Page1[0].Site_Address[0]".
-// Empty for a numbered row such as "form.bedrooms.2".
+// "form.contractor_phone", "Site_Address" from "Page1[0].Site_Address[0]", and
+// "txtOwnerPhone" from the web form name "ctl00$Main$txtOwnerPhone". Empty for
+// a numbered row such as "form.bedrooms.2".
 function nameTail(name: string) {
   const tail =
     name
       .replace(/\[\d+\]/g, '')
-      .split('.')
+      .split(/[.$]/)
       .at(-1) ?? ''
 
   return /^\d+$/.test(tail) ? '' : tail
@@ -282,9 +287,10 @@ export function boxValue(option: FillOption, width: number) {
     : option.value
 }
 
-// A box autofill can fill. label: its printed label, once the form has been
-// read. width: its first box in PDF points.
-interface FillField {
+// A box autofill can fill: a PDF field, or a web form field in the browser
+// extension. label: its printed label, once the form has been read. width:
+// its first box in PDF points.
+export interface FillField {
   id: string
   name: string
   label: string
@@ -297,7 +303,7 @@ interface FillField {
 function fieldWords({ name, label }: FillField) {
   const nameParts = name
     .replace(/\[\d+\]/g, '')
-    .split('.')
+    .split(/[.$]/)
     .filter((part) => !/^\d+$/.test(part))
 
   return new Set(wordsOf(`${nameParts.join(' ')} ${label}`))

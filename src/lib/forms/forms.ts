@@ -6,16 +6,15 @@ import { getSessionUser, withUserDatabase } from '#/lib/auth/auth.server'
 import { draftSchema } from '#/lib/drafts/types'
 import { UserError, parseUserInput } from '#/lib/errors'
 import { checkDraft } from '#/lib/forms/check.server'
-import { findBoxesOnPage } from '#/lib/forms/find-boxes.server'
+import {
+  findProjectBoxes,
+  pdfBoxDescription,
+  projectForBoxes,
+} from '#/lib/forms/find-boxes.server'
 import { loadFormSchema } from '#/lib/forms/ingest.server'
-import { fillOptions } from '#/lib/projects/autofill'
 import { listProjects } from '#/lib/projects/projects.server'
 import { projectSourceUrlSchema, publicIdSchema } from '#/lib/projects/types'
 import { limitRequest } from '#/lib/rate-limit.server'
-import { createTypeSafeClient } from '#/lib/search/typesafe.server'
-
-// A page image and several questions can take a while.
-const FIND_BOXES_TIMEOUT_MS = 60_000
 
 // Base64 of an image well over the size of a rendered page.
 const MAX_PAGE_IMAGE_LENGTH = 12_000_000
@@ -65,20 +64,11 @@ export const findPageBoxes = createServerFn({ method: 'POST' })
     ),
   )
   .handler(async ({ data }) => {
-    const headers = new Headers(getRequestHeaders())
-    await limitRequest('form-boxes', headers)
-
-    const { projectId, pageIndex } = data
-
     // First, so a signed-out call never pays to read the form.
-    const project = await withUserDatabase(
-      headers,
-      async (userId, db) =>
-        (await listProjects(db, userId, projectId)).at(0) ?? null,
-      () => null,
+    const project = await projectForBoxes(
+      new Headers(getRequestHeaders()),
+      data.projectId,
     )
-
-    if (!project) throw new UserError('That project couldn’t be found.')
 
     const schema = await loadFormSchema(data.sourceUrl, data.sourceHash)
 
@@ -90,27 +80,27 @@ export const findPageBoxes = createServerFn({ method: 'POST' })
       throw new UserError('That page image couldn’t be read.')
     }
 
-    const wantedOptions = new Set(data.optionIds)
     const wantedFields = new Set(data.fieldNames)
 
     return {
-      matches: await findBoxesOnPage(
-        createTypeSafeClient(FIND_BOXES_TIMEOUT_MS),
-        {
-          title: schema.title,
-          page,
-          options: fillOptions(project).filter(({ id }) =>
-            wantedOptions.has(id),
-          ),
-          boxes: schema.fields.filter(
-            (field) =>
-              wantedFields.has(field.name) &&
-              field.kind === 'text' &&
-              !field.officeUse &&
-              field.rect.pageIndex === pageIndex,
-          ),
-        },
-      ),
+      matches: await findProjectBoxes(project, {
+        title: schema.title,
+        page,
+        optionIds: data.optionIds,
+        boxes: schema.fields.flatMap((field) =>
+          wantedFields.has(field.name) &&
+          field.kind === 'text' &&
+          !field.officeUse &&
+          field.rect.pageIndex === data.pageIndex
+            ? [
+                {
+                  name: field.name,
+                  description: pdfBoxDescription(field.name, field.line),
+                },
+              ]
+            : [],
+        ),
+      }),
     }
   })
 
