@@ -48,6 +48,25 @@ Make softer shades with opacity instead of new colors:
 The PDF editor's desk (`bg-desk`) is the same grid a shade darker, like a
 drafting table, so its white PDF pages read as real sheets laid on it.
 
+## Dark mode
+
+The same sheet at night. `styles.css` gives each token a dark value (charcoal
+`paper` `#1d1c1a`, cream `ink` `#e9e7da`, and lighter accents that keep their
+contrast). Because everything is drawn with tokens, pages need no changes:
+keep using `text-ink/70`, `bg-paper`, and the rest, and never raw colors,
+which won't flip.
+
+- The theme follows the system's setting until the reader picks Light or
+  Dark with `ThemeToggle`, in the account menu and the sidebar's foot. The
+  choice is a cookie (`src/lib/theme.ts`), so the server renders it as
+  `data-theme` on `<html>` with no flash.
+- `text-paper` on a solid accent (`bg-blueprint text-paper`) becomes dark
+  text on a lighter accent, which still reads; leave it as is.
+- Use the `dark:` variant only for what tokens can't express. Scrims
+  (`bg-ink/40`) would turn light, so they add `dark:bg-black/60`.
+- Something that is really white, such as a PDF page and its fields, gets
+  `data-theme="light"`, which puts the light tokens back inside it.
+
 ## The sheet
 
 - The grid is drawn on `body` in `styles.css` (`--sheet`): ink at 4% opacity,

@@ -42,7 +42,7 @@ export function Modal({
       aria-label={label}
       // overflow-visible lets dropdowns, such as city suggestions, extend past
       // the panel.
-      className={`search-modal m-auto w-[calc(100%-2rem)] ${widthClass} overflow-visible bg-transparent p-0 backdrop:bg-ink/40 backdrop:backdrop-blur-[2px]`}
+      className={`search-modal m-auto w-[calc(100%-2rem)] ${widthClass} overflow-visible bg-transparent p-0 backdrop:bg-ink/40 dark:backdrop:bg-black/60 backdrop:backdrop-blur-[2px]`}
       onClose={onClose}
       // A click on the backdrop lands on the dialog element itself.
       onClick={(event) => {
@@ -58,7 +58,7 @@ export function Modal({
 
 // The panel style shared by every modal.
 export const modalPanelClass =
-  'border border-ink p-5 shadow-[0_24px_64px_-24px_rgb(48_45_45/0.5)] sm:p-6'
+  'border border-ink p-5 shadow-[0_24px_64px_-24px_rgb(48_45_45/0.5)] sm:p-6 dark:shadow-[0_24px_64px_-24px_rgb(0_0_0/0.8)]'
 
 export function ModalCloseButton({ onClick }: { onClick: () => void }) {
   return (

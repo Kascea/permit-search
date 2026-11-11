@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { SignInButton } from '#/components/SignInDialog'
+import { ThemeToggle } from '#/components/ThemeToggle'
 import { authClient, settled } from '#/lib/auth/auth-client'
 import { useAuth } from '#/lib/auth/use-auth'
 import { CONTACT_EMAIL } from '#/lib/site'
@@ -105,6 +106,7 @@ export function AccountMenu({
                   <MenuIcon path={CONTACT_ICON} />
                   Contact us
                 </a>
+                <ThemeToggle className="border-t border-ink/20 px-4 py-2" />
               </div>
             )}
           </div>
@@ -222,6 +224,7 @@ export function AccountMenu({
             <MenuIcon path={CONTACT_ICON} />
             Contact us
           </a>
+          <ThemeToggle className="border-t border-ink/20 px-4 py-2" />
           <button
             type="button"
             role="menuitem"

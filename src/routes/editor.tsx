@@ -1085,7 +1085,7 @@ function PdfEditor({
         <div className="fixed inset-0 z-[60] lg:hidden">
           <button
             aria-label="Close sidebar"
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/40 dark:bg-black/60"
             onClick={() => setIsDraftsOpen(false)}
             type="button"
           />
@@ -1491,7 +1491,7 @@ function PdfEditor({
         <>
           <button
             aria-label="Close panel"
-            className="fixed inset-0 z-[60] bg-ink/40 lg:hidden"
+            className="fixed inset-0 z-[60] bg-ink/40 dark:bg-black/60 lg:hidden"
             onClick={() => setPanelTab(undefined)}
             type="button"
           />
@@ -1653,6 +1653,8 @@ function EditorPage({
         Page {pageIndex + 1}
       </p>
       <div
+        // A real white sheet, so it and its fields stay light in dark mode.
+        data-theme="light"
         className="relative overflow-hidden bg-white shadow-[0_8px_30px_rgb(0_0_0/0.18)]"
         onClick={handlePageClick}
         style={

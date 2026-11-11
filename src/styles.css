@@ -10,13 +10,65 @@
   --color-success: #2e7d32;
   /* Solid paper tinted 10% toward success or redline, for notices and toasts
      that sit over other content and so can't be see-through. */
-  --color-success-wash: color-mix(in srgb, #2e7d32 10%, #fdfff1);
-  --color-redline-wash: color-mix(in srgb, #953012 10%, #fdfff1);
+  --color-success-wash: color-mix(
+    in srgb,
+    var(--color-success) 10%,
+    var(--color-paper)
+  );
+  --color-redline-wash: color-mix(
+    in srgb,
+    var(--color-redline) 10%,
+    var(--color-paper)
+  );
 
   /* Loaded from Google Fonts in __root.tsx. */
   --font-sans:
     'Schibsted Grotesk', Arial, Helvetica, ui-sans-serif, system-ui,
     -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Dark mode: the reader's choice (data-theme on <html>, set from a cookie in
+   __root.tsx), or their system's setting when they haven't chosen. Also a
+   `dark:` variant for the few things tokens can't flip, like scrims. */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme='light'], [data-theme='light'] *)) {
+      @slot;
+    }
+  }
+}
+
+:root {
+  color-scheme: light;
+
+  /* The same sheet at night: warm charcoal paper, cream ink, and the accents
+     lifted so they keep their contrast. */
+  @variant dark {
+    color-scheme: dark;
+    --color-paper: #1d1c1a;
+    --color-ink: #e9e7da;
+    --color-blueprint: #6aa6e6;
+    --color-blueprint-deep: #8dbbef;
+    --color-redline: #e2876a;
+    --color-success: #74c27a;
+    --grid-line: color-mix(in srgb, var(--color-ink) 6%, transparent);
+  }
+}
+
+/* Something that stays light in dark mode, such as a PDF page, which is a
+   real white sheet. Mark it with data-theme="light". */
+[data-theme='light'] {
+  color-scheme: light;
+  --color-paper: #fdfff1;
+  --color-ink: #302d2d;
+  --color-blueprint: #1968b4;
+  --color-blueprint-deep: #145390;
+  --color-redline: #953012;
+  --color-success: #2e7d32;
 }
 
 * {
@@ -39,7 +91,7 @@ html {
    whole cells therefore has its rules on grid lines, at any size. */
 :root {
   --grid: 2rem;
-  --grid-line: rgb(48 45 45 / 4%);
+  --grid-line: color-mix(in srgb, var(--color-ink) 4%, transparent);
   --sheet:
     linear-gradient(
         to right,
@@ -70,13 +122,13 @@ html {
     linear-gradient(
         to right,
         transparent calc(var(--grid) - 1px),
-        rgb(48 45 45 / 7%) 0
+        color-mix(in srgb, var(--color-ink) 7%, transparent) 0
       )
       0 0 / var(--grid) var(--grid),
     linear-gradient(
         to bottom,
         transparent calc(var(--grid) - 1px),
-        rgb(48 45 45 / 7%) 0
+        color-mix(in srgb, var(--color-ink) 7%, transparent) 0
       )
       0 0 / var(--grid) var(--grid),
     color-mix(in srgb, var(--color-ink) 6%, var(--color-paper));
@@ -156,18 +208,19 @@ button {
     display: inline-block;
     flex-shrink: 0;
     border-radius: 9999px;
-    border: 2px solid rgb(25 104 180 / 20%);
+    border: 2px solid color-mix(in srgb, var(--color-blueprint) 20%, transparent);
     border-top-color: var(--color-blueprint);
     animation: spin 1s linear infinite;
   }
 
   .field-input::placeholder {
-    color: rgb(48 45 45 / 55%);
+    color: color-mix(in srgb, var(--color-ink) 55%, transparent);
   }
 
   .field-input:focus {
     border-color: var(--color-blueprint);
-    box-shadow: 0 0 0 3px rgb(25 104 180 / 12%);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--color-blueprint) 12%, transparent);
   }
 }
 

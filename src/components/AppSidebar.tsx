@@ -21,6 +21,7 @@ import {
 } from '#/components/AccountMenu'
 import { PermitSearchLogo } from '#/components/PermitSearchLogo'
 import { SignInButton } from '#/components/SignInDialog'
+import { ThemeToggle } from '#/components/ThemeToggle'
 import { useAuth } from '#/lib/auth/use-auth'
 import { useSidebarCollapsed } from '#/lib/navigation/sidebar'
 import { deleteAccountProject } from '#/lib/projects/projects'
@@ -271,6 +272,16 @@ function VisitorFoot({ isCollapsed }: { isCollapsed: boolean }) {
         <SidebarIcon path={CONTACT_ICON} />
         <span className={isCollapsed ? 'sr-only' : undefined}>Contact us</span>
       </a>
+      <div
+        className={`flex h-16 items-center ${
+          isCollapsed ? 'justify-center' : 'px-8'
+        }`}
+      >
+        <ThemeToggle
+          compact={isCollapsed}
+          className={isCollapsed ? undefined : 'w-full'}
+        />
+      </div>
       <div
         className={`flex h-16 items-center ${
           isCollapsed ? 'justify-center' : 'px-8'

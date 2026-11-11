@@ -11,6 +11,7 @@ import { ConfirmHost } from '#/components/ConfirmDialog'
 import { getAuthState } from '#/lib/auth/session'
 import { getIsSidebarCollapsed, useHasAppSidebar } from '#/lib/navigation/sidebar'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
+import { getThemePreference, useTheme } from '#/lib/theme'
 import { Toaster } from '#/components/Toaster'
 
 import appCss from '../styles.css?url'
@@ -33,9 +34,16 @@ export const Route = createRootRoute({
         content:
           'Find city permit requirements for home improvement and construction projects.',
       },
+      // The paper color in each theme, for the browser's own toolbar.
       {
         name: 'theme-color',
-        content: '#115e59',
+        content: '#fdfff1',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        name: 'theme-color',
+        content: '#1d1c1a',
+        media: '(prefers-color-scheme: dark)',
       },
     ],
     links: [
@@ -74,12 +82,13 @@ export const Route = createRootRoute({
   }),
   // Reloaded by router.invalidate() after signing in or out.
   loader: async () => {
-    const [authState, isSidebarCollapsed] = await Promise.all([
+    const [authState, isSidebarCollapsed, theme] = await Promise.all([
       getAuthState(),
       getIsSidebarCollapsed(),
+      getThemePreference(),
     ])
 
-    return { ...authState, isSidebarCollapsed }
+    return { ...authState, isSidebarCollapsed, theme }
   },
   staleTime: Infinity,
   shellComponent: RootDocument,
@@ -101,8 +110,11 @@ function AppLayout() {
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
+  const { theme } = useTheme()
+
   return (
-    <html lang="en">
+    // Without a choice, styles.css follows the system's setting.
+    <html lang="en" data-theme={theme === 'system' ? undefined : theme}>
       <head>
         <HeadContent />
       </head>
