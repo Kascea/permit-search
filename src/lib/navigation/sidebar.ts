@@ -44,8 +44,10 @@ function subscribe(listener: () => void) {
 }
 
 // The pages about the site, which have SiteTopBar instead of the app's frame.
+const SITE_PAGES = new Set(['/', '/about', '/terms', '/privacy'])
+
 export function isSitePage(pathname: string) {
-  return pathname === '/' || pathname === '/about'
+  return SITE_PAGES.has(pathname)
 }
 
 // Whether AppSidebar is beside this page, from lg up. Everyone gets it, so
