@@ -7,6 +7,7 @@ import {
 } from '#/components/AboutSections'
 import { AppPage } from '#/components/AppPage'
 import { PermitSearchForm } from '#/components/PermitSearchForm'
+import { SiteFooter } from '#/components/SiteFooter'
 import { SiteTopBar } from '#/components/SiteTopBar'
 import { useAuth } from '#/lib/auth/use-auth'
 import { searchPageTarget } from '#/lib/search/pending-search'
@@ -40,7 +41,7 @@ function Home() {
   const { user } = useAuth()
 
   return (
-    <AppPage topBar={<SiteTopBar />}>
+    <AppPage topBar={<SiteTopBar />} footer={<SiteFooter />}>
       <div className="mb-10 text-center">
         <p className="mb-4 text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
           For homeowners and contractors

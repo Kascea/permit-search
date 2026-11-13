@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { AppPage } from '#/components/AppPage'
+import { SiteFooter } from '#/components/SiteFooter'
 import { SiteTopBar } from '#/components/SiteTopBar'
 import { CONTACT_EMAIL } from '#/lib/site'
 
@@ -20,7 +21,7 @@ export function LegalPage({
   children: ReactNode
 }) {
   return (
-    <AppPage topBar={<SiteTopBar />}>
+    <AppPage topBar={<SiteTopBar />} footer={<SiteFooter />}>
       <p className="mb-4 text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
         Last updated {LEGAL_UPDATED}
       </p>

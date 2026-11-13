@@ -9,6 +9,8 @@ type AppPageProps = ComponentProps<typeof SiteHeader> & {
   wide?: boolean
   // In place of SiteHeader, for SiteTopBar on the pages about the site.
   topBar?: ReactNode
+  // Below the content column, such as SiteFooter on the pages about the site.
+  footer?: ReactNode
   children: ReactNode
 }
 
@@ -27,6 +29,7 @@ const GRID_WIDE_COLUMN = 'lg:sheet-column-wide'
 export function AppPage({
   wide = false,
   topBar,
+  footer,
   children,
   ...header
 }: AppPageProps) {
@@ -47,6 +50,8 @@ export function AppPage({
       >
         <div className={`py-8 ${columnClass}`}>{children}</div>
       </main>
+
+      {footer}
     </div>
   )
 }

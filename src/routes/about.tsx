@@ -8,6 +8,7 @@ import {
 } from '#/components/AboutSections'
 import { AppPage } from '#/components/AppPage'
 import { primaryButtonClass } from '#/components/buttons'
+import { SiteFooter } from '#/components/SiteFooter'
 import { SiteTopBar } from '#/components/SiteTopBar'
 import { SITE_URL } from '#/lib/site'
 
@@ -29,7 +30,7 @@ export const Route = createFileRoute('/about')({
 
 function About() {
   return (
-    <AppPage topBar={<SiteTopBar />}>
+    <AppPage topBar={<SiteTopBar />} footer={<SiteFooter />}>
       <div className="mb-10 text-center">
         <p className="mb-4 text-xs font-medium tracking-[0.16em] text-blueprint uppercase">
           About Permit Search
