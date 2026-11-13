@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 import { rowPrimaryButtonClass } from '#/components/buttons'
 import { SignInButton } from '#/components/SignInDialog'
 import { useAuth } from '#/lib/auth/use-auth'
@@ -181,6 +183,23 @@ export function GoodToKnow() {
           >
             Email us
           </a>
+          .
+        </li>
+        <li>
+          Read our{' '}
+          <Link
+            className="font-medium text-blueprint underline-offset-2 hover:underline"
+            to="/terms"
+          >
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link
+            className="font-medium text-blueprint underline-offset-2 hover:underline"
+            to="/privacy"
+          >
+            Privacy Policy
+          </Link>
           .
         </li>
       </ul>

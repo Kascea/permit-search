@@ -15,8 +15,10 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DraftsRouteImport } from './routes/drafts'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiPdfRouteImport } from './routes/api.pdf'
 import { Route as PermitsIndexRouteImport } from './routes/permits.index'
 import { Route as PermitsPermitIdRouteImport } from './routes/permits.$permitId'
@@ -59,6 +61,11 @@ const HistoryRoute = HistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -67,6 +74,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPdfRoute = ApiPdfRouteImport.update({
@@ -133,8 +145,10 @@ export interface FileRoutesByFullPath {
   '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
@@ -154,8 +168,10 @@ export interface FileRoutesByTo {
   '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
@@ -176,8 +192,10 @@ export interface FileRoutesById {
   '/drafts': typeof DraftsRoute
   '/editor': typeof EditorRoute
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/pdf': typeof ApiPdfRoute
   '/permits/$permitId': typeof PermitsPermitIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
@@ -199,8 +217,10 @@ export interface FileRouteTypes {
     | '/drafts'
     | '/editor'
     | '/history'
+    | '/privacy'
     | '/settings'
     | '/sitemap.xml'
+    | '/terms'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
@@ -220,8 +240,10 @@ export interface FileRouteTypes {
     | '/drafts'
     | '/editor'
     | '/history'
+    | '/privacy'
     | '/settings'
     | '/sitemap.xml'
+    | '/terms'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
@@ -241,8 +263,10 @@ export interface FileRouteTypes {
     | '/drafts'
     | '/editor'
     | '/history'
+    | '/privacy'
     | '/settings'
     | '/sitemap.xml'
+    | '/terms'
     | '/api/pdf'
     | '/permits/$permitId'
     | '/projects/$projectId'
@@ -263,8 +287,10 @@ export interface RootRouteChildren {
   DraftsRoute: typeof DraftsRoute
   EditorRoute: typeof EditorRoute
   HistoryRoute: typeof HistoryRoute
+  PrivacyRoute: typeof PrivacyRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   ApiPdfRoute: typeof ApiPdfRoute
   PermitsPermitIdRoute: typeof PermitsPermitIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
@@ -322,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -334,6 +367,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/pdf': {
@@ -423,8 +463,10 @@ const rootRouteChildren: RootRouteChildren = {
   DraftsRoute: DraftsRoute,
   EditorRoute: EditorRoute,
   HistoryRoute: HistoryRoute,
+  PrivacyRoute: PrivacyRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   ApiPdfRoute: ApiPdfRoute,
   PermitsPermitIdRoute: PermitsPermitIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,

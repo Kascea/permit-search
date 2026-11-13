@@ -26,6 +26,8 @@ export const Route = createFileRoute('/sitemap.xml')({
         const urls = [
           `<url><loc>${SITE_URL}</loc></url>`,
           `<url><loc>${SITE_URL}about</loc></url>`,
+          `<url><loc>${SITE_URL}terms</loc></url>`,
+          `<url><loc>${SITE_URL}privacy</loc></url>`,
           // Slugs hold only letters, numbers, hyphens and one slash, so they
           // need no XML escaping.
           ...searches.map(

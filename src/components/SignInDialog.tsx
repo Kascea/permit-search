@@ -1,4 +1,4 @@
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -273,6 +273,21 @@ function SignInForm({
         >
           {isSignUp ? 'Sign in' : 'Create an account'}
         </button>
+      </p>
+
+      <p className="mt-4 text-center text-xs text-ink/60">
+        By continuing, you agree to the{' '}
+        <Link to="/terms" className="underline underline-offset-2 hover:text-ink">
+          Terms
+        </Link>{' '}
+        and{' '}
+        <Link
+          to="/privacy"
+          className="underline underline-offset-2 hover:text-ink"
+        >
+          Privacy Policy
+        </Link>
+        .
       </p>
     </form>
   )
