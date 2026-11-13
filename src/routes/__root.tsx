@@ -11,6 +11,7 @@ import { ConfirmHost } from '#/components/ConfirmDialog'
 import { getAuthState } from '#/lib/auth/session'
 import { getIsSidebarCollapsed, useHasAppSidebar } from '#/lib/navigation/sidebar'
 import { LocalDraftSync } from '#/components/LocalDraftSync'
+import { OAuthErrorToast } from '#/components/OAuthErrorToast'
 import { getThemePreference, useTheme } from '#/lib/theme'
 import { Toaster } from '#/components/Toaster'
 
@@ -122,6 +123,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         {children}
         <LocalDraftSync />
         <Toaster />
+        <OAuthErrorToast />
         <ConfirmHost />
         <Scripts />
       </body>

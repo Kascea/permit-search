@@ -21,10 +21,16 @@ interface RequestFailure {
   error: { code: string | undefined }
 }
 
-// Sends the browser to Google, then back to `returnTo` on this site.
+// Sends the browser to Google, then back to `returnTo` on this site. On
+// failure it comes back to the page it started from with ?error=<code>, which
+// OAuthErrorToast reads, instead of Better Auth's own error page.
 export async function signInWithGoogle(returnTo: string) {
   const { error } = await settled(
-    authClient.signIn.social({ provider: 'google', callbackURL: returnTo }),
+    authClient.signIn.social({
+      provider: 'google',
+      callbackURL: returnTo,
+      errorCallbackURL: window.location.pathname + window.location.search,
+    }),
   )
 
   if (error) toast.error('Google sign-in couldn’t start. Try again.')
